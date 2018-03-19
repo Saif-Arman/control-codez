@@ -4659,6 +4659,8 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt,wa,ca;
 	int track_x, track_y;
 	float temp_pos[6];
+	float dist_cam;
+	bool cam_c = false;
 	for (int i = 0; i < 6; i++)
 	{
 		temp_pos[i] = Position[i];
@@ -4686,6 +4688,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 		temp_pos[axis] += offset;
 	}
 
+
 	EE2W_m2 = EE2w_transform2(temp_pos);
 	EE2c = 0, 0, 1, -1, 0, 0, 0, -1, 0;
 	ROB_pos = temp_pos[0], temp_pos[1], temp_pos[2];
@@ -4711,6 +4714,51 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 
 }
 
+int cam_cls_check(float Position[6], int axis, float offset, int ee)
+{
+	Matrix<3, 1> wa, ca;
+	float temp_pos[6];
+	float dist_cam;
+	bool cam_c = false;
+
+	for (int i = 0; i < 6; i++)
+	{
+		temp_pos[i] = Position[i];
+	}
+	if (ee&&axis<2)
+	{
+		switch (axis)
+		{
+		case(0):
+			ca = 0, 0, offset;
+			break;
+		case(1):
+			ca = -offset, 0, 0;
+			break;
+		default:
+		}
+		wa = C2W_transform2(pos) * ca;
+		for (int j = 0; j < 3; j++)
+		{
+			temp_pos[j] += wa(j + 1, 1);
+		}
+	}
+	else
+	{
+		temp_pos[axis] += offset;
+	}
+
+	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
+
+	if (dist_cam < 38)
+	{
+		//ResetAll();
+		cam_c = true;
+	}
+
+	return cam_c;
+
+}
 
 void suggest_btn2(float deltaPosition[11], int ee)
 {
@@ -4720,6 +4768,9 @@ void suggest_btn2(float deltaPosition[11], int ee)
 
 	float rotationThreshold = 3;
 	float positionThreshold = 10;
+	int coe_e = 2;//global?
+	int axis;
+	float cam_dist;
 	//int thres;
 	//float deltaPosition_o[6] ;// should be global
 	//for (int i = 0; i < 6; i++)
@@ -4734,7 +4785,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 
 	if (update_sug)//global
 	{
-		int axis;
+		
 		if (suggestedButtonSwitch == 'x')
 			axis = 0; 
 		else if (suggestedButtonSwitch == 'Y')
@@ -4756,12 +4807,22 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		{
 			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0)//get first motion length,only once at the beginning
 			{
-				int coe_e = 2;//global?
+				
 				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e,ee) != 0)
 				{
 					coe_e += 1;
 					if (coe_e > 4)
 						break;
+				}
+				if (cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+				{
+					if (axis != 5)
+					{
+						suggestedButtonSwitch = suggested_btn_order[axis + 1];
+					}
+					else
+						suggestedButtonSwitch = suggested_btn_order[0];
+					return;
 				}
 				moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
 				thres = moveL[axis];
@@ -4792,7 +4853,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		update_sug = 0;
 	}
 
-	switch (suggestedButtonSwitch)
+sugg:	switch (suggestedButtonSwitch)
 	{
 	case 'Z':
 

@@ -230,6 +230,7 @@ extern int move_arm;
 extern int suggestedMotion;
 extern int previousSuggestedMotion;
 extern unsigned char		suggestedButtonSwitch;
+extern unsigned char suggested_btn_order[6];
 extern bool init_sug;
 extern char btn_cmd;
 extern int sg_stage;
