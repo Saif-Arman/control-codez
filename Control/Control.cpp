@@ -221,12 +221,24 @@ int main(int argc, char* argv[])
 			//Brandon/Mat 12/15/16
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
 			//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
-			if(spaceButtonsToggle[0]&&spaceMouseEnabled){
-				spaceMouseMode >=2  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.
-				spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
+			if((spaceButtonsToggle[0]|| spaceButtonsToggle[1])&&spaceMouseEnabled){
+				if (spaceButtonsToggle[0])
+				{
+					spaceMouseMode <= 0 ? spaceMouseMode = 4 : spaceMouseMode--;
+					spaceButtonsToggle[0] = false;
+				}
+				if (spaceButtonsToggle[1])
+				{
+					spaceMouseMode >= 4 ? spaceMouseMode = 0 : spaceMouseMode++;
+					spaceButtonsToggle[1] = false;
+				}
+				//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
+				//spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
 			}
 			gotoxy( 1, 20);
-			spaceMouseEnabled?printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop):printf("Space Mouse Disabled                          ");
+			spaceMouseEnabled?
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  spm_btn[0]  %d  spm_btn[1] %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, spaceButtonsToggle[0], spaceButtonsToggle[1])
+				:printf("Space Mouse Disabled                          spm_btn[0]  %d  spm_btn[1] %d  ", spaceButtonsToggle[0], spaceButtonsToggle[1]);
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)
@@ -261,9 +273,9 @@ int main(int argc, char* argv[])
 				// Reverse roll angle.
 				ManualControl('9');
 			}
-			if(spaceMouseEnabled&& !spaceButtonsToggle[1])
+			if(spaceMouseEnabled&& spaceMouseMode!=4)
 				ManualControl('#');
-			else if (spaceButtonsToggle[1])
+			else if (spaceMouseEnabled&& spaceMouseMode == 4)
 			{
 				if (spaceMouse[2] < -500)
 				{

@@ -276,8 +276,8 @@ bool block_flag;
 int spm_operation;
 int spm_gripper;// for active or disable the slip sensor
 float thres;
-int spacemouse_translation_sensitivity=700;
-int spacemouse_rotation_sensitivity=1200;
+int spacemouse_translation_sensitivity=1500;
+int spacemouse_rotation_sensitivity=1500;
 //Space mouse
 HDC          hdc;         /* Handle to Device Context used to draw on screen */
 HWND         hWndMain;    /* Handle to Main Window */
