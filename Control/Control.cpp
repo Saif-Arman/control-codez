@@ -298,17 +298,17 @@ int main(int argc, char* argv[])
 					spm_gripper = 0;
 				}
 			}
-			else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
-			{
-				if (spaceMouse[0] >1500)
-				{
-					ManualControl('S');//one click mode
-				}
-				else
-				{
-
-				}
-			}
+			//else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
+			//{
+			//	if (spaceMouse[0] >1500)
+			//	{
+			//		ManualControl('S');//one click mode
+			//	}
+			//	else
+			//	{
+			//		ManualControl('#');
+			//	}
+			//}
 			else
 				spm_gripper = 0;
 
