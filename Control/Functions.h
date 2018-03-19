@@ -120,9 +120,9 @@ void regrasp(void);
 void init_grasp(void);
 void ReadOBJ(void);
 void suggest_btn(float *ee_deltaPosition);
-void suggest_btn2(float ee_deltaPosition[11]);
+void suggest_btn2(float ee_deltaPosition[11], int ee);
 void movetopos(void);
-int viewcheck(float Position[6], int axis, int offset);
+int viewcheck(float Position[6], int axis, int offset, int ee);
 
 #endif
 

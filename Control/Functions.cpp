@@ -4273,11 +4273,11 @@ void oneclick(void)
 		//suggest_btn2(ee_deltaPosition);
 		if (spaceMouseEnabled&&(spaceMouseMode != 3))
 		{
-			suggest_btn2(deltaPosition);
+			suggest_btn2(deltaPosition, 0);
 		}
 		else
 		{
-			suggest_btn2(ee_deltaPosition);
+			suggest_btn2(ee_deltaPosition, 1);
 		}
 		
 
@@ -4653,17 +4653,39 @@ void oneclick(void)
 }
 
 
-int viewcheck(float Position[6], int axis, float offset)
+int viewcheck(float Position[6], int axis, float offset, int ee)
 {
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
-	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt;
+	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt,wa,ca;
 	int track_x, track_y;
 	float temp_pos[6];
 	for (int i = 0; i < 6; i++)
 	{
 		temp_pos[i] = Position[i];
 	}
-	temp_pos[axis] += offset;
+	if (ee&&axis<2)
+	{
+		switch (axis)
+		{
+		case(0):
+			ca = 0, 0, offset;
+			break;
+		case(1):
+			ca = -offset, 0, 0;
+			break;
+		default:
+		}
+		wa = C2W_transform2(pos) * ca;
+		for (int j = 0; j < 3; j++)
+		{
+			temp_pos[j] += wa(j + 1, 1);
+		}
+	}
+	else
+	{
+		temp_pos[axis] += offset;
+	}
+
 	EE2W_m2 = EE2w_transform2(temp_pos);
 	EE2c = 0, 0, 1, -1, 0, 0, 0, -1, 0;
 	ROB_pos = temp_pos[0], temp_pos[1], temp_pos[2];
@@ -4690,7 +4712,7 @@ int viewcheck(float Position[6], int axis, float offset)
 }
 
 
-void suggest_btn2(float deltaPosition[11])
+void suggest_btn2(float deltaPosition[11], int ee)
 {
 
 	//int suggestedButtonSwitch;
@@ -4713,16 +4735,16 @@ void suggest_btn2(float deltaPosition[11])
 	if (callength)//global
 	{
 		int axis;
-		if (suggestedButtonSwitch == 'Z')
-			axis = 2;
-		else if (suggestedButtonSwitch == 'p')
-			axis = 4;
+		if (suggestedButtonSwitch == 'x')
+			axis = 0; 
 		else if (suggestedButtonSwitch == 'Y')
 			axis = 1;
+		else if (suggestedButtonSwitch == 'Z')
+			axis = 2;
 		else if (suggestedButtonSwitch == 'y')
 			axis = 3;
-		else if (suggestedButtonSwitch == 'x')
-			axis = 0;
+		else if (suggestedButtonSwitch == 'p')
+			axis = 4;
 		else if (suggestedButtonSwitch == 'r')
 			axis = 5;
 		else if (suggestedButtonSwitch == 'X')
@@ -4732,10 +4754,10 @@ void suggest_btn2(float deltaPosition[11])
 
 		if (callength != 0)
 		{
-			if (viewcheck(currentPosition, axis, deltaPosition[axis]) != 0)//get first motion length,only once at the beginning
+			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0)//get first motion length,only once at the beginning
 			{
 				int coe_e = 2;//global?
-				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e) != 0)
+				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e,ee) != 0)
 				{
 					coe_e += 1;
 					if (coe_e > 4)
