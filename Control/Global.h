@@ -53,6 +53,7 @@ extern bool spaceMouseEnabled_old;
 extern bool spaceMouse_stop ;
 extern int spaceMouseMode;
 extern int spaceMouseMode_old; 
+extern int spaceMouseMode_count;
 extern bool spaceButtons[3];
 extern bool spaceButtonsToggle[3];
 extern bool tempButton;

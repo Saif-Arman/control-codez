@@ -16,6 +16,7 @@ bool spaceMouseEnabled = false;
 bool spaceMouseEnabled_old = false;
 bool spaceMouse_stop = false;
 int spaceMouseMode = 0;
+int spaceMouseMode_count = 5;
 int spaceMouseMode_old = 0;
 bool spaceButtons[3] = {false};
 bool spaceButtonsToggle[3] = {false};
