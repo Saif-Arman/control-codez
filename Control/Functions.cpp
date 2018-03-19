@@ -4273,6 +4273,10 @@ void oneclick(void)
 		//suggest_btn2(ee_deltaPosition);
 		if (spaceMouseEnabled&&(spaceMouseMode != 3))
 		{
+			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+			{
+				update_sug = 1;
+			}
 			suggest_btn2(deltaPosition, 0);
 		}
 		else
@@ -4782,6 +4786,11 @@ void suggest_btn2(float deltaPosition[11], int ee)
 	//{
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
+	if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)
+	{
+		update_sug = 1;
+	}
+
 
 	if (update_sug)//global
 	{
@@ -4853,7 +4862,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		update_sug = 0;
 	}
 
-sugg:	switch (suggestedButtonSwitch)
+	switch (suggestedButtonSwitch)
 	{
 	case 'Z':
 
