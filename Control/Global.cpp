@@ -139,7 +139,7 @@ unsigned char suggestedButtonSwitch = 'Z';
 bool init_sug;
 char btn_cmd;
 int sg_stage;
-bool callength;
+bool update_sug;
 float moveL[6];
 float currentPosition[6];
 Matrix<3, 1> p_frame_w;

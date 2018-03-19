@@ -233,7 +233,7 @@ extern unsigned char		suggestedButtonSwitch;
 extern bool init_sug;
 extern char btn_cmd;
 extern int sg_stage;
-extern bool callength;
+extern bool update_sug;
 extern float moveL[6];
 extern float currentPosition[6];
 extern Matrix<3, 1> p_frame_w;

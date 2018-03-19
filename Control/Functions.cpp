@@ -4152,7 +4152,7 @@ void oneclick(void)
 				p_frame_w(1, 1) = requestedPosition[8];
 				p_frame_w(2, 1) = requestedPosition[9];
 				p_frame_w(3, 1) = requestedPosition[10];
-				callength = 1;
+				update_sug = 1;
 				suggestedButtonSwitch = 'Z';
 				btn_flag = true;
 				fine_adjust = '0';
@@ -4732,7 +4732,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
 
-	if (callength)//global
+	if (update_sug)//global
 	{
 		int axis;
 		if (suggestedButtonSwitch == 'x')
@@ -4749,10 +4749,10 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			axis = 5;
 		else if (suggestedButtonSwitch == 'X')
 		{
-			callength = 0;
+			update_sug = 0;
 		}
 
-		if (callength != 0)
+		if (update_sug != 0)
 		{
 			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0)//get first motion length,only once at the beginning
 			{
@@ -4789,7 +4789,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 				}
 			}
 		}
-		callength = 0;
+		update_sug = 0;
 	}
 
 	switch (suggestedButtonSwitch)
@@ -4818,7 +4818,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		{
 			//o_suggestedButtonSwitch = suggestedButtonSwitch;
 			suggestedButtonSwitch = 'p';
-			callength = 1;
+			update_sug = 1;
 		}
 		break;
 	case 'p'://left right
@@ -4839,12 +4839,12 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			if (abs(deltaPosition[2]) < positionThreshold)
 			{
 				suggestedButtonSwitch = 'Y';
-				callength = 1;
+				update_sug = 1;
 			}
 			else
 			{
 				suggestedButtonSwitch = 'Z';
-				callength = 1;
+				update_sug = 1;
 			}
 		}
 		break;
@@ -4872,7 +4872,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		{
 			//o_suggestedButtonSwitch = suggestedButtonSwitch;
 			suggestedButtonSwitch = 'y';
-			callength = 1;
+			update_sug = 1;
 		}
 		break;
 	case 'y'://
@@ -4891,12 +4891,12 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			if (abs(deltaPosition[1]) < positionThreshold)
 			{
 				suggestedButtonSwitch = 'x';
-				callength = 1;
+				update_sug = 1;
 			}
 			else
 			{
 				suggestedButtonSwitch = 'Y';
-				callength = 1;
+				update_sug = 1;
 			}
 		}
 		break;
@@ -4924,7 +4924,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		{
 			//o_suggestedButtonSwitch = suggestedButtonSwitch;
 			suggestedButtonSwitch = 'r';
-			callength = 1;
+			update_sug = 1;
 		}
 		break;
 	case 'r'://
@@ -4943,7 +4943,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			if (abs(deltaPosition[0]) < positionThreshold)
 			{
 				suggestedButtonSwitch = 'X';
-				callength = 1;
+				update_sug = 1;
 			}
 			else if ((abs(deltaPosition[0]) < positionThreshold) &&
 				(fabs(deltaPosition[1]) < positionThreshold) &&
@@ -4958,7 +4958,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			else
 			{
 				suggestedButtonSwitch = 'x';
-				callength = 1;
+				update_sug = 1;
 			}
 		}
 		break;
