@@ -4359,6 +4359,7 @@ void oneclick(void)
 		if (spaceMouseEnabled&&(spaceMouseMode != 3))
 		{
 			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+				//after mode switching , start over the suggestion 
 			{
 				update_sug = 1;
 				suggestedButtonSwitch = 'Z';
@@ -4874,7 +4875,9 @@ void suggest_btn2(float deltaPosition[11], int ee)
 	//{
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
+
 	if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)
+		//after user's operation, start over the suggestion 
 	{
 		update_sug = 1;
 		suggestedButtonSwitch = 'Z';
@@ -4903,7 +4906,10 @@ void suggest_btn2(float deltaPosition[11], int ee)
 
 		if (update_sug != 0)
 		{
-			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0)//get first motion length,only once at the beginning
+			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0||
+				(cam_cls_check(currentPosition, axis, deltaPosition[axis], ee) != 0))
+				//get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
+				// then break the movement in half or more,
 			{
 				
 				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e,ee) != 0)
@@ -4913,6 +4919,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 						break;
 				}
 				if (cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+					// if the planed movement will collide , change to next direction
 				{
 					if (axis != 5)
 					{
@@ -4936,6 +4943,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 				}
 			}
 			else
+			// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
 			{
 				//moveL[axis] = deltaPosition[axis];
 				if (axis < 3)
