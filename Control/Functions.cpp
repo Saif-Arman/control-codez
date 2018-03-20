@@ -4817,6 +4817,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 	{
 		temp_pos[i] = Position[i];
 	}
+	
 	if (ee&&axis<2)
 	{
 		switch (axis)
@@ -4841,6 +4842,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 		temp_pos[axis] += offset;
 	}
 
+	temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
 	if (dist_cam < 38)
@@ -4906,8 +4908,9 @@ void suggest_btn2(float deltaPosition[11], int ee)
 
 		if (update_sug != 0)
 		{
+			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
 			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0||
-				(cam_cls_check(currentPosition, axis, deltaPosition[axis], ee) != 0))
+				(cam_cls_flag != 0))
 				//get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
 				// then break the movement in half or more,
 			{
@@ -4918,7 +4921,8 @@ void suggest_btn2(float deltaPosition[11], int ee)
 					if (coe_e > 4)
 						break;
 				}
-				if (cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+				bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+				if (cam_cls_flag2 != 0)
 					// if the planed movement will collide , change to next direction
 				{
 					if (axis != 5)
