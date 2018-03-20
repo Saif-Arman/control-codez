@@ -228,13 +228,13 @@ int main(int argc, char* argv[])
 				if (spaceButtonsToggle[0])
 				{
 					spaceMouseMode_old = spaceMouseMode;
-					spaceMouseMode <= 0 ? spaceMouseMode = 4 : spaceMouseMode--;
+					spaceMouseMode <= 0 ? spaceMouseMode = spaceMouseMode_count : spaceMouseMode--;
 					spaceButtonsToggle[0] = false;
 				}
 				if (spaceButtonsToggle[1])
 				{
 					spaceMouseMode_old = spaceMouseMode;
-					spaceMouseMode >= 4 ? spaceMouseMode = 0 : spaceMouseMode++;
+					spaceMouseMode >= spaceMouseMode_count ? spaceMouseMode = 0 : spaceMouseMode++;
 					spaceButtonsToggle[1] = false;
 				}
 				//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
@@ -279,8 +279,8 @@ int main(int argc, char* argv[])
 				ManualControl('9');
 			}
 			if(spaceMouseEnabled&& spaceMouseMode!=4)
-				ManualControl('#');
-			else if (spaceMouseEnabled&& spaceMouseMode == 4)
+				ManualControl('#');// arm, wrist, hybrid, hybrid in gripper frame modes
+			else if (spaceMouseEnabled&& spaceMouseMode == 4)  // gripper mode 
 			{
 				if (spaceMouse[2] < -500)
 				{
@@ -298,6 +298,17 @@ int main(int argc, char* argv[])
 					spm_gripper = 0;
 				}
 			}
+			//else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
+			//{
+			//	if (spaceMouse[0] >1500)
+			//	{
+			//		ManualControl('S');//one click mode
+			//	}
+			//	else
+			//	{
+			//		ManualControl('#');
+			//	}
+			//}
 			else
 				spm_gripper = 0;
 

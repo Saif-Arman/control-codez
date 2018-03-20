@@ -1911,7 +1911,85 @@ void ManualControl(char ch)
 					for (int i = 4; i < 7; i++)
 						abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
 				}
+				else if (spaceMouseMode == 5)  // hybird mode in gripper frame
+				{
+					int sp_command[3];
+					int command_max = 0;
+					int command_axis = -1;
 
+					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
+					{
+						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
+						{
+							command_max = sp_command[i - 1];
+							command_axis = i - 1;
+						}
+					}
+
+					switch (command_axis)//-1 : no motion,all speed are 0; 0: along forward/ backward,  1: L\R   ,2: up/down 
+					{
+					case(0)://0 : along forward / backward
+						if (command_max > 0)//one click mode 
+						{
+							for (int i = 0; i < 6; i++)
+								speed[i + 1] = suggspeed[i];
+							//for (int i = 3; i < 6; i++)
+							//	speed[i + 1] = 1 * angular_speed_limit[speed_mode];
+							new_status = true;
+						}
+						else if (command_max < 0)//retreat
+						{
+							ca = 0, 0, -1;
+							wa = C2W_transform(pos) * ca;
+							for (int i = 0; i < 3; i++)
+							{
+								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+							}
+						}
+						break;
+					case(1):// 1: L\R   ,2: up/down 
+						if (command_max > 0)//left
+						{
+							ca = -1, 0, 0;
+							wa = C2W_transform2(pos) * ca;
+							for (int i = 0; i < 3; i++)
+							{
+								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+							}
+						}
+						else if (command_max < 0) // right
+						{
+							ca = 1, 0, 0;
+							wa = C2W_transform2(pos) * ca;
+							for (int i = 0; i < 3; i++)
+							{
+								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+
+							}
+						}
+						break;
+					case(2)://2: up/down 
+						speed[3] = linear_speed_limit[speed_mode] * sign(spaceMouse[2]);
+						break;
+					case(-1):
+						for (int i = 0; i < 7; i++)
+						{
+							speed[i] = 0;
+						}
+						break;
+					default:
+						for (int i = 0; i < 7; i++)
+						{
+							speed[i] = 0;
+						}
+						break;
+					}
+					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+
+					for (int i = 4; i < 7; i++)
+						abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+				}
 				spm_operation = 0;
 				for (int i = 1; i < 7; i++)
 					spm_operation += abs(spaceMouse[i - 1]);
