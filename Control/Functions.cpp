@@ -1987,8 +1987,15 @@ void ManualControl(char ch)
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
 
-					for (int i = 4; i < 7; i++)
-						abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+					if (command_axis == 0 && command_max > 0)
+					{
+
+					}
+					else
+					{
+						for (int i = 4; i < 7; i++)
+							abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+					}
 				}
 				spm_operation = 0;
 				for (int i = 1; i < 7; i++)
@@ -4354,6 +4361,7 @@ void oneclick(void)
 			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
 			{
 				update_sug = 1;
+				suggestedButtonSwitch = 'Z';
 			}
 			suggest_btn2(deltaPosition, 0);
 		}
@@ -4758,6 +4766,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 			ca = -offset, 0, 0;
 			break;
 		default:
+			break;
 		}
 		wa = C2W_transform2(pos) * ca;
 		for (int j = 0; j < 3; j++)
@@ -4818,6 +4827,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 			ca = -offset, 0, 0;
 			break;
 		default:
+			break;
 		}
 		wa = C2W_transform2(pos) * ca;
 		for (int j = 0; j < 3; j++)
@@ -4867,6 +4877,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 	if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)
 	{
 		update_sug = 1;
+		suggestedButtonSwitch = 'Z';
 	}
 
 

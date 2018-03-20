@@ -222,18 +222,19 @@ int main(int argc, char* argv[])
 			spaceMouseEnabled_old = spaceMouseEnabled;
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
 			//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
+			spaceMouseMode_old = spaceMouseMode;
 			if((spaceButtonsToggle[0]|| spaceButtonsToggle[1])&&spaceMouseEnabled)
 			{
 
 				if (spaceButtonsToggle[0])
 				{
-					spaceMouseMode_old = spaceMouseMode;
+					
 					spaceMouseMode <= 0 ? spaceMouseMode = spaceMouseMode_count : spaceMouseMode--;
 					spaceButtonsToggle[0] = false;
 				}
 				if (spaceButtonsToggle[1])
 				{
-					spaceMouseMode_old = spaceMouseMode;
+					//spaceMouseMode_old = spaceMouseMode;
 					spaceMouseMode >= spaceMouseMode_count ? spaceMouseMode = 0 : spaceMouseMode++;
 					spaceButtonsToggle[1] = false;
 				}
