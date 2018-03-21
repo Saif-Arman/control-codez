@@ -4355,6 +4355,11 @@ void oneclick(void)
 
 		old_fine_adjust = fine_adjust;
 
+		if (!move_as_suggested&&  user_oprt[1] == 1 && update_sug != 1)
+		{
+			update_sug = 1;
+			suggestedButtonSwitch = 'Z';
+		}
 		//suggest_btn2(ee_deltaPosition);
 		if (spaceMouseEnabled&&(spaceMouseMode != 3))
 		{
@@ -4371,6 +4376,7 @@ void oneclick(void)
 			suggest_btn2(ee_deltaPosition, 1);
 		}
 		
+
 
 		//gotoxy(1, 27);
 		//cout << "[";
@@ -4806,6 +4812,96 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 
 }
 
+void Operation_check(void)
+{
+	int user_cmd = 10;
+
+	if (!spaceMouseEnabled)
+	{
+		switch (btn_cmd)
+		{
+		case '<':
+			user_cmd = 8;
+			break;
+		case '>':
+			user_cmd = -8;
+			break;
+		case '3':
+			user_cmd = 2;
+			break;
+		case '2':
+			user_cmd = -2;
+			break;
+		case 'e':
+			user_cmd = 3;
+			break;
+		case 'd':
+			user_cmd = -3;
+			break;
+		case 'y':
+			user_cmd = 6;
+			break;
+		case 'h':
+			user_cmd = -6;
+			break;
+		case 'f':
+			user_cmd = 4;
+			break;
+		case 'r':
+			user_cmd = -4;
+			break;
+		case 't':
+			user_cmd = 5;
+			break;
+		case 'g':
+			user_cmd = -5;
+			break;
+		default:
+			user_cmd = 10;// no operation in list
+			break;
+		}
+	}
+	else
+	{
+		if (abs(spaceMouse[0]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[0] > 0 ? user_cmd = 8: user_cmd = -8;
+		}
+		else if (abs(spaceMouse[1]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[1] > 0 ? user_cmd = 2 : user_cmd = -2;
+		}
+		else if (abs(spaceMouse[2]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[2] > 0 ? user_cmd = 3 : user_cmd = -3;
+		}
+		else if (abs(spaceMouse[3]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[3] > 0 ? user_cmd = -4 : user_cmd = 4;
+		}
+		else if (abs(spaceMouse[4]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[4] > 0 ? user_cmd = 5 : user_cmd = -5;
+		}
+		else if (abs(spaceMouse[5]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[5] > 0 ? user_cmd = 6 : user_cmd = -6;
+		}
+		else {
+			user_cmd = 10;
+		}
+	}
+
+	if (user_cmd != 10 && user_cmd != suggestedMotion)
+	{
+		move_as_suggested = false;
+	}
+	else {
+		move_as_suggested = true;// if no operation in list, then turn the flag to true.
+	}
+
+}
+
 int cam_cls_check(float Position[6], int axis, float offset, int ee)
 {
 	Matrix<3, 1> wa, ca;
@@ -4878,12 +4974,12 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
 
-	if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)
-		//after user's operation, start over the suggestion 
-	{
-		update_sug = 1;
-		suggestedButtonSwitch = 'Z';
-	}
+	//if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)// has problem when user moves as suggested, the suggestion will still refresh again
+	//	//after user's operation, start over the suggestion 
+	//{
+	//	update_sug = 1;
+	//	suggestedButtonSwitch = 'Z';
+	//}
 
 
 	if (update_sug)//global
@@ -4909,54 +5005,61 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		if (update_sug != 0)
 		{
 			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0||
-				(cam_cls_flag != 0))
-				//get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
-				// then break the movement in half or more,
+			if (viewcheck(currentPosition, 0, 0, 0)!=0)
 			{
-				
-				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e,ee) != 0)
-				{
-					coe_e += 1;
-					if (coe_e > 4)
-						break;
-				}
-				bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-				if (cam_cls_flag2 != 0)
-					// if the planed movement will collide , change to next direction
-				{
-					if (axis != 5)
-					{
-						suggestedButtonSwitch = suggested_btn_order[axis + 1];
-					}
-					else
-						suggestedButtonSwitch = suggested_btn_order[0];
-					return;
-				}
-				moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
-				thres = moveL[axis];
-				if (axis < 3)
-				{
-					if (abs(thres) < positionThreshold)
-						thres = positionThreshold;
-				}
-				else if (axis > 2)
-				{
-					if (abs(thres) < rotationThreshold)
-						thres = rotationThreshold;
-				}
+
 			}
 			else
-			// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
 			{
-				//moveL[axis] = deltaPosition[axis];
-				if (axis < 3)
+				if (viewcheck(currentPosition, axis, deltaPosition[axis], ee) != 0 ||
+					(cam_cls_flag != 0))
+					//get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
+					// then break the movement in half or more,
 				{
-					thres = positionThreshold;
+
+					while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+					{
+						coe_e += 1;
+						if (coe_e > 4)
+							break;
+					}
+					bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+					if (cam_cls_flag2 != 0)
+						// if the planed movement will collide , change to next direction
+					{
+						if (axis != 5)
+						{
+							suggestedButtonSwitch = suggested_btn_order[axis + 1];
+						}
+						else
+							suggestedButtonSwitch = suggested_btn_order[0];
+						return;
+					}
+					moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
+					thres = moveL[axis];
+					if (axis < 3)
+					{
+						if (abs(thres) < positionThreshold)
+							thres = positionThreshold;
+					}
+					else if (axis > 2)
+					{
+						if (abs(thres) < rotationThreshold)
+							thres = rotationThreshold;
+					}
 				}
-				else if (axis > 2)
+				else
+					// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
 				{
-					thres = rotationThreshold;
+					//moveL[axis] = deltaPosition[axis];
+					if (axis < 3)
+					{
+						thres = positionThreshold;
+					}
+					else if (axis > 2)
+					{
+						thres = rotationThreshold;
+					}
 				}
 			}
 		}

@@ -243,8 +243,8 @@ int main(int argc, char* argv[])
 			}
 			gotoxy( 1, 20);
 			spaceMouseEnabled?
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  spm_btn[0]  %d  spm_btn[1] %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, spaceButtonsToggle[0], spaceButtonsToggle[1])
-				:printf("Space Mouse Disabled                          spm_btn[0]  %d  spm_btn[1] %d  ", spaceButtonsToggle[0], spaceButtonsToggle[1]);
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested)
+				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested);
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)
@@ -691,6 +691,7 @@ int main(int argc, char* argv[])
 		//cout <<"status"<< new_status<< auto_mode_start <<"pressed"<<suggspeed[6]<< endl;
 
 		Readblock_dir();
+		Operation_check();
 		////  Mushtaq
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);
