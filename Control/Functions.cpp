@@ -4316,8 +4316,8 @@ void oneclick(void)
 	else if (oneclick_mode > 3)  // once Found the object, start culculate the assist speed 
 	{
 
-		float deltaPosition[11] = { 0 };
-		float ee_deltaPosition[11] = { 0 };
+		float deltaPosition[13] = { 0 };
+		float ee_deltaPosition[13] = { 0 };
 		//Find delta robot positions
 		for (int i = 0; i < 6; i++) {
 			deltaPosition[i] = requestedPosition[i] - currentPosition[i];// in base frame
@@ -4325,6 +4325,7 @@ void oneclick(void)
 		}
 		deltaPosition[6] = requestedPosition[6] - currentPosition[3];
 		deltaPosition[7] = requestedPosition[7] - currentPosition[4];
+
 		//ee_deltaPosition[6] = requestedPosition[6] - currentPosition[3];
 		//ee_deltaPosition[7] = requestedPosition[7] - currentPosition[4];
 
@@ -4339,6 +4340,9 @@ void oneclick(void)
 
 		ee_deltaPosition[6] = atan(ee_deltaPosition[9] / ee_deltaPosition[8]) / 3.1415 * 180 - currentPosition[3];
 		ee_deltaPosition[7] = atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
+		deltaPosition[11] = ee_deltaPosition[6];
+		deltaPosition[12] = ee_deltaPosition[7] ;
+
 
 		D2obj = sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2) + pow(deltaPosition[10], 2));
 		Matrix<2, 1> e_xy, e_handxy;
@@ -4951,7 +4955,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 
 }
 
-void suggest_btn2(float deltaPosition[11], int ee)
+void suggest_btn2(float deltaPosition[13], int ee)
 {
 
 	//int suggestedButtonSwitch;
@@ -4991,9 +4995,9 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			axis = 1;
 		else if (suggestedButtonSwitch == 'Z')
 			axis = 2;
-		else if (suggestedButtonSwitch == 'y')
+		else if (suggestedButtonSwitch == 'y'|| suggestedButtonSwitch == 'a')
 			axis = 3;
-		else if (suggestedButtonSwitch == 'p')
+		else if (suggestedButtonSwitch == 'p'|| suggestedButtonSwitch == 'b')
 			axis = 4;
 		else if (suggestedButtonSwitch == 'r')
 			axis = 5;
@@ -5005,8 +5009,29 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		if (update_sug != 0)
 		{
 			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-			if (viewcheck(currentPosition, 0, 0, 0)!=0)
+			int view_check = viewcheck(currentPosition, 0*axis, 0*deltaPosition[axis], 0*ee);
+			if (view_check !=0)
 			{
+				if (view_check == 1)
+				{
+					suggestedButtonSwitch = 'a';
+					thres = rotationThreshold;
+				}
+				else if (view_check == 2)
+				{
+					suggestedButtonSwitch = 'a';
+					thres = rotationThreshold;
+				}
+				else if (view_check == 3)
+				{
+					suggestedButtonSwitch = 'b';
+					thres = rotationThreshold;
+				}
+				else if (view_check == 4)
+				{
+					suggestedButtonSwitch = 'b';
+					thres = rotationThreshold;
+				}
 
 			}
 			else
@@ -5247,8 +5272,31 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		{
 			suggestedButtonSwitch = 'Z';
 		}
-
-	default:;
+		break;
+	case 'a':
+		if (fabs(deltaPosition[11]) > rotationThreshold)
+		{
+			suggestedMotion = deltaPosition[6] < 0 ? 4 : -4;
+		}
+		else
+		{
+			suggestedButtonSwitch = '2';
+			update_sug = 1;
+		}
+		break;
+	case 'b':
+		if (fabs(deltaPosition[12]) > rotationThreshold)
+		{
+			suggestedMotion = deltaPosition[7] < 0 ? -5 : 5;
+		}
+		else
+		{
+			suggestedButtonSwitch = 'Z';
+			update_sug = 1;
+		}
+		break;
+	default:
+		break;
 	}
 	//}
 }
