@@ -5035,6 +5035,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		else if (suggestedButtonSwitch == 'X')
 		{
 			update_sug = 0;
+			axis = 6;
 		}
 
 		if (D2obj > 400)
@@ -5123,7 +5124,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 			}
 		}
-		else// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
+		else if (axis<6)// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
 			// so, when the gripper is very close to the object, just suggested the motion directly to the desire posiion. 
 		{
 			if (axis < 3)
