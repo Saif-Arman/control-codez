@@ -4341,7 +4341,7 @@ void oneclick(void)
 		ee_deltaPosition[6] = atan(ee_deltaPosition[9] / ee_deltaPosition[8]) / 3.1415 * 180 - currentPosition[3];
 		ee_deltaPosition[7] = atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
 		deltaPosition[11] = ee_deltaPosition[6];
-		deltaPosition[12] = ee_deltaPosition[7] ;
+		deltaPosition[12] = ee_deltaPosition[7];
 
 
 		D2obj = sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2) + pow(deltaPosition[10], 2));
@@ -4365,7 +4365,7 @@ void oneclick(void)
 			suggestedButtonSwitch = 'Z';
 		}
 		//suggest_btn2(ee_deltaPosition);
-		if (spaceMouseEnabled&&(spaceMouseMode != 3))
+		if (spaceMouseEnabled && (spaceMouseMode != 3))
 		{
 			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
 				//after mode switching , start over the suggestion 
@@ -4379,7 +4379,7 @@ void oneclick(void)
 		{
 			suggest_btn2(ee_deltaPosition, 1);
 		}
-		
+
 
 
 		//gotoxy(1, 27);
@@ -4757,7 +4757,7 @@ void oneclick(void)
 int viewcheck(float Position[6], int axis, float offset, int ee)
 {
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
-	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt,wa,ca;
+	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
 	float temp_pos[6];
 	float dist_cam;
@@ -4766,7 +4766,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 	{
 		temp_pos[i] = Position[i];
 	}
-	if (ee&&axis<2)
+	if (ee&&axis < 2)
 	{
 		switch (axis)
 		{
@@ -4869,7 +4869,7 @@ void Operation_check(void)
 	{
 		if (abs(spaceMouse[0]) > spacemouse_translation_sensitivity)
 		{
-			spaceMouse[0] > 0 ? user_cmd = 8: user_cmd = -8;
+			spaceMouse[0] > 0 ? user_cmd = 8 : user_cmd = -8;
 		}
 		else if (abs(spaceMouse[1]) > spacemouse_translation_sensitivity)
 		{
@@ -4917,8 +4917,8 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 	{
 		temp_pos[i] = Position[i];
 	}
-	
-	if (ee&&axis<2)
+
+	if (ee&&axis < 2)
 	{
 		switch (axis)
 		{
@@ -4988,16 +4988,16 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 	if (update_sug)//global
 	{
-		
+
 		if (suggestedButtonSwitch == 'x')
-			axis = 0; 
+			axis = 0;
 		else if (suggestedButtonSwitch == 'Y')
 			axis = 1;
 		else if (suggestedButtonSwitch == 'Z')
 			axis = 2;
-		else if (suggestedButtonSwitch == 'y'|| suggestedButtonSwitch == 'a')
+		else if (suggestedButtonSwitch == 'y' || suggestedButtonSwitch == 'a')
 			axis = 3;
-		else if (suggestedButtonSwitch == 'p'|| suggestedButtonSwitch == 'b')
+		else if (suggestedButtonSwitch == 'p' || suggestedButtonSwitch == 'b')
 			axis = 4;
 		else if (suggestedButtonSwitch == 'r')
 			axis = 5;
@@ -5006,86 +5006,101 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			update_sug = 0;
 		}
 
-		if (update_sug != 0)
+		if (D2obj > 400)
 		{
-			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-			int view_check = viewcheck(currentPosition, 0*axis, 0*deltaPosition[axis], 0*ee);
-			if (view_check !=0)
+			if (update_sug != 0)
 			{
-				if (view_check == 1)
-				{
-					suggestedButtonSwitch = 'a';
-					thres = rotationThreshold;
-				}
-				else if (view_check == 2)
-				{
-					suggestedButtonSwitch = 'a';
-					thres = rotationThreshold;
-				}
-				else if (view_check == 3)
-				{
-					suggestedButtonSwitch = 'b';
-					thres = rotationThreshold;
-				}
-				else if (view_check == 4)
-				{
-					suggestedButtonSwitch = 'b';
-					thres = rotationThreshold;
-				}
+				bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee);
 
-			}
-			else
-			{
-				if (viewcheck(currentPosition, axis, deltaPosition[axis], ee) != 0 ||
-					(cam_cls_flag != 0))
-					//get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
-					// then break the movement in half or more,
+				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
-
-					while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+					if (view_check == 1)
 					{
-						coe_e += 1;
-						if (coe_e > 4)
-							break;
-					}
-					bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-					if (cam_cls_flag2 != 0)
-						// if the planed movement will collide , change to next direction
-					{
-						if (axis != 5)
-						{
-							suggestedButtonSwitch = suggested_btn_order[axis + 1];
-						}
-						else
-							suggestedButtonSwitch = suggested_btn_order[0];
-						return;
-					}
-					moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
-					thres = moveL[axis];
-					if (axis < 3)
-					{
-						if (abs(thres) < positionThreshold)
-							thres = positionThreshold;
-					}
-					else if (axis > 2)
-					{
-						if (abs(thres) < rotationThreshold)
-							thres = rotationThreshold;
-					}
-				}
-				else
-					// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
-				{
-					//moveL[axis] = deltaPosition[axis];
-					if (axis < 3)
-					{
-						thres = positionThreshold;
-					}
-					else if (axis > 2)
-					{
+						suggestedButtonSwitch = 'a';
 						thres = rotationThreshold;
 					}
+					else if (view_check == 2)
+					{
+						suggestedButtonSwitch = 'a';
+						thres = rotationThreshold;
+					}
+					else if (view_check == 3)
+					{
+						suggestedButtonSwitch = 'b';
+						thres = rotationThreshold;
+					}
+					else if (view_check == 4)
+					{
+						suggestedButtonSwitch = 'b';
+						thres = rotationThreshold;
+					}
+
 				}
+				else
+				{
+					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee) != 0 ||
+						(cam_cls_flag != 0))
+						//when the object in view get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
+						// then break the movement in half or more,
+					{
+
+						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+						{
+							coe_e += 1;
+							if (coe_e > 4)
+								break;
+						}
+						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+						if (cam_cls_flag2 != 0)
+							// if the planed movement will collide , change to next direction
+						{
+							if (axis != 5)
+							{
+								suggestedButtonSwitch = suggested_btn_order[axis + 1];
+							}
+							else
+								suggestedButtonSwitch = suggested_btn_order[0];
+							return;
+						}
+						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
+						thres = moveL[axis];
+						if (axis < 3)
+						{
+							if (abs(thres) < positionThreshold)
+								thres = positionThreshold;
+						}
+						else if (axis > 2)
+						{
+							if (abs(thres) < rotationThreshold)
+								thres = rotationThreshold;
+						}
+					}
+					else
+						// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
+					{
+						//moveL[axis] = deltaPosition[axis];
+						if (axis < 3)
+						{
+							thres = positionThreshold;
+						}
+						else if (axis > 2)
+						{
+							thres = rotationThreshold;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			if (axis < 3)
+			{
+				thres = positionThreshold;
+			}
+			else if (axis > 2)
+			{
+				thres = rotationThreshold;
 			}
 		}
 		update_sug = 0;
