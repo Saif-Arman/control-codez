@@ -4972,21 +4972,27 @@ void block_camcls_move(void)
 	bool cam_flag = 0;
 	for (int i = 0; i < 6; i++)// check for each axis
 	{
-		for (int j = 0; j < 2; j++)// check for each direction
+		for (int j = -1; j < 0; j +=2)// check for each direction
 		{
 			for (int off = 1; off < 4; off++)  //check for each step size to make sure there is no collision in this direction,
 											//since the distance is not linear, 
 			{
-				if (i<3)
-					cam_flag = cam_cls_check(pos, i, -1*j*5*off, 0);//5 for translation motion
+				if (i < 3)
+				{
+					cam_flag = cam_cls_check(pos, i, -1 * j * 5 * off, 0);//5 for translation motion
+				}
 				else
+				{
 					cam_flag = cam_cls_check(pos, i, 1 * j * 2 * off, 0);// 3 for rotation motion
-
+				}
 				if (cam_flag)
-					block_movement[i] = (-1) *j;
+				{
+					block_movement[i] = j;
+				}
 				else
+				{
 					block_movement[i] = 0;
-
+				}
 			}
 		}
 	}
@@ -5029,19 +5035,19 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	if (update_sug)//global
 	{
 
-		if (suggestedButtonSwitch == 'x')
+		if (suggestedButtonSwitch == 'x')//forward direction
 			axis = 0;
-		else if (suggestedButtonSwitch == 'Y')
+		else if (suggestedButtonSwitch == 'Y')// left\right direction
 			axis = 1;
-		else if (suggestedButtonSwitch == 'Z')
+		else if (suggestedButtonSwitch == 'Z')// up/down direction
 			axis = 2;
-		else if (suggestedButtonSwitch == 'y' || suggestedButtonSwitch == 'a')
+		else if (suggestedButtonSwitch == 'y' || suggestedButtonSwitch == 'a')// yaw,  'a' is for the the yaw motion for move obejct in view.
 			axis = 3;
-		else if (suggestedButtonSwitch == 'p' || suggestedButtonSwitch == 'b')
+		else if (suggestedButtonSwitch == 'p' || suggestedButtonSwitch == 'b')// pitch, 'b' is for the pitch motion for move object in view.
 			axis = 4;
-		else if (suggestedButtonSwitch == 'r')
+		else if (suggestedButtonSwitch == 'r')// roll
 			axis = 5;
-		else if (suggestedButtonSwitch == 'X')
+		else if (suggestedButtonSwitch == 'X')// arrived the final desire position
 		{
 			update_sug = 0;
 			axis = 6;
@@ -5049,10 +5055,10 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 		if (D2obj > 400)
 		{
-			if (update_sug != 0)
+			if (update_sug != 0)// if doesn't arrive the final desiren positon
 			{
-				bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false);
+				bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);// check is there a collision when compensate the error in current direction
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false);// first check object in view or not.
 
 				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
@@ -5087,14 +5093,15 @@ void suggest_btn2(float deltaPosition[13], int ee)
 					{
 
 						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee, false) != 0)
+							// break the motion down to 1/2,1/3,1/4 to prevent the lost in view or collision
 						{
 							coe_e += 1;
-							if (coe_e > 4)
+							if (coe_e > 4)// prevent the endless break down, 
 								break;
 						}
-						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee);// check the propose motion will collision or not
 						if (cam_cls_flag2 != 0)
-							// if the planed movement will collide , change to next direction
+							// if the planed movement will collide , change to next direction, order :1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
 						{
 							if (axis != 5)
 							{
@@ -5102,11 +5109,12 @@ void suggest_btn2(float deltaPosition[13], int ee)
 							}
 							else
 								suggestedButtonSwitch = suggested_btn_order[0];
-							return;
+							return;// jump out of the function start the suggestion again
 						}
-						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
+						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);// if there is no collision in planned movement, set the threshould of the suggest movement.
 						thres = moveL[axis];
-						if (axis < 3)
+
+						if (axis < 3)// when the planned threshold is less than the general threshold, set it back to threshold
 						{
 							if (abs(thres) < positionThreshold)
 								thres = positionThreshold;
@@ -5148,7 +5156,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		update_sug = 0;
 	}
 
-	switch (suggestedButtonSwitch)
+	switch (suggestedButtonSwitch)// output the 'suggestedMotion' to GUI 
 	{
 	case 'Z':
 
@@ -5328,6 +5336,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			(abs(deltaPosition[5]) < 4 * rotationThreshold)))
 		{
 			suggestedButtonSwitch = 'Z';
+			// if current position is out of the preset region of the desire position, start the suggested again
 		}
 		break;
 	case 'a':
@@ -5815,6 +5824,8 @@ void movetopos(void)// move to certain position
 		moveto = true;
 	}
 }
+
+
 
 
 
