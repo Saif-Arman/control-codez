@@ -4945,7 +4945,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 	temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
-	if (dist_cam < 38)
+	if (dist_cam < 42)
 	{
 		//ResetAll();
 		cam_c = true;
@@ -4954,6 +4954,37 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 	return cam_c;
 
 }
+
+
+void block_camcls_move(void)
+{
+	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+	int block_movement[6] = { 0 };
+	bool cam_flag = 0;
+	for (int i = 0; i < 6; i++)// check for each axis
+	{
+		for (int j = 0; j < 2; j++)// check for each direction
+		{
+			for (int off = 1; off < 4; off++)  //check for each step size to make sure there is no collision in this direction,
+											//since the distance is not linear, 
+			{
+				if (i<3)
+					cam_flag = cam_cls_check(pos, i, -1*j*5*off, 0);//5 for translation motion
+				else
+					cam_flag = cam_cls_check(pos, i, 1 * j * 2 * off, 0);// 3 for rotation motion
+
+				if (cam_flag)
+					block_movement[i] = (-1) *j;
+				else
+					block_movement[i] = 0;
+
+			}
+		}
+	}
+}
+
+
+
 
 void suggest_btn2(float deltaPosition[13], int ee)
 {
@@ -5092,7 +5123,8 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 			}
 		}
-		else
+		else// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
+			// so, when the gripper is very close to the object, just suggested the motion directly to the desire posiion. 
 		{
 			if (axis < 3)
 			{
