@@ -139,7 +139,7 @@ int move_arm = -1;
 int suggestedMotion;
 int previousSuggestedMotion;
 unsigned char suggestedButtonSwitch = 'Z';
-unsigned char suggested_btn_order[6] = { 'x' ,'Y','Z','y' ,'p' ,'r' };
+unsigned char suggested_btn_order[6] = { 'Z' ,'p','Y','y' ,'x' ,'r' };
 bool init_sug;
 char btn_cmd;
 int sg_stage;

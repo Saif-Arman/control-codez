@@ -122,7 +122,7 @@ void ReadOBJ(void);
 void suggest_btn(float *ee_deltaPosition);
 void suggest_btn2(float ee_deltaPosition[13], int ee);
 void movetopos(void);
-int viewcheck(float Position[6], int axis, int offset, int ee);
+int viewcheck(float Position[6], int axis, int offset, int ee, bool small_bound);
 int cam_cls_check(float Position[6], int axis, float offset, int ee);
 void Operation_check(void);
 #endif

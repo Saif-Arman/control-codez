@@ -4342,7 +4342,8 @@ void oneclick(void)
 		ee_deltaPosition[7] = atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
 		deltaPosition[11] = ee_deltaPosition[6];
 		deltaPosition[12] = ee_deltaPosition[7];
-
+		ee_deltaPosition[11] = ee_deltaPosition[6];
+		ee_deltaPosition[12] = ee_deltaPosition[7];
 
 		D2obj = sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2) + pow(deltaPosition[10], 2));
 		Matrix<2, 1> e_xy, e_handxy;
@@ -4754,8 +4755,14 @@ void oneclick(void)
 }
 
 
-int viewcheck(float Position[6], int axis, float offset, int ee)
+int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound)
 {
+
+	int left_bound = small_bound ? 40 : 60;
+	int right_bound = 640 - left_bound;
+	int up_bound = small_bound ? 40 : 60;
+	int bottom_bound = 480 - up_bound;
+
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
 	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
@@ -4803,16 +4810,18 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 	track_x = int(p_frame(1, 1) * 535 / p_frame(3, 1)) + 323;
 	track_y = int(p_frame(2, 1) * 535 / p_frame(3, 1)) + 237;
 
-	if (track_x >= 40 && track_x <= 600 && track_y >= 40 && track_y <= 440)
-		return 0;
-	else if (track_x <= 40)//out of view from left side
-		return 1;
-	else if (track_x >= 600)//out of view from right side
-		return 2;
-	else if (track_y <= 40)//out of view from top side
-		return 3;
-	else if (track_y >= 440)//out of view from buttom side
-		return 4;
+
+		if (track_x >= left_bound && track_x <= right_bound && track_y >= up_bound && track_y <= bottom_bound)
+			return 0;
+		else if (track_x <= left_bound)//out of view from left side
+			return 1;
+		else if (track_x >= right_bound)//out of view from right side
+			return 2;
+		else if (track_y <= up_bound)//out of view from top side
+			return 3;
+		else if (track_y >= bottom_bound)//out of view from buttom side
+			return 4;
+
 
 }
 
@@ -5043,7 +5052,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			if (update_sug != 0)
 			{
 				bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee);
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false);
 
 				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
@@ -5071,13 +5080,13 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 				else
 				{
-					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee) != 0 ||
+					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee,false) != 0 ||
 						(cam_cls_flag != 0))
 						//when the object in view get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
 						// then break the movement in half or more,
 					{
 
-						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
+						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee, false) != 0)
 						{
 							coe_e += 1;
 							if (coe_e > 4)
@@ -5328,7 +5337,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		}
 		else
 		{
-			suggestedButtonSwitch = '2';
+			suggestedButtonSwitch = 'b';
 			update_sug = 1;
 		}
 		break;
