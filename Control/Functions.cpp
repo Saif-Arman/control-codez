@@ -5010,8 +5010,9 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	float rotationThreshold = 3;
 	float positionThreshold = 10;
 	int coe_e = 2;//global?
-	int axis;
+	int axis = 6;
 	float cam_dist;
+	bool cam_cls_flag = false;
 	//int thres;
 	//float deltaPosition_o[6] ;// should be global
 	//for (int i = 0; i < 6; i++)
@@ -5053,11 +5054,15 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			axis = 6;
 		}
 
-		if (D2obj > 400)
+		if (axis != 6)
+			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);// check is there a collision when compensate the error in current direction
+
+
+		if (D2obj > 275)
 		{
 			if (update_sug != 0)// if doesn't arrive the final desiren positon
 			{
-				bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);// check is there a collision when compensate the error in current direction
+				
 				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false);// first check object in view or not.
 
 				if (view_check != 0)//if the object is not in the view, first move the objec in view
@@ -5124,6 +5129,8 @@ void suggest_btn2(float deltaPosition[13], int ee)
 							if (abs(thres) < rotationThreshold)
 								thres = rotationThreshold;
 						}
+						gotoxy(1, 52);
+						printf("collision: %d    break to: %d    ", cam_cls_flag, coe_e);
 					}
 					else
 						// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
@@ -5155,6 +5162,12 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		}
 		update_sug = 0;
 	}
+
+	gotoxy(1, 50);
+	printf("suggeested: %u    axis: %d      thres  %f      ", suggestedButtonSwitch,axis,thres );
+
+	gotoxy(1, 53);
+	printf("delta position  x: %.3f  y:%.3f   z:  %.3f  yaw: %.3f  pitch: %.3f   roll:   %.3f ", deltaPosition[0], deltaPosition[1], deltaPosition[2], deltaPosition[3], deltaPosition[4], deltaPosition[5]);
 
 	switch (suggestedButtonSwitch)// output the 'suggestedMotion' to GUI 
 	{
@@ -5342,7 +5355,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	case 'a':
 		if (fabs(deltaPosition[11]) > rotationThreshold)
 		{
-			suggestedMotion = deltaPosition[6] < 0 ? 4 : -4;
+			suggestedMotion = deltaPosition[11] < 0 ? 4 : -4;
 		}
 		else
 		{
@@ -5353,7 +5366,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	case 'b':
 		if (fabs(deltaPosition[12]) > rotationThreshold)
 		{
-			suggestedMotion = deltaPosition[7] < 0 ? -5 : 5;
+			suggestedMotion = deltaPosition[12] < 0 ? -5 : 5;
 		}
 		else
 		{
@@ -5364,6 +5377,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	default:
 		break;
 	}
+
 	//}
 }
 
