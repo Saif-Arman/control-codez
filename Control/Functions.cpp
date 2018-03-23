@@ -1546,6 +1546,10 @@ void ManualControl(char ch)
 	case ' ': {
 		grasp_test = 0;
 		grasp_inipos = 0;
+
+		update_sug = 1;// zc for testing button suggestion
+		suggestedButtonSwitch = 'Z';
+
 		ResetAll();
 	}
 			  break;
@@ -4360,11 +4364,11 @@ void oneclick(void)
 
 		old_fine_adjust = fine_adjust;
 
-		if (!move_as_suggested&&  user_oprt[1] == 1 && update_sug != 1)
-		{
-			update_sug = 1;
-			suggestedButtonSwitch = 'Z';
-		}
+		//if (!move_as_suggested&&  user_oprt[1] == 1 && update_sug != 1)
+		//{
+		//	update_sug = 1;
+		//	suggestedButtonSwitch = 'Z';
+		//}
 		//suggest_btn2(ee_deltaPosition);
 		if (spaceMouseEnabled && (spaceMouseMode != 3))
 		{
@@ -5114,6 +5118,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 							}
 							else
 								suggestedButtonSwitch = suggested_btn_order[0];
+
 							return;// jump out of the function start the suggestion again
 						}
 						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);// if there is no collision in planned movement, set the threshould of the suggest movement.
