@@ -1001,6 +1001,27 @@ void UpdateSpaceMouse(const int *spacemouse)
 	spaceMouseValues.Lock();
 	spaceMouseValues->Write((unsigned char*)pos_str, 40 * sizeof(BYTE), 0);
 	spaceMouseValues.Unlock();
+
+
+	register char pos_str3[256];
+
+
+	sprintf_s(pos_str3, "%d%d%d%d%d%d%d%d%d%d%d%d",
+		block_movement[1], block_movement[2], block_movement[3], block_movement[4],
+		block_movement[5], block_movement[6], block_movement[7], block_movement[8], 
+		block_movement[9], block_movement[10], block_movement[11], block_movement[12] );
+
+	block_direction2->SetWritePos(0);
+	block_direction2.Lock();
+	block_direction2->Write((unsigned char*)pos_str3, 20 * sizeof(BYTE), 0);
+	block_direction2.Unlock();
+
+
+
+
+
+
+
 };
 // Display speed information.
 void DisplaySpeed(void)
@@ -3137,6 +3158,12 @@ bool LoadAll(void)
 		return false;
 	}
 
+	if (!block_direction2.OpenMappedMemory("block2"))
+	{
+		cout << "[Error!]: Shared memory block2 is not available!" << endl;
+		return false;
+	}
+
 
 	if (!Obj_in.OpenMappedMemory("OBJ"))
 	{
@@ -4977,30 +5004,36 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_c
 void block_camcls_move(void)
 {
 	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+	int ee;
+
+	(spaceMouseEnabled && (spaceMouseMode != 3&& spaceMouseMode != 5)) ? ee = 0 : ee = 1;
+	//when space mouse is enabled and not in mode3(hybrid in gripper frame) and mode 5(one click mode), the control command is in world frame.
+
 
 	bool cam_flag = 0;
-	for (int i = 0; i < 6; i++)// check for each axis
+	for (int i = 0; i < 6; i++)// check for each axis  1-6
 	{
-		for (int j = -1; j < 0; j +=2)// check for each direction
+		for (int j = 1; j > 0; j -= 2)// check for each direction  1,-1
 		{
 			for (int off = 1; off < 4; off++)  //check for each step size to make sure there is no collision in this direction,
-											//since the distance is not linear, 
+											//since the distance is not linear, 1 2 3 
 			{
-				if (i < 3)
+				if (i < 3)// 0 1 2 : x y z axis
 				{
-					cam_flag = cam_cls_check(pos, i, -1 * j * 5 * off, 0, false);//5 for translation motion
+					cam_flag = cam_cls_check(pos, i,  j * 5 * off, ee, false);//5cm for translation motion
 				}
-				else
+				else // 3 4 5: yaw pitch roll axis
 				{
-					cam_flag = cam_cls_check(pos, i, 1 * j * 2 * off, 0, false);// 3 for rotation motion
+					cam_flag = cam_cls_check(pos, i,  j * 3 * off, ee, false);// 3degree for rotation motion
 				}
+
 				if (cam_flag)
 				{
-					block_movement[i] = j;
+					j == 1 ? block_movement[2 * i + 1] = 1 : block_movement[2 * i + 2] = 1;
 				}
 				else
 				{
-					block_movement[i] = 0;
+					j == 1 ? block_movement[2 * i + 1] = 0 : block_movement[2 * i + 2] = 0;
 				}
 			}
 		}

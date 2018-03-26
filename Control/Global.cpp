@@ -47,6 +47,7 @@ MappedMemory takktile;
 MappedMemory spaceMouseValues;
 MappedMemory sug_speed;
 MappedMemory block_direction;
+MappedMemory block_direction2;
 MappedMemory Obj_in;
 
 // Home position of the arm.
@@ -135,7 +136,7 @@ bool requestframe = false;
 int t_reqframe = 0;
 int t_adj = 0;
 int move_arm = -1;
-int block_movement[6] = { 0 };
+int block_movement[14] = { 0 };
 //btn suggestion
 int suggestedMotion;
 int previousSuggestedMotion;

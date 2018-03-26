@@ -94,6 +94,7 @@ extern CxUtils::MappedMemory	takktile;
 extern CxUtils::MappedMemory    spaceMouseValues;
 extern CxUtils::MappedMemory    sug_speed;
 extern CxUtils::MappedMemory	block_direction;
+extern CxUtils::MappedMemory	block_direction2;
 extern CxUtils::MappedMemory	Obj_in;
 // Home position of the arm.
 extern int pos_index;
@@ -244,7 +245,7 @@ extern Matrix<3, 1> p_frame_w;
 extern float thres;
 extern bool move_as_suggested;
 extern bool oprt_start;
-extern 	int block_movement[6];
+extern 	int block_movement[14];
 // optical gate
 extern int obj_in[2];
 
