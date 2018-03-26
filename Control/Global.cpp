@@ -125,6 +125,7 @@ bool btm_cls = false;
 float cls_pos[6];//collision position for auto grasp
 int btn_pressed;
 int user_oprt[2] = {0};
+bool oprt_start = false;
 bool moveto = false;
 float set_pos[6] = { 0 };
 float orig_pos[6] = { 0 };
@@ -134,7 +135,7 @@ bool requestframe = false;
 int t_reqframe = 0;
 int t_adj = 0;
 int move_arm = -1;
-
+int block_movement[6] = { 0 };
 //btn suggestion
 int suggestedMotion;
 int previousSuggestedMotion;

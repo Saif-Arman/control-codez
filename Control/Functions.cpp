@@ -1547,8 +1547,10 @@ void ManualControl(char ch)
 		grasp_test = 0;
 		grasp_inipos = 0;
 
-		update_sug = 1;// zc for testing button suggestion
-		suggestedButtonSwitch = 'Z';
+		//update_sug = 1;// zc for testing button suggestion
+		//suggestedButtonSwitch = 'Z';
+		block_camcls_move();// for test 
+
 
 		ResetAll();
 	}
@@ -4759,7 +4761,7 @@ void oneclick(void)
 }
 
 
-int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound)
+int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound, float offset0[6])
 {
 
 	int left_bound = small_bound ? 40 : 60;
@@ -4814,17 +4816,18 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	track_x = int(p_frame(1, 1) * 535 / p_frame(3, 1)) + 323;
 	track_y = int(p_frame(2, 1) * 535 / p_frame(3, 1)) + 237;
 
-
-		if (track_x >= left_bound && track_x <= right_bound && track_y >= up_bound && track_y <= bottom_bound)
-			return 0;
-		else if (track_x <= left_bound)//out of view from left side
-			return 1;
-		else if (track_x >= right_bound)//out of view from right side
-			return 2;
-		else if (track_y <= up_bound)//out of view from top side
-			return 3;
-		else if (track_y >= bottom_bound)//out of view from buttom side
-			return 4;
+	if (offset0[0] > 10 && offset0[1] < 10 && offset0[2] < 10 && offset0[3] < 3 && offset0[4] < 3)
+		return 0;
+	else if (track_x >= left_bound && track_x <= right_bound && track_y >= up_bound && track_y <= bottom_bound)
+		return 0;
+	else if (track_x <= left_bound)//out of view from left side
+		return 1;
+	else if (track_x >= right_bound)//out of view from right side
+		return 2;
+	else if (track_y <= up_bound)//out of view from top side
+		return 3;
+	else if (track_y >= bottom_bound)//out of view from buttom side
+		return 4;
 
 
 }
@@ -4972,7 +4975,7 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 void block_camcls_move(void)
 {
 	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
-	int block_movement[6] = { 0 };
+
 	bool cam_flag = 0;
 	for (int i = 0; i < 6; i++)// check for each axis
 	{
@@ -5029,13 +5032,35 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
 
-	//if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)// has problem when user moves as suggested, the suggestion will still refresh again
-	//	//after user's operation, start over the suggestion 
-	//{
-	//	update_sug = 1;
-	//	suggestedButtonSwitch = 'Z';
-	//}
 
+
+	if (user_oprt[0] == 0 && user_oprt[1] == 1 )// monitor the user operation has started for the suggestion update
+	{
+		oprt_start = true;
+	}
+	else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+	{
+		oprt_start = false;
+	}
+
+
+	if (!move_as_suggested&&oprt_start&& update_sug != 1)
+	{
+		update_sug = 1;
+		suggestedButtonSwitch = 'Z';
+		oprt_start = false;
+		gotoxy(1, 56);
+		printf("sugg: updated   %d",TimeCheck());
+	}
+	else
+	{
+		gotoxy(1, 57);
+		printf("sugg:          %d",TimeCheck());
+	}
+
+
+	gotoxy(1, 55);
+	printf("oprt_start: %d     move_as_suggested:   ", oprt_start, move_as_suggested);
 
 	if (update_sug)//global
 	{
@@ -5067,7 +5092,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			if (update_sug != 0)// if doesn't arrive the final desiren positon
 			{
 				
-				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false);// first check object in view or not.
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false, deltaPosition);// first check object in view or not.
 
 				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
@@ -5095,13 +5120,13 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 				else
 				{
-					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee,false) != 0 ||
+					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee,false, deltaPosition) != 0 ||
 						(cam_cls_flag != 0))
 						//when the object in view get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
 						// then break the movement in half or more,
 					{
 
-						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee, false) != 0)
+						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee, false, deltaPosition) != 0)
 							// break the motion down to 1/2,1/3,1/4 to prevent the lost in view or collision
 						{
 							coe_e += 1;

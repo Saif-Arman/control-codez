@@ -243,6 +243,8 @@ extern float currentPosition[6];
 extern Matrix<3, 1> p_frame_w;
 extern float thres;
 extern bool move_as_suggested;
+extern bool oprt_start;
+extern 	int block_movement[6];
 // optical gate
 extern int obj_in[2];
 
