@@ -1570,7 +1570,7 @@ void ManualControl(char ch)
 
 		//update_sug = 1;// zc for testing button suggestion
 		//suggestedButtonSwitch = 'Z';
-		block_camcls_move();// for test 
+		//block_camcls_move();// for test 
 
 
 		ResetAll();
@@ -2372,16 +2372,25 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 
 
 
-	if (block_flag)
+	if (cam_cls)
 	{
 		for (int j = 0; j < 6; j++)
 		{
+			/*//for old block_dir
 			if (block_dir[j] == 2)
 				speed[j + 1] = 0;
 			else if (block_dir[j] == -1 && speed[j + 1] < 0)
 				speed[j + 1] = 0;
 			else if (block_dir[j] == 1 && speed[j + 1] > 0)
 				speed[j + 1] = 0;
+			// for old block_dir end*/
+
+			if (block_movement[2*j+1] == 1 && speed[j + 1] > 0)
+				speed[j + 1] = 0;
+			if (block_movement[2 * j + 2] == 1 && speed[j + 1] < 0)
+				speed[j + 1] = 0;
+	
+
 		}
 	}
 
@@ -4949,7 +4958,7 @@ void Operation_check(void)
 
 }
 
-int cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction)
+bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction)
 {
 	Matrix<3, 1> wa, ca;
 	float temp_pos[6];
@@ -4990,13 +4999,70 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_c
 
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
-	if (dist_cam < 42)
+
+	int thre;
+	roll_correction ? thre = 42 : thre = 38;
+	if (dist_cam < thre)
 	{
 		//ResetAll();
 		cam_c = true;
 	}
 
 	return cam_c;
+
+}
+
+float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool roll_correction)
+{
+	Matrix<3, 1> wa, ca;
+	float temp_pos[6];
+	float dist_cam;
+	bool cam_c = false;
+
+	for (int i = 0; i < 6; i++)
+	{
+		temp_pos[i] = Position[i];
+	}
+
+	if (ee&&axis < 2)
+	{
+		switch (axis)
+		{
+		case(0):
+			ca = 0, 0, offset;
+			break;
+		case(1):
+			ca = -offset, 0, 0;
+			break;
+		default:
+			break;
+		}
+		wa = C2W_transform2(pos) * ca;
+		for (int j = 0; j < 3; j++)
+		{
+			temp_pos[j] += wa(j + 1, 1);
+		}
+	}
+	else
+	{
+		temp_pos[axis] += offset;
+	}
+
+	if (roll_correction)
+		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+
+	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
+
+
+	//int thre;
+	//roll_correction ? thre = 42 : thre = 38;
+	//if (dist_cam < thre)
+	//{
+	//	//ResetAll();
+	//	cam_c = true;
+	//}
+
+	return dist_cam;
 
 }
 
@@ -5009,23 +5075,28 @@ void block_camcls_move(void)
 	(spaceMouseEnabled && (spaceMouseMode != 3&& spaceMouseMode != 5)) ? ee = 0 : ee = 1;
 	//when space mouse is enabled and not in mode3(hybrid in gripper frame) and mode 5(one click mode), the control command is in world frame.
 
+	float dist_cam0,dist_cam1;
+
+	dist_cam0 = cam_cls_check2(pos, 0, float(0), ee, false);
 
 	bool cam_flag = 0;
 	for (int i = 0; i < 6; i++)// check for each axis  1-6
 	{
-		for (int j = 1; j > 0; j -= 2)// check for each direction  1,-1
+		for (int j = 1; j > -2; j -= 2)// check for each direction  1,-1
 		{
-			for (int off = 1; off < 4; off++)  //check for each step size to make sure there is no collision in this direction,
+			for (int off = 1; off < 7; off++)  //check for each step size to make sure there is no collision in this direction,
 											//since the distance is not linear, 1 2 3 
 			{
 				if (i < 3)// 0 1 2 : x y z axis
 				{
-					cam_flag = cam_cls_check(pos, i,  j * 5 * off, ee, false);//5cm for translation motion
+					dist_cam1 = cam_cls_check2(pos, i,  float(j * 6 * off), ee, false);//5cm for translation motion
 				}
 				else // 3 4 5: yaw pitch roll axis
 				{
-					cam_flag = cam_cls_check(pos, i,  j * 3 * off, ee, false);// 3degree for rotation motion
+					dist_cam1 = cam_cls_check2(pos, i, float( j * 3 * off), ee, false);// 3degree for rotation motion
 				}
+
+				cam_flag = (dist_cam1 < dist_cam0);
 
 				if (cam_flag)
 				{
@@ -5035,6 +5106,9 @@ void block_camcls_move(void)
 				{
 					j == 1 ? block_movement[2 * i + 1] = 0 : block_movement[2 * i + 2] = 0;
 				}
+
+				/*gotoxy(1, 64);
+				printf("axis:  %d ,   direction:  %d , offset:    %.3f ,  collision:   %d ",i, j, float(j * 3 * off), cam_flag);*/
 			}
 		}
 	}

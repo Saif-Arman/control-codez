@@ -123,7 +123,8 @@ void suggest_btn(float *ee_deltaPosition);
 void suggest_btn2(float ee_deltaPosition[13], int ee);
 void movetopos(void);
 int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound, float offset0[6]);
-int cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction);
+bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction);
+float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool roll_correction);
 void Operation_check(void);
 void block_camcls_move(void);
 #endif
