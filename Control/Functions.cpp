@@ -4922,7 +4922,7 @@ void Operation_check(void)
 
 }
 
-int cam_cls_check(float Position[6], int axis, float offset, int ee)
+int cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction)
 {
 	Matrix<3, 1> wa, ca;
 	float temp_pos[6];
@@ -4958,7 +4958,9 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 		temp_pos[axis] += offset;
 	}
 
-	temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+	if (roll_correction)
+		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
 	if (dist_cam < 42)
@@ -4986,11 +4988,11 @@ void block_camcls_move(void)
 			{
 				if (i < 3)
 				{
-					cam_flag = cam_cls_check(pos, i, -1 * j * 5 * off, 0);//5 for translation motion
+					cam_flag = cam_cls_check(pos, i, -1 * j * 5 * off, 0, false);//5 for translation motion
 				}
 				else
 				{
-					cam_flag = cam_cls_check(pos, i, 1 * j * 2 * off, 0);// 3 for rotation motion
+					cam_flag = cam_cls_check(pos, i, 1 * j * 2 * off, 0, false);// 3 for rotation motion
 				}
 				if (cam_flag)
 				{
@@ -5084,7 +5086,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		}
 
 		if (axis != 6)
-			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);// check is there a collision when compensate the error in current direction
+			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
 
 
 		if (D2obj > 275)
@@ -5133,7 +5135,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 							if (coe_e > 4)// prevent the endless break down, 
 								break;
 						}
-						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee);// check the propose motion will collision or not
+						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee, true);// check the propose motion will collision or not
 						if (cam_cls_flag2 != 0)
 							// if the planed movement will collide , change to next direction, order :1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
 						{
