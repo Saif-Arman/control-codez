@@ -5480,7 +5480,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		break;
 	case 'X'://
 		suggestedMotion = 9; //2,3
-		if (!((abs(deltaPosition[0]) < 4 * positionThreshold) &&
+		if (!(((deltaPosition[0]) < 4 * positionThreshold) &&
 			(fabs(deltaPosition[1]) < 4 * positionThreshold) &&
 			(fabs(deltaPosition[2]) < 4 * positionThreshold) &&
 			(abs(deltaPosition[3]) < 4 * rotationThreshold) &&
