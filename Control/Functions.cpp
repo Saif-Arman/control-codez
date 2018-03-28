@@ -987,24 +987,25 @@ void UpdateSpaceMouse(const int *spacemouse)
 	register char pos_str[256];
 	register char pos_str2[256];
 
-	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%4d%d%d%d%d%d%d",
+	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%5d%2d%2d%2d%2d%2d%2d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],//0:3 spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1], regrasping? }
 		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), //speed [x y z yaw pitch roll] 
 		int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation),
 		// speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode;move suggestion ;sum for the space mouse input
-		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), );
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]) );
 		//  each axis of the spacemouse is in operating or not.
 
 
 	//cout << pos_str << endl;
-	sprintf_s(pos_str2, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d",
+	sprintf_s(pos_str2, "%d%d%d%d%2d%2d%2d%2d%2d%2d%d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
-		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), int(init_stop));
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), int(init_stop));
+
 	gotoxy(50, 30);
 	cout << pos_str2 << endl;
 	spaceMouseValues->SetWritePos(0);
 	spaceMouseValues.Lock();
-	spaceMouseValues->Write((unsigned char*)pos_str, 40 * sizeof(BYTE), 0);
+	spaceMouseValues->Write((unsigned char*)pos_str, 60 * sizeof(BYTE), 0);
 	spaceMouseValues.Unlock();
 
 
@@ -4479,6 +4480,7 @@ void oneclick(void)
 			if (deltaPosition[0] > 70)
 			{
 				fine_adjust = '0';//if deltaposion larger than the threshold,  active the reaching phase
+				oneclick_mode = 5;
 			}
 		}
 
