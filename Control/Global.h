@@ -65,6 +65,7 @@ extern bool ready_lift;
 extern int spm_gripper;// for active or disable the slip sensor
 extern int spacemouse_translation_sensitivity;
 extern int spacemouse_rotation_sensitivity;
+extern int spacemouse_operation[6];
 
 // Interlock object.
 typedef struct 

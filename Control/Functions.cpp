@@ -987,9 +987,14 @@ void UpdateSpaceMouse(const int *spacemouse)
 	register char pos_str[256];
 	register char pos_str2[256];
 
-	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%4d",
-		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
-		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation));
+	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%4d%d%d%d%d%d%d",
+		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],//0:3 spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1], regrasping? }
+		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), //speed [x y z yaw pitch roll] 
+		int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation),
+		// speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode;move suggestion ;sum for the space mouse input
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), );
+		//  each axis of the spacemouse is in operating or not.
+
 
 	//cout << pos_str << endl;
 	sprintf_s(pos_str2, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d",
@@ -1840,23 +1845,41 @@ void ManualControl(char ch)
 				if (spaceMouseMode == 0) {// arm mode
 					//1,2,3 xyz
 					for (int i = 1; i < 4; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i-1]= 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] =  0;
+					}
+
 					for (int i = 4; i < 7; i++)
+					{
 						speed[i] = 0;
+						spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 1) {  // wrist mode
 					//4,5,6 ypr
 					for (int i = 4; i < 7; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 					for (int i = 1; i < 4; i++)
+					{
 						speed[i] = 0;
+					}
 				}
 				else if (spaceMouseMode == 2)  // hybird mode
 				{
 					for (int i = 1; i < 4; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 					for (int i = 4; i < 7; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 3)  // hybird mode in gripper frame
 				{
@@ -1867,13 +1890,15 @@ void ManualControl(char ch)
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
 						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						spacemouse_operation[i-1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
 							command_max = sp_command[i - 1];
 							command_axis = i - 1;
 						}
 					}
-
+					
+					
 					switch (command_axis)//-1 : no motion,all speed are 0; 0: along forward/ backward,  1: L\R   ,2: up/down 
 					{
 					case(0)://0 : along forward / backward
@@ -1934,9 +1959,12 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-
+					spacemouse_operation[command_axis] = 1*sign(command_max);
 					for (int i = 4; i < 7; i++)
-						abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+					{
+						abs(spaceMouse[i - 1]) > 1700 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > 1700 ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 5)  // hybird mode in gripper frame
 				{
@@ -1947,6 +1975,7 @@ void ManualControl(char ch)
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
 						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						spacemouse_operation[i - 1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
 							command_max = sp_command[i - 1];
@@ -2013,7 +2042,7 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-
+					spacemouse_operation[command_axis] = 1*sign(command_max);
 					if (command_axis == 0 && command_max > 0)
 					{
 
@@ -2021,7 +2050,10 @@ void ManualControl(char ch)
 					else
 					{
 						for (int i = 4; i < 7; i++)
+						{
 							abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+							abs(spaceMouse[i - 1]) > 1700 ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+						}
 					}
 				}
 				spm_operation = 0;
@@ -5423,7 +5455,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		//	thres = positionThreshold;
 		//else
 		//	thres = (moveL[0]);
-		if (abs(deltaPosition[0]) > abs(thres))// Z 
+		if (deltaPosition[0] > thres)// Z 
 		{
 			if (deltaPosition[0] > 0)
 			{
