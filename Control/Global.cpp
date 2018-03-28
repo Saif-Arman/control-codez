@@ -113,7 +113,7 @@ int force_count = 0;
 int force_t = 0;
 
 //one click
-int oneclick_mode = 0;
+int oneclick_mode = 0;//used to define the stages of the autonomous movement(suggest motion, one click)
 bool assistant_flag = false;
 float requestedPosition[11];
 float temp_pos[6];

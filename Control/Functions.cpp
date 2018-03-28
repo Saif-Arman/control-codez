@@ -4215,7 +4215,8 @@ void oneclick(void)
 
 
 	}
-	else if (oneclick_mode == 1)  // after assistant was turned on,until Matlab fnished processing, keep checking flag file.
+	else if (oneclick_mode == 1)  //oneclick_mode=1 indicate the stage : after assistant was turned on,until Matlab fnished processing, keep checking flag file.
+									// all the feedback cases was written in GUI.Functions.cpp arount 5178 line: switch(oneclick_mode)
 	{
 		char Mflag_str[256];
 		sprintf_s(Mflag_str, "C:\\MANUS\\CommonSpace\\Assistant\\Mflag.txt");
