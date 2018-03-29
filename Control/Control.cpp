@@ -218,6 +218,8 @@ int main(int argc, char* argv[])
 		{ 
 		case MANUAL_MODE:
 
+
+			
 			//Brandon/Mat 12/15/16
 			spaceMouseEnabled_old = spaceMouseEnabled;
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
@@ -658,6 +660,7 @@ int main(int argc, char* argv[])
 		ReadVel();
 		ReadOBJ();
 		SleepMs(2);
+		Readblock_dir();
 		if (assistant_flag)
 		{
 			oneclick();
@@ -690,8 +693,8 @@ int main(int argc, char* argv[])
 		//gotoxy(1, 50);
 		//cout <<"status"<< new_status<< auto_mode_start <<"pressed"<<suggspeed[6]<< endl;
 
-		Readblock_dir();
-		Operation_check();
+		
+		
 		////  Mushtaq
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);

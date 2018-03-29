@@ -4985,10 +4985,13 @@ void Operation_check(void)
 
 	if (user_cmd != 10 && user_cmd != suggestedMotion)
 	{
-		move_as_suggested = false;
+		move_as_suggested[0] = move_as_suggested[1];
+		move_as_suggested[1] = false;
 	}
-	else {
-		move_as_suggested = true;// if no operation in list, then turn the flag to true.
+	else 
+	{
+		move_as_suggested[0] = move_as_suggested[1];
+		move_as_suggested[1] = true;// if no operation in list, then turn the flag to true.
 	}
 
 }
@@ -5176,19 +5179,19 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
 
+	Operation_check();
 
-
-	if (user_oprt[0] == 0 && user_oprt[1] == 1 )// monitor the user operation has started for the suggestion update
+	if (user_oprt[0] == 1 && user_oprt[1] == 0 )// monitor the user operation has started for the suggestion update
 	{
 		oprt_start = true;
 	}
-	else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+	else if (user_oprt[0] == 0 && user_oprt[1] == 0)
 	{
 		oprt_start = false;
 	}
 
 
-	if (!move_as_suggested&&oprt_start&& update_sug != 1)
+	if (move_as_suggested[0]==0&&move_as_suggested[1]==1&& update_sug != 1)
 	{
 		update_sug = 1;
 		suggestedButtonSwitch = 'Z';
@@ -5204,7 +5207,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 
 	gotoxy(1, 55);
-	printf("oprt_start: %d     move_as_suggested:   ", oprt_start, move_as_suggested);
+	printf("oprt_start: %d     move_as_suggested:  %d ", oprt_start, move_as_suggested);
 
 	if (update_sug)//global
 	{
@@ -5226,6 +5229,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			update_sug = 0;
 			axis = 6;
 		}
+
 
 		if (axis != 6)
 			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction

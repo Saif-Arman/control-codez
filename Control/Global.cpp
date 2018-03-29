@@ -149,7 +149,7 @@ bool update_sug;
 float moveL[6];
 float currentPosition[6];
 Matrix<3, 1> p_frame_w;
-bool move_as_suggested = false;
+bool move_as_suggested[2] = { false };
 
 //optical gate 
 int obj_in[2];
