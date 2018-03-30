@@ -245,8 +245,8 @@ int main(int argc, char* argv[])
 			}
 			gotoxy( 1, 20);
 			spaceMouseEnabled?
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested)
-				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested);
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
+				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)

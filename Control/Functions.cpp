@@ -5207,7 +5207,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 
 	gotoxy(1, 55);
-	printf("oprt_start: %d     move_as_suggested:  %d ", oprt_start, move_as_suggested);
+	printf("oprt_start: %d     move_as_suggested:  %d ", oprt_start, move_as_suggested[1]);
 
 	if (update_sug)//global
 	{
