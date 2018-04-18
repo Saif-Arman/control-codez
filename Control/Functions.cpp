@@ -2178,9 +2178,9 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 
 			//
 
-			pos[3] = pos[3] - 2;//-0*1.2
-			pos[4] = pos[4];//-0*2.6
-			pos[5] = pos[5];//zc -0*5.2
+			pos[3] = pos[3]+1.5 ;//-0*1.2
+			pos[4] = pos[4]-5.8;//-0*2.6
+			pos[5] = pos[5]+3.7;//zc -0*5.2
 			if (pos[5] < -180.0)
 				pos[5] = 360 - abs(pos[5]);
 			if (reverse_flag)
@@ -4476,11 +4476,11 @@ void oneclick(void)
 
 		// if user move the robot away far from the desire position, change assist mode to phase 1: reaching the object
 		if (
-			(fabs(deltaPosition[1]) > 20) ||
+			((fabs(deltaPosition[1]) > 20) ||
 			(fabs(deltaPosition[2]) > 20) ||
 			(abs(deltaPosition[3]) > 7) ||
 			(abs(deltaPosition[4]) > 7) ||
-			(abs(deltaPosition[5]) > 7))
+			(abs(deltaPosition[5]) > 7))&& oneclick_mode>4)
 		{
 
 			if (deltaPosition[0] > 70)
