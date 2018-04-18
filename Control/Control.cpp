@@ -660,20 +660,23 @@ int main(int argc, char* argv[])
 		ReadVel();
 		ReadOBJ();
 		SleepMs(2);
+		UpdateSpaceMouse(spacemousearray);
 		Readblock_dir();
+		ReadTaKK();
+
 		if (assistant_flag)
 		{
 			oneclick();
 		}
 
 
-		UpdateSpaceMouse(spacemousearray);
+		
 		//ReadSugspeed();
 
 		//cout << "x  " << suggspeed[0] << "   Y  " << suggspeed[1] << "   Z  " << suggspeed[2] 
 		//	<< "   yal  " << suggspeed[3] << "   pitch  " << suggspeed[4] << "   rool  " << suggspeed[5]  << endl;
 		//cout << TimeCheck() << endl;
-		ReadTaKK();
+		
 		//if(!grab_in_progress )
 		//	for(int i = 0;i < 12; i++)
 		//		init_takk[i] = cur_takk[i];

@@ -126,7 +126,7 @@ bool btm_cls = false;
 float cls_pos[6];//collision position for auto grasp
 int btn_pressed;
 int user_oprt[2] = {0};
-bool oprt_start = false;
+bool oprt_end = false;
 bool moveto = false;
 float set_pos[6] = { 0 };
 float orig_pos[6] = { 0 };
@@ -149,7 +149,7 @@ bool update_sug;
 float moveL[6];
 float currentPosition[6];
 Matrix<3, 1> p_frame_w;
-bool move_as_suggested[2] = { false };
+int move_as_suggested[3] = { 0 };
 
 //optical gate 
 int obj_in[2];

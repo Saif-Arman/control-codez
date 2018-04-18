@@ -3880,7 +3880,7 @@ void Readblock_dir(void)
 	btn_pressed = (int)atof((const char *)read_str);
 
 	user_oprt[0] = user_oprt[1];//check user is operation or not
-	if (btn_pressed == 1 || spm_operation > 0)
+	if (btn_pressed == 1 || spm_operation > 1500)
 		user_oprt[1] = 1;
 	else if (btn_pressed == 0 && spm_operation == 0)
 		user_oprt[1] = 0;
@@ -4442,20 +4442,26 @@ void oneclick(void)
 		//	suggestedButtonSwitch = 'Z';
 		//}
 		//suggest_btn2(ee_deltaPosition);
-		if (spaceMouseEnabled && (spaceMouseMode != 3))
-		{
-			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
-				//after mode switching , start over the suggestion 
+		//if (oneclick_mode < 6)
+		//{
+			if (spaceMouseEnabled && (spaceMouseMode != 3))
 			{
-				update_sug = 1;
-				suggestedButtonSwitch = 'Z';
+				if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+					//after mode switching , start over the suggestion 
+				{
+					if (suggestedButtonSwitch != 'X')
+					{
+						update_sug = 1;
+						suggestedButtonSwitch = 'Z';
+					}
+				}
+				suggest_btn2(deltaPosition, 0);
 			}
-			suggest_btn2(deltaPosition, 0);
-		}
-		else
-		{
-			suggest_btn2(ee_deltaPosition, 1);
-		}
+			else
+			{
+				suggest_btn2(ee_deltaPosition, 1);
+			}
+		//}
 
 
 
@@ -4839,7 +4845,9 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	int right_bound = 640 - left_bound;
 	int up_bound = small_bound ? 40 : 60;
 	int bottom_bound = 480 - up_bound;
-
+	float overshoot=0;
+	(axis < 3) ? overshoot = 10.0 : overshoot = 5.0;
+	offset = offset + overshoot;
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
 	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
@@ -4983,15 +4991,50 @@ void Operation_check(void)
 		}
 	}
 
-	if (user_cmd != 10 && user_cmd != suggestedMotion)
+
+	if (user_oprt[0] == 1 && user_oprt[1] == 0)// monitor the user operation has started for the suggestion update
 	{
-		move_as_suggested[0] = move_as_suggested[1];
-		move_as_suggested[1] = false;
+		oprt_end = true;
 	}
-	else 
+	else if (user_oprt[0] == 0 && user_oprt[1] == 0)
 	{
-		move_as_suggested[0] = move_as_suggested[1];
-		move_as_suggested[1] = true;// if no operation in list, then turn the flag to true.
+		oprt_end = false;
+	}
+
+	//if (previousSuggestedMotion != 9)
+	//{
+		if (user_oprt[1] == 1)// specific order to make the button suggestion updated correctly.   modified with caution!!
+		{
+			if (user_cmd == suggestedMotion&& suggestedMotion!=9)
+			{
+				move_as_suggested[0] = move_as_suggested[1];
+				move_as_suggested[1] = 1;
+				move_as_suggested[2] = 1;
+			}
+			else if (user_cmd != 10)
+			{
+				move_as_suggested[0] = move_as_suggested[1];
+				move_as_suggested[1] = 2;// if no operation in list, then turn the flag to true.
+			}
+		}
+		else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+		{
+			move_as_suggested[0] = move_as_suggested[1];
+			move_as_suggested[1] = 0;
+
+		}
+		else {
+			move_as_suggested[0] = move_as_suggested[1];
+			move_as_suggested[1] = 0;
+			move_as_suggested[2] = 0;
+		}
+	//}
+	if (oprt_end&&move_as_suggested[1] == 0 && move_as_suggested[0] == 2&&move_as_suggested[2]!=1&& suggestedButtonSwitch!='X')
+	{
+		gotoxy(1, 59);
+		printf("!!!!sugg  update :          %d", TimeCheck());
+			update_sug = 1;
+			suggestedButtonSwitch = 'Z';
 	}
 
 }
@@ -5001,6 +5044,9 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 	Matrix<3, 1> wa, ca;
 	float temp_pos[6];
 	float dist_cam;
+	float overshoot = 0;
+	(axis < 3) ? overshoot = 10.0 : overshoot = 5.0;
+	offset = offset + overshoot;
 	bool cam_c = false;
 
 	for (int i = 0; i < 6; i++)
@@ -5181,33 +5227,33 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 	Operation_check();
 
-	if (user_oprt[0] == 1 && user_oprt[1] == 0 )// monitor the user operation has started for the suggestion update
-	{
-		oprt_start = true;
-	}
-	else if (user_oprt[0] == 0 && user_oprt[1] == 0)
-	{
-		oprt_start = false;
-	}
+	//if (user_oprt[0] == 1 && user_oprt[1] == 0 )// monitor the user operation has started for the suggestion update
+	//{
+	//	oprt_end = true;
+	//}
+	//else if (user_oprt[0] == 0 && user_oprt[1] == 0)
+	//{
+	//	oprt_end = false;
+	//}
 
 
-	if (move_as_suggested[0]==0&&move_as_suggested[1]==1&& update_sug != 1)
-	{
-		update_sug = 1;
-		suggestedButtonSwitch = 'Z';
-		oprt_start = false;
-		gotoxy(1, 56);
-		printf("sugg: updated   %d",TimeCheck());
-	}
-	else
-	{
-		gotoxy(1, 57);
-		printf("sugg:          %d",TimeCheck());
-	}
+	//if (move_as_suggested[0]==0&&move_as_suggested[1]==1&& update_sug != 1)
+	//{
+	//	update_sug = 1;
+	//	suggestedButtonSwitch = 'Z';
+	//	oprt_end = false;
+	//	gotoxy(1, 56);
+	//	printf("sugg: updated   %d",TimeCheck());
+	//}
+	//else
+	//{
+	//	gotoxy(1, 57);
+	//	printf("sugg:          %d",TimeCheck());
+	//}
 
 
 	gotoxy(1, 55);
-	printf("oprt_start: %d     move_as_suggested:  %d ", oprt_start, move_as_suggested[1]);
+	printf("oprt_end: %d     move_as_suggested:  %d ", oprt_end, move_as_suggested[1]);
 
 	if (update_sug)//global
 	{
@@ -5232,7 +5278,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 
 		if (axis != 6)
-			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
+			cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
 
 
 		if (D2obj > 275)
@@ -5520,8 +5566,8 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	case 'X'://
 		suggestedMotion = 9; //2,3
 		if (!(((deltaPosition[0]) < 4 * positionThreshold) &&
-			(fabs(deltaPosition[1]) < 4 * positionThreshold) &&
-			(fabs(deltaPosition[2]) < 4 * positionThreshold) &&
+			(fabs(deltaPosition[1]) < 10 * positionThreshold) &&
+			(fabs(deltaPosition[2]) < 10 * positionThreshold) &&
 			(abs(deltaPosition[3]) < 4 * rotationThreshold) &&
 			(abs(deltaPosition[4]) < 4 * rotationThreshold) &&
 			(abs(deltaPosition[5]) < 4 * rotationThreshold)))
