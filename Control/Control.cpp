@@ -289,16 +289,19 @@ int main(int argc, char* argv[])
 				{
 					ManualControl('j');//close
 					spm_gripper = 1;
+					spacemouse_operation[2] = -1;
 				}
 				else if (spaceMouse[2] > 500)
 				{
 					ManualControl('u');//open
 					spm_gripper = 2;
+					spacemouse_operation[2] = 1;
 				}
 				else if (spaceMouse[2] < 300 && spaceMouse[2]>-300)
 				{
 					ManualControl(' ');
 					spm_gripper = 0;
+					spacemouse_operation[2] = 0;
 				}
 			}
 			//else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode

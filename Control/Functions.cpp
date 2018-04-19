@@ -5085,7 +5085,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 
 
 	int thre;
-	roll_correction ? thre = 42 : thre = 38;
+	roll_correction ? thre = 46 : thre = 42;
 	if (dist_cam < thre)
 	{
 		//ResetAll();
@@ -5565,12 +5565,12 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		break;
 	case 'X'://
 		suggestedMotion = 9; //2,3
-		if (!(((deltaPosition[0]) < 4 * positionThreshold) &&
+		if (!(((deltaPosition[0]) < 8 * positionThreshold) &&
 			(fabs(deltaPosition[1]) < 10 * positionThreshold) &&
 			(fabs(deltaPosition[2]) < 10 * positionThreshold) &&
-			(abs(deltaPosition[3]) < 4 * rotationThreshold) &&
-			(abs(deltaPosition[4]) < 4 * rotationThreshold) &&
-			(abs(deltaPosition[5]) < 4 * rotationThreshold)))
+			(abs(deltaPosition[3]) < 8 * rotationThreshold) &&
+			(abs(deltaPosition[4]) < 8 * rotationThreshold) &&
+			(abs(deltaPosition[5]) < 8 * rotationThreshold)))
 		{
 			suggestedButtonSwitch = 'Z';
 			// if current position is out of the preset region of the desire position, start the suggested again
