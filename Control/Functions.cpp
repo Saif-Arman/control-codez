@@ -5211,6 +5211,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	float positionThreshold = 10;
 	int coe_e = 2;//global?
 	int axis = 6;
+	int sug_order = 9;
 	float cam_dist;
 	bool cam_cls_flag = false;
 	//int thres;
@@ -5257,7 +5258,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 	if (update_sug)//global
 	{
-
+		//sugg_order = 
 		if (suggestedButtonSwitch == 'x')//forward direction
 			axis = 0;
 		else if (suggestedButtonSwitch == 'Y')// left\right direction
@@ -5275,7 +5276,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			update_sug = 0;
 			axis = 6;
 		}
-
+		sug_order = SUG_order[axis];
 
 		if (axis != 6)
 			cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
@@ -5331,12 +5332,13 @@ void suggest_btn2(float deltaPosition[13], int ee)
 						if (cam_cls_flag2 != 0)
 							// if the planed movement will collide , change to next direction, order :1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
 						{
-							if (axis != 5)
+
+							if (sug_order != 5)
 							{
-								suggestedButtonSwitch = suggested_btn_order[axis + 1];
+								suggestedButtonSwitch = suggested_btn_order[sug_order + 1];
 							}
 							else
-								suggestedButtonSwitch = suggested_btn_order[0];
+								suggestedButtonSwitch = suggested_btn_order[4];
 
 							return;// jump out of the function start the suggestion again
 						}
@@ -5541,17 +5543,22 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		}
 		else
 		{
-			if (abs(deltaPosition[0]) < positionThreshold)
-			{
-				suggestedButtonSwitch = 'X';
-				update_sug = 1;
-			}
-			else if ((abs(deltaPosition[0]) < positionThreshold) &&
+			if ((abs(deltaPosition[0]) < positionThreshold) &&
 				(fabs(deltaPosition[1]) < positionThreshold) &&
 				(fabs(deltaPosition[2]) < positionThreshold) &&
 				(abs(deltaPosition[3]) < rotationThreshold) &&
 				(abs(deltaPosition[4]) < rotationThreshold) &&
 				(abs(deltaPosition[5]) < rotationThreshold))
+			{
+				suggestedButtonSwitch = 'X';
+				update_sug = 1;
+			}
+			else if (!((abs(deltaPosition[0]) < positionThreshold) &&
+				(fabs(deltaPosition[1]) < positionThreshold) &&
+				(fabs(deltaPosition[2]) < positionThreshold) &&
+				(abs(deltaPosition[3]) < rotationThreshold) &&
+				(abs(deltaPosition[4]) < rotationThreshold) &&
+				(abs(deltaPosition[5]) < rotationThreshold)))
 			{
 				suggestedButtonSwitch = 'Z';
 				init_sug = true;
