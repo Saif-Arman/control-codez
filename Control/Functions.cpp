@@ -364,8 +364,8 @@ float DistanceBetween_Camera_Link3(float *position)
 	int collision = 0;
 	float r = 55 / 2;     //radius of link3
 	ColumnVector<3> p1, p2, p3_c, p4_c, p3, p4, Q;
-	p3_c = 82, -62, 82;  //  first end point coordinate of camera edge in end-effector frame
-	p4_c = -95, -62, 82; // second end point coordinate of camera edge in end-effector frame
+	p3_c = 70, -62, 82;  //  first end point coordinate of camera edge in end-effector frame
+	p4_c = -110, -62, 82; // second end point coordinate of camera edge in end-effector frame
 	Q = inverse_kinematics_MANUS_q1q2q3(x, y, z);
 	q1 = Q(1);
 	q2 = Q(2);
