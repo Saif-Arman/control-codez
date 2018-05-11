@@ -892,7 +892,7 @@ void SendCommand(const unsigned char source, const unsigned char destination, co
 	while ((TimeCheck() - stt) < 30)
 	{
 		ReadForce(cur_force);
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 		SleepMs(2);
 		test_data << TimeCheck() << ", " << cur_velocity_f << ", " << cur_force << ", " << cur_position << ", " << cur_pos_nf << ", " << cur_velocity << ", " << grasp_start << ", " << grasp_end << ", " << speed[7] << ", " << grasp_npos << "\n";//grasp_npos-grasp_inipos
@@ -1045,15 +1045,23 @@ void DisplaySpeed(void)
 void DisplayPos(float* pos)
 {
 	gotoxy(1, 24);
+	time_t secs = time(0);
+	tm *t = localtime(&secs);
+	//printf("%04d-%02d-%02d\n",t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
+	char pos_name[256];
+	sprintf_s(pos_name, "C:\\MANUS\\CommonSpace\\movement_files\\pos%04d-%02d-%02d.txt", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
 	ofstream posit;
-	posit.open("C:\\MANUS\\CommonSpace\\movement_files\\pos.txt", ios::app);
+	posit.open(pos_name, ios::app);
 	float dist;
 	dist = sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2])));
 
 	printf("[%d]  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f %06.2f(%1d) \n",
 		speed_mode, pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], speed[7], (block_all_motions ? 1 : 0));
 	int time_check = TimeCheck();
-	posit << time_check << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " << speed[7] << "\n";
+	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " << 
+		    speed[7] << "  " << btn_cmd << "  " << spaceMouseEnabled << "  " << spaceMouseMode << "  " <<
+			spacemouse_operation[0] << "  " << spacemouse_operation[1] << "  " << spacemouse_operation[2] << "  " << 
+		    spacemouse_operation[3] << "  " << spacemouse_operation[4] << "  " << spacemouse_operation[5] << "  " << "\n";
 
 	if ((fabs(task_goal_pos[0] - pos[0]) < 50.0f) && (fabs(task_goal_pos[1] - pos[1]) < 50.0f) && (robot_in_out_of_range == false))
 	{
@@ -1430,6 +1438,7 @@ bool Open_Grabber(void)
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
 void ManualControl(char ch)
 {
+	btn_cmd = ch;
 	FILE* fid;
 	ifstream infile;
 
@@ -1573,7 +1582,7 @@ void ManualControl(char ch)
 	case ' ': {
 		grasp_test = 0;
 		grasp_inipos = 0;
-
+		grasp_flag = 0;
 		//update_sug = 1;// zc for testing button suggestion
 		//suggestedButtonSwitch = 'Z';
 		//block_camcls_move();// for test 
@@ -1849,6 +1858,7 @@ void ManualControl(char ch)
 					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i-1]= 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] =  0;
+
 					}
 
 					for (int i = 4; i < 7; i++)
@@ -1890,7 +1900,7 @@ void ManualControl(char ch)
 
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
-						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
 						spacemouse_operation[i-1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
@@ -1963,8 +1973,8 @@ void ManualControl(char ch)
 					spacemouse_operation[command_axis] = 1*sign(command_max);
 					for (int i = 4; i < 7; i++)
 					{
-						abs(spaceMouse[i - 1]) > 1700 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-						abs(spaceMouse[i - 1]) > 1700 ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 				}
 				else if (spaceMouseMode == 5)  // hybird mode in gripper frame
@@ -1975,7 +1985,7 @@ void ManualControl(char ch)
 
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
-						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
 						spacemouse_operation[i - 1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
@@ -2052,8 +2062,8 @@ void ManualControl(char ch)
 					{
 						for (int i = 4; i < 7; i++)
 						{
-							abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-							abs(spaceMouse[i - 1]) > 1700 ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 						}
 					}
 				}
@@ -2073,7 +2083,7 @@ void ManualControl(char ch)
 		}
 		break;
 	default:
-
+		btn_cmd = '*';
 		for (int i = 0; i < 8; i++)
 			speed[i] = 0;
 		if ((cbox == FOLD_IN) || (cbox == FOLD_OUT))
@@ -3530,27 +3540,35 @@ void LPScheck(void)
 //	printf("Position: %.3f",cur_position);
 //}
 
-void ReadPosit(double cur_pos)//with position filter
+void ReadPosit(void)//with position filter
 {
-	register char read_pos_str[256], read_str[256];
+	register char read_pos_str[256], read_str[256], read_str2[256];
+	double cur_pos,cur_pos_y;
 	//SleepMs(3);
 	pos_vel->SetReadPos(0);
 	pos_vel.Lock();
-	pos_vel->Read((unsigned char *)read_pos_str, 8 * sizeof(BYTE), 0);
+	pos_vel->Read((unsigned char *)read_pos_str, 20 * sizeof(BYTE), 0);
 	pos_vel.Unlock();
 
-	memcpy(read_str, read_pos_str, 8 * sizeof(BYTE));
+	memcpy(read_str, read_pos_str, 10 * sizeof(BYTE));
 	cur_pos = (double)atof((const char *)read_str);
 	cur_pos_nf = cur_pos;
+
+	memcpy(read_str2, read_pos_str+10, 10 * sizeof(BYTE));
+	cur_pos_y = (double)atof((const char *)read_str2);
+	cur_pos_nf_y = cur_pos_y;
+
 	//exp smoothing
 
 	cur_pos_f = al * cur_pos + (1 - al)*o_p;
 	o_p = cur_pos_f;
-
+	cur_pos_f_y = al * cur_pos_y + (1 - al)*o_p_y;
+	o_p_y = cur_pos_f_y;
 	//cur_position = cur_pos*1000;
 	cur_position = cur_pos_f;
+	cur_position_y = cur_pos_f_y;
 	gotoxy(1, 33);
-	printf("Position: %.3f", cur_position);
+	printf("Position: %.3f      position_y: %.3f", cur_position,cur_position_y);
 }
 
 void ReadVel(void)
@@ -3558,18 +3576,28 @@ void ReadVel(void)
 	cur_t = TimeCheck();
 	dtt = cur_t - old_t;
 	cur_velocity = (cur_position - old_position) / (cur_t - old_t);
+	cur_velocity_y = (cur_position_y - old_position_y) / (cur_t - old_t);
 	//cur_velocity = (cur_position-old_position)/(2);
 	old_t = cur_t;
 	old_position = cur_position;
+	old_position_y = cur_position_y;
 
 	cur_velocity_f = b2[0] * cur_velocity + b2[1] * x2d[0] + b2[2] * x2d[1] - a2[0] * y2d[0] - a2[1] * y2d[1];
 	x2d[1] = x2d[0];
 	x2d[0] = cur_velocity;
 	y2d[1] = y2d[0];
-	y2d[0] = cur_velocity_f;
+	y2d[0] = cur_velocity_f;	
+
+	cur_velocity_f_y = b2[0] * cur_velocity_y + b2[1] * x2d_y[0] + b2[2] * x2d_y[1] - a2[0] * y2d_y[0] - a2[1] * y2d_y[1];
+	x2d_y[1] = x2d_y[0];
+	x2d_y[0] = cur_velocity_y;
+	y2d_y[1] = y2d_y[0];
+	y2d_y[0] = cur_velocity_f_y;
+
+	
 
 	gotoxy(1, 32);
-	printf("Velocity: %.3f", cur_velocity_f);
+	printf("Velocity: %.3f  vel_y: %.6f", cur_velocity_f,cur_velocity_f_y);
 }
 
 //
@@ -3664,7 +3692,7 @@ void GraspController(void)
 		SleepMs(3);
 		ReadForce(cur_force);
 		//ReadSlip(cur_velocity);
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 
 		//force_que[Que_count] = cur_force;
@@ -3944,7 +3972,7 @@ void init_grasp(void)
 			P_int = pos[6];
 		}
 
-		if (abs(cur_velocity_f) > 0.005 / 1000 && cur_force > 0.1 && grasp_flag == 0) // new algoritm
+		if (abs(cur_velocity_f) > 0.005 / 1000 && cur_force > 4 && grasp_flag == 0) // new algoritm
 		{
 			ResetAll();
 			ReadForce(cur_force);
@@ -3979,12 +4007,13 @@ void init_grasp(void)
 
 void regrasp(void)
 {
-	int adj_time_out = 5000;
+	int adj_time_out = 2000;
 	grasp_end = 0;
 	grasp_start = 0;
 	grasp_npos = pos[6];
 	e_force = cur_force - F_d;
 	e_pos = pos[6] - stoppos;
+	cur_velocity_f_in = cur_velocity_f; //sqrt(pow(cur_velocity_f, 2) + pow(cur_velocity_f_y, 2));
 
 	if (grasp_flag == 10 && (TimeCheck() - ini_adt) <= adj_time_out)
 	{
@@ -4080,15 +4109,15 @@ void regrasp(void)
 		last_w_hat = w_hat;
 		last_u_hat = u_hat;
 		w_hat += gamma1 * cur_distance;//gamma1*cur_distance + .625
-		u_hat_dot = -gamma2 / u_hat * (w_hat + k * cur_velocity_f)*cur_velocity_f;//-gamma2/u_hat*w_hat*cur_velocity_f
+		u_hat_dot = -gamma2 / u_hat * (w_hat + k * cur_velocity_f_in)*cur_velocity_f_in;//-gamma2/u_hat*w_hat*cur_velocity_f
 		u_hat += u_hat_dot * dt0 / 1000;
 		if (u_hat <= 0.2)
 			u_hat = 0.2;
 		old_pos = cur_position;
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f);
+		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);
 
 
-		if (F_d > 6) { F_d = 6; }
+		if (F_d > 16) { F_d = 16; }
 		if (F_d < 0) { F_d = 3; }
 		//P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
 		gotoxy(1, 34);
@@ -4125,8 +4154,9 @@ void regrasp(void)
 
 	if (cur_force < 0.2)
 	{
-		last_w_hat = 6;//2     
+		  
 		last_u_hat = 2;//2   
+		last_w_hat = 14;//2   
 	}
 
 
@@ -4152,7 +4182,7 @@ void regrasp(void)
 		//float cur_distance;
 		old_pos = cur_position;
 
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f);//original approach
+		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);//original approach
 
 													 //P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
 
@@ -4175,7 +4205,7 @@ void regrasp(void)
 
 
 
-	if (((cur_force > 0.2) && (abs(cur_velocity_f) > 0.25 / 1000) &&
+	if (((cur_force > 0.2) && (abs(cur_velocity_f_in) > 0.25 / 1000) &&
 		!grab_in_progress && !open_in_progress && (grasp_flag == 0)
 		&& (TimeCheck() - hold_init) > 1000))
 	{

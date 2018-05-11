@@ -343,8 +343,7 @@ int main(int argc, char* argv[])
 				{
 					ch = myRcv.command;
 					btn_cmd = ch;
-					gotoxy(1,42);
-					cout << (btn_cmd=='n') << endl;
+
 					ManualControl( ch );  //GUI button command
 					myRcv.key.unlock();
 					myRcv.key.writeLock();
@@ -354,8 +353,10 @@ int main(int argc, char* argv[])
 				else
 				{
 					myRcv.key.unlock();
-					btn_cmd = ' ';
+					//btn_cmd = '~';
 				}
+				gotoxy(1, 42);
+				cout << btn_cmd << endl;
 			}			
 
 			// Translate to eliminate the offset.
@@ -659,7 +660,7 @@ int main(int argc, char* argv[])
 
 		//ReadSlip(cur_velocity);
 
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 		ReadOBJ();
 		SleepMs(2);

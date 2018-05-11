@@ -88,7 +88,10 @@ float e_force = 0;
 float raw_velocity;
 float init_force = 0;
 double cur_velocity = 0;
+double cur_velocity_y = 0;
 double cur_velocity_f = 0;//zc
+double cur_velocity_f_in = 0;//zc
+double cur_velocity_f_y = 0;//zc
 //bool initial_vel = true;//zc
 //double old_vel = 0;//zc
 //double old_vel2 = 0;//zc
@@ -99,11 +102,16 @@ int dtt= 0 ;
 float a2[2] = {  -1.6041  ,  0.6705};
 float b2[3] = {0.0166   , 0.0332  ,  0.0166};//fc = 25
 float x2d[2] = { 0,0 };
+float x2d_y[2] = { 0,0 };
 float y2d[2] = { 0,0 };
+float y2d_y[2] = { 0,0 };
 float al = 0.03;
 double o_p  = 0;
+double o_p_y  = 0;
 double cur_pos_f = 0;
+double cur_pos_f_y = 0;
 double cur_pos_nf = 0;
+double cur_pos_nf_y = 0;
 float tol = 0.18;
 float new_force = 0;
 float old_force = 0;
@@ -176,12 +184,14 @@ int hold_init = 0;
 int stt = 0; 
 
 double old_position = 0;//zc
+double old_position_y = 0;//zc
 double old_pos = 0;//zc
 double cur_position = 0;
+double cur_position_y = 0;
 float k =1500 ;//5  zc
 float k2 = 6;//5  zc
-float gamma1 = 2000; // 0.004, 0.001, 0.005, 0.00085
-float gamma2 = 50;//1.5
+float gamma1 = 2500; // 0.004, 0.001, 0.005, 0.00085
+float gamma2 = 25;//1.5
 float w_hat = 2;//0.098
 float u_hat = 2;//0.45
 
@@ -286,6 +296,7 @@ int spm_gripper;// for active or disable the slip sensor
 float thres;
 int spacemouse_translation_sensitivity=1500;
 int spacemouse_rotation_sensitivity=1500;
+int spacemouse_hybrid_sensitivity=1700;
 int spacemouse_operation[6];
 //Space mouse
 HDC          hdc;         /* Handle to Device Context used to draw on screen */
