@@ -339,21 +339,37 @@ int main(int argc, char* argv[])
 			}    
 			else
 			{
-				if ( myRcv.command != NULL )
+				//if ( myRcv.command != NULL )
+				//{
+				//	ch = myRcv.command;
+				//	btn_cmd = ch;
+
+				//	ManualControl( ch );  //GUI button command
+				//	myRcv.key.unlock();
+				//	myRcv.key.writeLock();
+				//	myRcv.command = NULL;
+				//	myRcv.key.unlock();
+				//}
+				//else
+				//{
+				//	myRcv.key.unlock();
+				//	//btn_cmd = '~';
+				//}
+				if (myRcv.command == NULL)
+				{
+					myRcv.key.unlock();
+					//btn_cmd = '~';
+				}
+				else
 				{
 					ch = myRcv.command;
 					btn_cmd = ch;
 
-					ManualControl( ch );  //GUI button command
+					ManualControl(ch);  //GUI button command
 					myRcv.key.unlock();
 					myRcv.key.writeLock();
 					myRcv.command = NULL;
 					myRcv.key.unlock();
-				}
-				else
-				{
-					myRcv.key.unlock();
-					//btn_cmd = '~';
 				}
 				gotoxy(1, 42);
 				cout << btn_cmd << endl;
@@ -641,6 +657,7 @@ int main(int argc, char* argv[])
 			for ( int i = 0 ; i < 8 ; ++i )        
 				speed[i] = 0;			
 			ShowStatus( "STAT: Job Complete\n" );
+			btn_cmd = '*';
 			break;
 		}
 

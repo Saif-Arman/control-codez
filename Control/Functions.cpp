@@ -443,7 +443,10 @@ void sthread_CAN(void *arg)
 					packet_CAN.Read(val, 3);
 
 					if (val == ' ')
+					{
 						ResetAll();
+						btn_cmd = '*';
+					}
 					else
 					{
 						if (fu_flag) {
@@ -1438,7 +1441,7 @@ bool Open_Grabber(void)
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
 void ManualControl(char ch)
 {
-	btn_cmd = ch;
+	//btn_cmd = ch;
 	FILE* fid;
 	ifstream infile;
 
