@@ -40,7 +40,7 @@ using namespace std;
 #include "cxutils/ipc/messageclient.h"				// Shared/mapped memory message client.
 #include "MANUS_define.h"
 #include "CSetConsole.h"
-#include "SensorCalibrator.h"						// Class to calibrate MANUS FT Sensor
+#include "ForceTorqueManager.h"							// Class to calibrate MANUS FT Sensor
 
 
 //=============================================================================
@@ -156,7 +156,9 @@ int main(int argc, char* argv[])
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
 
-	double cur_FT[6] = { 0,0 ,0,0,0,0 };
+	ForceTorqueManager FTMgr;
+
+	double cur_FT[6] = { 0, 0, 0, 0, 0, 0 };
 
 	while( 1 )
 	{
@@ -174,39 +176,6 @@ int main(int argc, char* argv[])
 			//	/* check whether msg was a 3D mouse event and p rocess it */
 			if (SiGetEvent (devHdl, SI_AVERAGE_EVENTS, &EData, &Event) == SI_IS_EVENT)
 			{
-				/*
-				if (Event.type == SI_MOTION_EVENT)
-				{
-					SbMotionEvent(&Event);        // process 3D mouse motion event
-				}
-				else if (Event.type == SI_ZERO_EVENT)
-				{
-					SbZeroEvent();                // process 3D mouse zero event
-				}
-				else if (Event.type == SI_BUTTON_PRESS_EVENT)
-				{
-					//printf("ENTERING BUTTON PRESS");
-					SbButtonPressEvent(Event.u.hwButtonEvent.buttonNumber);  // process button press event
-				}
-				else if (Event.type == SI_BUTTON_RELEASE_EVENT)
-				{
-					SbButtonReleaseEvent(Event.u.hwButtonEvent.buttonNumber); // process button release event
-				}
-				else if (Event.type == SI_DEVICE_CHANGE_EVENT)
-				{
-					HandleDeviceChangeEvent(&Event); // process 3D mouse device change event
-				}
-				else if (Event.type == SI_CMD_EVENT)
-				{
-					HandleV3DCMDEvent(&Event); // V3DCMD_* events
-				}
-				else if (Event.type == SI_APP_EVENT)
-				{
-					HandleAppEvent(&Event); // V3DCMD_* events
-				}
-				*/
-				
-				// Convert to switch by Nick, April 2024. Delete above comment if/else block if no issues.
 				switch (Event.type)
 				{
 					case SI_MOTION_EVENT:
@@ -250,7 +219,8 @@ int main(int argc, char* argv[])
 			//	DispatchMessage( &msg );
 			//}
 		}
-		int spacemousearray[4] = {spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1],int(grasp_flag!=0)};
+
+		int spacemousearray[4] = {spaceMouseEnabled, spaceMouseMode, spaceButtonsToggle[1], int(grasp_flag!=0)};
 		
 		//ReadSugspeed();
 		switch ( mode )
@@ -261,15 +231,18 @@ int main(int argc, char* argv[])
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
 			//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
 			spaceMouseMode_old = spaceMouseMode;
-			if((spaceButtonsToggle[0]|| spaceButtonsToggle[1])&&spaceMouseEnabled&&!btn_gripper_ctl_flag)//once space mouse activated, spaceButtonsToggle[0,1] can only change mode, then set to 0.
+
+			if( (spaceButtonsToggle[0] || spaceButtonsToggle[1]) 
+				&& spaceMouseEnabled 
+				&& !btn_gripper_ctl_flag) //once space mouse activated, spaceButtonsToggle[0,1] can only change mode, then set to 0.
 			{
 
 				if (spaceButtonsToggle[0])
 				{
-					
 					spaceMouseMode <= 0 ? spaceMouseMode = spaceMouseMode_count : spaceMouseMode--;
 					spaceButtonsToggle[0] = false;
 				}
+
 				if (spaceButtonsToggle[1])
 				{
 					//spaceMouseMode_old = spaceMouseMode;
@@ -279,38 +252,51 @@ int main(int argc, char* argv[])
 				//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
 				//spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
 			}
+
 			gotoxy(1, 19);
 			printf("spaceButtons[0]  %d,   [1]  %d,  [2]  %d,ctl 0  %d ,1  %d ,toogle %d ", spaceButtons[0], spaceButtons[1], spaceButtons[2], btn_gripper_ctl[0], btn_gripper_ctl[1], btn_gripper_ctl_flag);
 			gotoxy( 1, 20);
-			spaceMouseEnabled?
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
-				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
+			//spaceMouseEnabled?
+			//	printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
+			//	:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
+			if (spaceMouseEnabled)
+			{
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode, spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1]);
+			}
+			else
+			{
+				printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
+			}
+
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)
 				{
-				case 3:
-					// Cartesian.
-					ManualControl( '1' );
-					init_action--;
-					break;
-				case 2:
-					// Cartesian.
-					ManualControl( '1' );
-					init_action--;
-					break;
-				case 1:
-					init_action--;
-					break;
-				case 0:
-					if ( fabs( pos[5] ) < 30.0f )
-					{
-						// Reverse roll angle.
-						ManualControl( '9' );
-					}
+					case 3:
+						// Cartesian.
+						ManualControl( '1' );
+						init_action--;
+						break;
 
-					init_system = false;
-					break;
+					case 2:
+						// Cartesian.
+						ManualControl( '1' );
+						init_action--;
+						break;
+
+					case 1:
+						init_action--;
+						break;
+
+					case 0:
+						if ( fabs( pos[5] ) < 30.0f )
+						{
+							// Reverse roll angle.
+							ManualControl( '9' );
+						}
+
+						init_system = false;
+						break;
 				}
 			}
 
@@ -319,8 +305,12 @@ int main(int argc, char* argv[])
 				// Reverse roll angle.
 				ManualControl('9');
 			}
-			if(spaceMouseEnabled/*&&spaceMouseMode!=4*/)
+
+			// Does this first if need to go after the next 2?
+			if (spaceMouseEnabled/*&&spaceMouseMode!=4*/)
+			{
 				ManualControl('#');// arm, wrist, hybrid, hybrid in gripper frame modes
+			}
 			else if (spaceMouseEnabled&& spaceMouseMode == 4)  // gripper mode 
 			{
 				if (spaceMouse[2] < -500)
@@ -342,7 +332,6 @@ int main(int argc, char* argv[])
 					spacemouse_operation[2] = 0;
 				}
 			}
-
 			else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
 			{
 				if (spaceMouse[0] >1500)
@@ -355,12 +344,14 @@ int main(int argc, char* argv[])
 				}
 			}
 			else
+			{
 				spm_gripper = 0;
+			}
 
-			if (!spaceMouseEnabled&&spm_operation != 0)
+			if (!spaceMouseEnabled && spm_operation != 0)
+			{
 				spm_operation = 0;
-
-
+			}
 
 			// True if a key has been pressed.
 			if ( _kbhit() ) 
@@ -378,22 +369,6 @@ int main(int argc, char* argv[])
 			}    
 			else
 			{
-				//if ( myRcv.command != NULL )
-				//{
-				//	ch = myRcv.command;
-				//	btn_cmd = ch;
-
-				//	ManualControl( ch );  //GUI button command
-				//	myRcv.key.unlock();
-				//	myRcv.key.writeLock();
-				//	myRcv.command = NULL;
-				//	myRcv.key.unlock();
-				//}
-				//else
-				//{
-				//	myRcv.key.unlock();
-				//	//btn_cmd = '~';
-				//}
 				if (myRcv.command == NULL)
 				{
 					myRcv.key.unlock();
@@ -429,16 +404,20 @@ int main(int argc, char* argv[])
 					if ( i == 5 ) // roll -180 ~ 180 : linear scailing
 					{
 						tmp1 = ( 180.0f - pd[i] ) - ( 180.0f - pos[i] );
-						if ( tmp1 >= 0.0f )
-							if ( tmp1 <= 180.0f )
+						if (tmp1 >= 0.0f)
+						{
+							if (tmp1 <= 180.0f)
 								tmp2 = tmp1;
 							else
 								tmp2 = tmp1 - 360.0f;
+						}
 						else
-							if ( tmp1 > -180.0f )
+						{
+							if (tmp1 > -180.0f)
 								tmp2 = tmp1;
 							else
 								tmp2 = 360.0f + tmp1;
+						}
 						eprev1[i] = tmp2;
 					}
 					else
@@ -448,6 +427,7 @@ int main(int argc, char* argv[])
 					float speed_limit = angular_speed_limit[speed_mode] * 1.0f;
 					speed[i+1] = ( fabs( control_input ) > speed_limit ) ? sign( control_input ) * speed_limit : control_input;
 				}
+
 				if ( ( fabs( eprev1[3] ) < R_ERR_BOUND ) & ( fabs( eprev1[4] )< R_ERR_BOUND ) )	// yaw & pitch rotation control
 				{
 					speed[4] = 0; speed[5] = 0;
@@ -606,7 +586,6 @@ int main(int argc, char* argv[])
 					
 				}
 				SleepMs( 5 );//zc was 30
-				
 			}
 
 			fflush( stdin );
@@ -661,21 +640,23 @@ int main(int argc, char* argv[])
 
 			SendCommand( CAN, GUI, UPDATE_IN_MOTION, 0 );
 			mode = MANUAL_MODE;			
-			for ( int i = 0 ; i < 8 ; ++i )        
-				speed[i] = 0;			
+			for (int i = 0; i < 8; ++i)
+				speed[i] = 0;
+
 			ShowStatus( "STAT: Job Complete\n" );
 			btn_cmd = '*';
 			break;
 		}
 
-
 		end_time = TimeCheck();
 		ShowFrequency( end_time - start_time );
 		ReadForce(cur_force);
+		//FTMgr.ReadForce(cur_force);
 		ReadLPS(LPS_value);
 		new_force = cur_force;
 		
-		if (end_time-force_t>40){
+		if (end_time-force_t>40)
+		{
 			force_que[force_count] =  new_force;
 			force_count = ( force_count == 4 ) ? 0 : force_count + 1;
 			old_force = new_force;
@@ -701,17 +682,9 @@ int main(int argc, char* argv[])
 		{
 			oneclick();
 		}
-
-
-
-		
 		
 		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " << cur_position << ", " << cur_pos_nf << ", " << cur_force << ", " << lift_in_progress << ", " << grasp_end << ", " << speed[7] << ", " << pos[6] << ", " << pos_before_lifting << ", " << grasp_flag << ", " << e_force << ", " << lin_vel << ", " << F_d << ", " << F_d1 << ", " << F_d2 << ", " << pos[2] << ", " << speed[3] << ", " << dt0 << ", " << u_hat_dot << ", " << P_d << ", " << P_int << "," << cur_velocity_f2 << "," << cur_velocity2 << "," << cur_position2 << "," << cur_pos_nf << "," << a_hat << "," << b_hat << "," << ang_vel << "," << angl_dis << "," <<speed_mode<< "," << k1 << "," << k2 << "," << k3 << "," << gamma_1 << "," << gamma_2 <<","<< lin_dist1<< "," << lin_dist2 <<"," << F_ee[0]<<"," << F_ee[1] <<"," << F_ee[2]<<","<< T_ee[0]<<"," <<T_ee[1]<<","<< T_ee[2]<<","<<elapsed_time1<<","<<Vx_ee<<","<<Vy_ee <<","<< Vz_ee<<","<< counter << "\n"; //u_hat_dot
-
-																																																																																																																			 
-       
 		
-		////  
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);
 		gotoxy(1, 39);
@@ -721,8 +694,6 @@ int main(int argc, char* argv[])
 			ResetAll();
 			cam_cls = true;
 			block_camcls_move();
-			
-
 		}
 		else if (cam_dist > 38 && cam_cls) 
 		{
@@ -732,11 +703,7 @@ int main(int argc, char* argv[])
 			{
 				block_movement[i] = 0; 
 			}
-
-			
 		}
-
-
 	}
 
 	

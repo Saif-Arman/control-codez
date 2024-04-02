@@ -3405,7 +3405,6 @@ bool LoadAll(void)
 		return false;
 	}
 
-
 	if (!Obj_in.OpenMappedMemory("OBJ"))
 	{
 		cout << "[Error!]: Shared memory OBJ is not available!" << endl;
@@ -4246,7 +4245,7 @@ void GraspController(void)
 //				break;
 //		}
 //		//		
-///*
+//
 //		if( cur_force == 0 )
 //			break;
 //		if ( ( fabs(force_que[3] - force_que[2]) <= tol )

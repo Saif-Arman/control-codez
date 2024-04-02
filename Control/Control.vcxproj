@@ -162,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ColumnVector.hpp" />
+    <ClInclude Include="ForceTorqueManager.h" />
     <ClInclude Include="Functions.h" />
     <ClInclude Include="GenericException.hpp" />
     <ClInclude Include="Global.h" />
@@ -175,7 +176,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="RowVector.hpp" />
     <ClInclude Include="RWLock.hpp" />
-    <ClInclude Include="SensorCalibrator.h" />
     <ClInclude Include="SpaceMouse.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -185,11 +185,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Control.cpp" />
+    <ClCompile Include="ForceTorqueManager.cpp" />
     <ClCompile Include="Functions.cpp" />
     <ClCompile Include="GenericException.cpp" />
     <ClCompile Include="Global.cpp" />
     <ClCompile Include="PCANBasicClass.cpp" />
-    <ClCompile Include="SensorCalibrator.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
