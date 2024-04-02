@@ -40,6 +40,7 @@ using namespace std;
 #include "cxutils/ipc/messageclient.h"				// Shared/mapped memory message client.
 #include "MANUS_define.h"
 #include "CSetConsole.h"
+#include "SensorCalibrator.h"						// Class to calibrate MANUS FT Sensor
 
 
 //=============================================================================
@@ -65,7 +66,8 @@ int main(int argc, char* argv[])
 {
 	// Set console properties.
 	CSetConsole CSetConsole_obj;
-	if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_07_22_2011"), -1280, 240, 640, 430, 80, 101 ) )
+	//if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_07_22_2011"), 1366, 240, 640, 650, 80, 101 ) )
+	if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_06_FEB_2024"), -1280, 240, 640, 650, 80, 101 ) )
 	{
 		tcout << "Fail to set console!" << endl;
 		tcin.get();
@@ -130,22 +132,22 @@ int main(int argc, char* argv[])
 	CreateSPWindow(0, 0, hsize, vsize, _T("spaceMouse"));
 	InvalidateRect(hWndMain, NULL, FALSE);
 	/* Initialize 3D mouse */
-	res = SbInit();
+	//res =SbInit();
 
 
-	/* if 3D mouse was not detected then print error, close win., exit prog. */
-	if (res < 1)
-	{
-		MessageBox(hWndMain, 
-			_T("Sorry - No supported 3Dconnexion device available.\n"),
-			NULL, MB_OK);
-		if (hWndMain != NULL)
-		{
-			DestroyWindow(hWndMain);    /* destroy window */  
-		}
+	///* if 3D mouse was not detected then print error, close win., exit prog. */
+	//if (res < 1)
+	//{
+	//	MessageBox(hWndMain, 
+	//		_T("Sorry - No supported 3Dconnexion device available.\n"),
+	//		NULL, MB_OK);
+	//	if (hWndMain != NULL)
+	//	{
+	//		DestroyWindow(hWndMain);    /* destroy window */  
+	//	}
 
-		ExitProcess(1);                /* exit program */
-	}
+	//	ExitProcess(1);                /* exit program */
+	//}
 	MSG            msg;      /* incoming message to be evaluated */
 	BOOL           handled;  /* is message handled yet */ 
 	SiSpwEvent     Event;    /* SpaceWare Event */ 
@@ -153,6 +155,9 @@ int main(int argc, char* argv[])
 	//end space mouse initialize
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
+
+	double cur_FT[6] = { 0,0 ,0,0,0,0 };
+
 	while( 1 )
 	{
 		start_time = TimeCheck();
@@ -169,34 +174,69 @@ int main(int argc, char* argv[])
 			//	/* check whether msg was a 3D mouse event and p rocess it */
 			if (SiGetEvent (devHdl, SI_AVERAGE_EVENTS, &EData, &Event) == SI_IS_EVENT)
 			{
+				/*
 				if (Event.type == SI_MOTION_EVENT)
 				{
-					SbMotionEvent(&Event);        /* process 3D mouse motion event */     
+					SbMotionEvent(&Event);        // process 3D mouse motion event
 				}
 				else if (Event.type == SI_ZERO_EVENT)
 				{
-					SbZeroEvent();                /* process 3D mouse zero event */     
+					SbZeroEvent();                // process 3D mouse zero event
 				}
 				else if (Event.type == SI_BUTTON_PRESS_EVENT)
 				{
 					//printf("ENTERING BUTTON PRESS");
-					SbButtonPressEvent(Event.u.hwButtonEvent.buttonNumber);  /* process button press event */
+					SbButtonPressEvent(Event.u.hwButtonEvent.buttonNumber);  // process button press event
 				}
 				else if (Event.type == SI_BUTTON_RELEASE_EVENT)
 				{
-					SbButtonReleaseEvent(Event.u.hwButtonEvent.buttonNumber); /* process button release event */
+					SbButtonReleaseEvent(Event.u.hwButtonEvent.buttonNumber); // process button release event
 				}
 				else if (Event.type == SI_DEVICE_CHANGE_EVENT)
 				{
-					HandleDeviceChangeEvent(&Event); /* process 3D mouse device change event */
+					HandleDeviceChangeEvent(&Event); // process 3D mouse device change event
 				}
 				else if (Event.type == SI_CMD_EVENT)
 				{
-					HandleV3DCMDEvent(&Event); /* V3DCMD_* events */
+					HandleV3DCMDEvent(&Event); // V3DCMD_* events
 				}
 				else if (Event.type == SI_APP_EVENT)
 				{
-					HandleAppEvent(&Event); /* V3DCMD_* events */
+					HandleAppEvent(&Event); // V3DCMD_* events
+				}
+				*/
+				
+				// Convert to switch by Nick, April 2024. Delete above comment if/else block if no issues.
+				switch (Event.type)
+				{
+					case SI_MOTION_EVENT:
+						SbMotionEvent(&Event);        /* process 3D mouse motion event */
+						break;
+
+					case SI_ZERO_EVENT:
+						SbZeroEvent();                /* process 3D mouse zero event */
+						break;
+
+					case SI_BUTTON_PRESS_EVENT:
+						//printf("ENTERING BUTTON PRESS");
+						SbButtonPressEvent(Event.u.hwButtonEvent.buttonNumber);  /* process button press event */
+						break;
+
+					case SI_BUTTON_RELEASE_EVENT:
+						SbButtonReleaseEvent(Event.u.hwButtonEvent.buttonNumber); /* process button release event */
+						break;
+
+					case SI_DEVICE_CHANGE_EVENT:
+						HandleDeviceChangeEvent(&Event); /* process 3D mouse device change event */
+						break;
+
+					case SI_CMD_EVENT:
+						HandleV3DCMDEvent(&Event); /* V3DCMD_* events */
+						break;
+
+					case SI_APP_EVENT:
+						HandleAppEvent(&Event); /* V3DCMD_* events */
+						break;
 				}
 
 				handled = SPW_TRUE;              /* 3D mouse event handled */ 
@@ -206,26 +246,22 @@ int main(int argc, char* argv[])
 			//Uncommenting causes input errors!
 			//if (handled == SPW_FALSE)
 			//{
-				//TranslateMessage( &msg );
-				//DispatchMessage( &msg );
+			//	TranslateMessage( &msg );
+			//	DispatchMessage( &msg );
 			//}
 		}
 		int spacemousearray[4] = {spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1],int(grasp_flag!=0)};
-		gotoxy(20,30);
-		cout << int(grasp_flag == 0) << endl;
+		
 		//ReadSugspeed();
 		switch ( mode )
 		{ 
 		case MANUAL_MODE:
-
-
-			
 			//Brandon/Mat 12/15/16
 			spaceMouseEnabled_old = spaceMouseEnabled;
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
 			//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
 			spaceMouseMode_old = spaceMouseMode;
-			if((spaceButtonsToggle[0]|| spaceButtonsToggle[1])&&spaceMouseEnabled)
+			if((spaceButtonsToggle[0]|| spaceButtonsToggle[1])&&spaceMouseEnabled&&!btn_gripper_ctl_flag)//once space mouse activated, spaceButtonsToggle[0,1] can only change mode, then set to 0.
 			{
 
 				if (spaceButtonsToggle[0])
@@ -243,6 +279,8 @@ int main(int argc, char* argv[])
 				//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
 				//spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
 			}
+			gotoxy(1, 19);
+			printf("spaceButtons[0]  %d,   [1]  %d,  [2]  %d,ctl 0  %d ,1  %d ,toogle %d ", spaceButtons[0], spaceButtons[1], spaceButtons[2], btn_gripper_ctl[0], btn_gripper_ctl[1], btn_gripper_ctl_flag);
 			gotoxy( 1, 20);
 			spaceMouseEnabled?
 				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
@@ -281,7 +319,7 @@ int main(int argc, char* argv[])
 				// Reverse roll angle.
 				ManualControl('9');
 			}
-			if(spaceMouseEnabled&& spaceMouseMode!=4)
+			if(spaceMouseEnabled/*&&spaceMouseMode!=4*/)
 				ManualControl('#');// arm, wrist, hybrid, hybrid in gripper frame modes
 			else if (spaceMouseEnabled&& spaceMouseMode == 4)  // gripper mode 
 			{
@@ -304,17 +342,18 @@ int main(int argc, char* argv[])
 					spacemouse_operation[2] = 0;
 				}
 			}
-			//else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
-			//{
-			//	if (spaceMouse[0] >1500)
-			//	{
-			//		ManualControl('S');//one click mode
-			//	}
-			//	else
-			//	{
-			//		ManualControl('#');
-			//	}
-			//}
+
+			else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
+			{
+				if (spaceMouse[0] >1500)
+				{
+					ManualControl('S');//one click mode
+				}
+				else
+				{
+					ManualControl('#');
+				}
+			}
 			else
 				spm_gripper = 0;
 
@@ -496,53 +535,46 @@ int main(int argc, char* argv[])
 				}
 				DisplaySpeed();
 			}
-			/*if(cur_force < init_force-0.2 && cur_force != 0)
-			{
-			float start_force = cur_force;
-			ResetAll();
 
-			myRcv.key.writeLock();
-			myRcv.command = 'j';
-			myRcv.key.unlock();
-
-			grab_in_progress = true;
-
-			while(cur_force < init_force+.1)
-			{
-			ReadForce(cur_force);
-			if(cur_force == 0)
-			break;
-			}
-			ResetAll();
-			continue;
-			}*/
-			//ReadSlip(cur_velocity);
-			////Slip Detection and control -- Comment out if testing other gripping mechanisms
-
-
-			regrasp();
-			init_grasp();
-
-			//if (grasp_test == 1)
-			//	grasp_npos = pos[6];
-			//	if (abs(grasp_npos- grasp_inipos)>= 500)
-			//		grasp_move = true;
-
-
-
-
+			//init_grasp2(); // sets pos_before_lifting and ready_to_lift
+			//regrasping_algorithm2();
+			init_grasp(); // sets pos_before_lifting and ready_to_lift //mushtaq
+			regrasping_algorithm();
+			//Robson Expt for lifting up objects after they have been grasped
+			//if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) <= 100) {
+			//	// pos[2] lift arm pos
+			//	speed[3] =linear_speed_limit[1];// lift up motion
+			//    new_status = true; 
+			//}
+			//else if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) > 100) {
+			//	speed[3] = 0; // stop lifting since the arm has reached to the desired position 
+			//	new_status = true;
+			//}
+			
+			//grasping_with_desired_force(3.81);
 
 			// Open the grabber.
 			if ( open_in_progress )
 			{
-				init_stop = 0;
+				init_stop = 0; // regrasping flag set to 0 because gripper is opened by the user Robson 
 				if ( ( cbox == CARTESIAN ) && ( pos[6] > 14000.0f ) )
 				{
-					SleepMs( 500 );
+					//SleepMs( 500 );
 					SendCommand( CAN, FSR, FSR_RESET, EMPTY_MESSAGE );
 					open_in_progress = false;
-					ready_lift = false;
-					//continue; //  nessary?
+					ready_to_lift = false;
+					//Robson 
+					//Reset Grasping Algo parameters
+					F_d = 0;
+					F_d1 = 0;
+					F_d2 = 0;
+					last_b_hat = init_b_hat;
+					last_a_hat = init_a_hat;
+					a_hat = 0;
+					b_hat = 0;
+					angl_dis = 0;
+					lin_vel = 0;
+					ang_vel = 0;
 				}
 			}
 
@@ -556,26 +588,14 @@ int main(int argc, char* argv[])
 			{
 				if ( ( ( rotation_start1 ) | ( rotation_start2 ) ) )
 				{
-					//if ( debug_on )
-					//{
-					//	timing << "0 " << TimeCheck()					 
-					//		<< " " << pos[0] << " " << pos[1] << " " << pos[2] 
-					//		<< " " << pos[3] << " " << pos[4] << " " << pos[5] 
-					//		<< "\n";
-					//}
+					
 					stsResult = m_objPCANBasic.Write( m_Handle, &xmitMsg );
 					if ( stsResult != PCAN_ERROR_OK )
 						cout << "[Error!]: Fail to write to PCAN!" << endl; 
 				}
 				else if ( ( (!rotation_start2) & (!rotation_start1) ) )
 				{
-					//if ( debug_on )
-					//{
-					//	timing << "1 " << TimeCheck()					 
-					//		<< " " << pos[0] << " " << pos[1] << " " << pos[2] 
-					//		<< " " << pos[3] << " " << pos[4] << " " << pos[5] 
-					//		<< "\n";
-					//}
+					
 					stsResult = m_objPCANBasic.Write( m_Handle, &xmitMsg );
 					if ( stsResult != PCAN_ERROR_OK )
 						cout << "[Error!]: Fail to write to PCAN!" << endl; 
@@ -583,23 +603,10 @@ int main(int argc, char* argv[])
 				if (auto_mode_start == false)
 				{
 					new_status = false;
-					//gotoxy(1, 43);
-					//cout << (TimeCheck() ) << endl;
-					//if ((suggspeed[6] != 0) )
-					//{
-					//	new_status = true;
-					//	//gotoxy(1, 43);
-					//	//cout << prevID << endl;
-					//}
+					
 				}
 				SleepMs( 5 );//zc was 30
-				//if ( debug_on )
-				//{
-				//	timing << "2 " << TimeCheck()					 
-				//			<< " " << pos[0] << " " << pos[1] << " " << pos[2] 
-				//			<< " " << pos[3] << " " << pos[4] << " " << pos[5] 
-				//			<< "\n";
-				//}
+				
 			}
 
 			fflush( stdin );
@@ -672,13 +679,18 @@ int main(int argc, char* argv[])
 			force_que[force_count] =  new_force;
 			force_count = ( force_count == 4 ) ? 0 : force_count + 1;
 			old_force = new_force;
+			cout << "Force Que: "<< old_force<< endl;
 			force_t = TimeCheck();
 		}
 
-		//ReadSlip(cur_velocity);
-
+		if (move_flag_in_x ==1)
+			interac_perc();
+		
+		ReadForceTorque(cur_FT);
 		ReadPosit();
+		ReadPosit2();
 		ReadVel();
+		ReadVel2();
 		ReadOBJ();
 		SleepMs(2);
 		UpdateSpaceMouse(spacemousearray);
@@ -691,48 +703,25 @@ int main(int argc, char* argv[])
 		}
 
 
-		
-		//ReadSugspeed();
-
-		//cout << "x  " << suggspeed[0] << "   Y  " << suggspeed[1] << "   Z  " << suggspeed[2] 
-		//	<< "   yal  " << suggspeed[3] << "   pitch  " << suggspeed[4] << "   rool  " << suggspeed[5]  << endl;
-		//cout << TimeCheck() << endl;
-		
-		//if(!grab_in_progress )
-		//	for(int i = 0;i < 12; i++)
-		//		init_takk[i] = cur_takk[i];
-
-		//LowPassFilter();
-		//exp_data << end_time << ", " << force_que[0] <<", "  << force_que[1] <<", "<< force_que[2] <<  ", "<< force_que[3] <<  ", " << cur_force<< ", "<< new_force<< ", " << old_force<<", " << force_count<<"\n";//force_count
-		exp_data << end_time << ", " << cur_velocity_f <<", "  << cur_force <<", " << cur_position << ", "<< cur_pos_nf << ", " << cur_velocity <<", " << grasp_start <<", " << grasp_end << ", " << speed[7] << ", " << pos[6]<<", " << F_d<<", " << grasp_flag<< ", " << e_force<<", " << adjust<<", " << speed[7]<<", " << stoppos <<", " << e_pos<<", " << w_hat <<", " << u_hat<<", " << dt0<<", " << u_hat_dot<<", " << P_d<<", " << P_int<<"\n";//u_hat_dot
-		//exp_data << end_time << ", " << speed[0] << ", " << speed[1] << ", " << speed[2] << ", " << speed[3] << ", " << 
-		//	speed[4] << ", " << speed[5] << ", " << speed[6] << ", " << speed[7] << ", " << pos[0] << ", " << pos[1] << ", " << 
-		//	pos[2] << ", " << pos[3] << ", " << pos[4] << ", " << pos[5] << ", " << pos[6] << ", " << pos[7] <<  "\n";//u_hat_dot
-
-		
-		//exp_data << end_time << ", " << grasp_test <<", "  << cur_force <<", "<< grasp_inipos<<  ", " << grasp_npos<< ", " << init_stop<< ", " << speed[7]<<"\n";//grasp_move
-		//exp_data << end_time << ", " << grasp_test <<", "  << cur_force <<", "<< cur_velocity <<  ", "<< cur_velocity_f <<  ", " << grasp_npos<< ", " << init_stop<< ", " << speed[7]<<"\n";//grasp_move
-		//old_vel = cur_velocity;
-		//LPScheck();
-		//gotoxy(1, 50);
-		//cout <<"status"<< new_status<< auto_mode_start <<"pressed"<<suggspeed[6]<< endl;
 
 		
 		
-		////  Mushtaq
+		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " << cur_position << ", " << cur_pos_nf << ", " << cur_force << ", " << lift_in_progress << ", " << grasp_end << ", " << speed[7] << ", " << pos[6] << ", " << pos_before_lifting << ", " << grasp_flag << ", " << e_force << ", " << lin_vel << ", " << F_d << ", " << F_d1 << ", " << F_d2 << ", " << pos[2] << ", " << speed[3] << ", " << dt0 << ", " << u_hat_dot << ", " << P_d << ", " << P_int << "," << cur_velocity_f2 << "," << cur_velocity2 << "," << cur_position2 << "," << cur_pos_nf << "," << a_hat << "," << b_hat << "," << ang_vel << "," << angl_dis << "," <<speed_mode<< "," << k1 << "," << k2 << "," << k3 << "," << gamma_1 << "," << gamma_2 <<","<< lin_dist1<< "," << lin_dist2 <<"," << F_ee[0]<<"," << F_ee[1] <<"," << F_ee[2]<<","<< T_ee[0]<<"," <<T_ee[1]<<","<< T_ee[2]<<","<<elapsed_time1<<","<<Vx_ee<<","<<Vy_ee <<","<< Vz_ee<<","<< counter << "\n"; //u_hat_dot
+
+																																																																																																																			 
+       
+		
+		////  
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);
 		gotoxy(1, 39);
-		printf("The closest distance between the camera and link3 %.3f", cam_dist);
+		//printf("The closest distance between the camera and link3 %.3f", cam_dist);
 		if ((cam_dist < 38) && !cam_cls)
 		{
 			ResetAll();
 			cam_cls = true;
 			block_camcls_move();
-			//gotoxy(1,59);
-			//printf("block direction 1. %d   2. %d  3.  %d  4. %d  5. %d   6. %d  7. %d   8. %d  9.  %d  10. %d  11. %d   12. %d ", 
-			//	block_movement[1], block_movement[2], block_movement[3], block_movement[4], block_movement[5], block_movement[6],
-			//	block_movement[7], block_movement[8], block_movement[9], block_movement[10], block_movement[11], block_movement[12]);
+			
 
 		}
 		else if (cam_dist > 38 && cam_cls) 
@@ -744,20 +733,11 @@ int main(int argc, char* argv[])
 				block_movement[i] = 0; 
 			}
 
-			//gotoxy(1, 59);
-			//printf("block direction 1. %d   2. %d  3.  %d  4. %d  5. %d   6. %d  7. %d   8. %d  9.  %d  10. %d  11. %d   12. %d ",
-			//	block_movement[1], block_movement[2], block_movement[3], block_movement[4], block_movement[5], block_movement[6],
-			//	block_movement[7], block_movement[8], block_movement[9], block_movement[10], block_movement[11], block_movement[12]);
+			
 		}
 
 
-		///
 	}
-
-
-
-
-	///
 
 	
 	// Unload dll of CAN card, disconnect to shared memory and TCP.

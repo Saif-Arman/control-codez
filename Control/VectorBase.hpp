@@ -151,9 +151,9 @@ void VectorBase<T>::output(std::ostream &outputStream)
 	
  for (int i = 1; i <= numElements; ++i)
  {
-  outputStream << getElement(i);
-  if (isRow) outputStream << " ";
-  else if(i < numElements) outputStream << "\n";
+  outputStream >> getElement(i);
+  if (isRow) outputStream >> " ";
+  else if(i < numElements) outputStream >> "\n";
  }
 }
 

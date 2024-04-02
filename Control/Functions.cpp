@@ -3,19 +3,35 @@
 #include <random>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h> 
+#include <string>
 //#include "SpaceMouse.h"
+//grasping algorithm flags
+#define OPEN_LOOP_GRASPING 3
+#define ADAPTIVE_REGRASPING 1
+#define CHECK_STEADYSTATE_ERROR 2
+#define INITIAL 0
+
+// init_grasp parameters
+//#define contact_force_min 1.5 // commented by mush
+#define max_force 20
+#define slip_sensor_d  0.0225 //0.035 // 22.5mm, 35mm
+#define slip_limit 5
+int error_close_to_zero_count = 0;
 using namespace std;
 using namespace CxUtils;
+
 //using namespace arbitraryNamspace;
 bool fu_flag = false;
 void printPos(float* pos, int locx, int locy);
 default_random_engine generator;
 normal_distribution<double>distribution(0, 1);
+
 //=============================================================================
 // Maths functions.
 //=============================================================================
 // This gets the transformation gripper to world using joint angles.
-Matrix<4, 4> GWj_Transformation(float *joint)
+Matrix<4, 4> GWj_Transformation(float* joint)
 {
 	float L1 = 99.2, L2 = 396.7, L3 = 323.4, L4 = 0;
 	float angle1 = 0, angle2 = (-M_PI / 2), angle3 = 0, angle4 = (M_PI / 2), angle5 = (-M_PI / 2), angle6 = (M_PI / 2);
@@ -25,39 +41,39 @@ Matrix<4, 4> GWj_Transformation(float *joint)
 	}
 
 	Matrix<4, 4> A1;
-	A1 = cos(joint[0]), (-1)*sin(joint[0]), 0, 0,
-		sin(joint[0])*cos(angle1), cos(joint[0])*cos(angle1), (-1)*sin(angle1), 0,
-		sin(joint[0])*sin(angle1), cos(joint[0])*sin(angle1), cos(angle1), 0,
+	A1 = cos(joint[0]), (-1)* sin(joint[0]), 0, 0,
+		sin(joint[0])* cos(angle1), cos(joint[0])* cos(angle1), (-1)* sin(angle1), 0,
+		sin(joint[0])* sin(angle1), cos(joint[0])* sin(angle1), cos(angle1), 0,
 		0, 0, 0, 1;
 
 	Matrix<4, 4> A2;
-	A2 = cos(joint[1]), (-1)*sin(joint[1]), 0, 0,
+	A2 = cos(joint[1]), (-1)* sin(joint[1]), 0, 0,
 		0, 0, -sin(angle2), 0,
-		sin(joint[1])*sin(angle2), cos(joint[1])*sin(angle2), 0, 0,
+		sin(joint[1])* sin(angle2), cos(joint[1])* sin(angle2), 0, 0,
 		0, 0, 0, 1;
 
 	Matrix<4, 4> A3;
 	A3 = cos(joint[2]), -1 * sin(joint[2]), 0, L2,
-		sin(joint[2])*cos(angle3), cos(joint[2])*cos(angle3), -1 * sin(angle3), -1 * L1*sin(angle3),
-		sin(joint[2])*sin(angle3), cos(joint[2])*sin(angle3), cos(angle3), L1*cos(angle3),
+		sin(joint[2])* cos(angle3), cos(joint[2])* cos(angle3), -1 * sin(angle3), -1 * L1 * sin(angle3),
+		sin(joint[2])* sin(angle3), cos(joint[2])* sin(angle3), cos(angle3), L1* cos(angle3),
 		0, 0, 0, 1;
 
 	Matrix<4, 4> A4;
 	A4 = cos(joint[3]), -1 * sin(joint[3]), 0, 0,
-		0, 0, -sin(angle4), -1 * L3*sin(angle4),
-		sin(joint[3])*sin(angle4), cos(joint[3])*sin(angle4), 0, 0,
+		0, 0, -sin(angle4), -1 * L3 * sin(angle4),
+		sin(joint[3])* sin(angle4), cos(joint[3])* sin(angle4), 0, 0,
 		0, 0, 0, 1;
 
 	Matrix<4, 4> A5;
 	A5 = cos(joint[4]), -1 * sin(joint[4]), 0, 0,
 		0, 0, -1 * sin(angle5), 0,
-		sin(joint[4])*sin(angle5), cos(joint[4])*sin(angle5), 0, 0,
+		sin(joint[4])* sin(angle5), cos(joint[4])* sin(angle5), 0, 0,
 		0, 0, 0, 1;
 
 	Matrix<4, 4> A6;
 	A6 = cos(joint[5]), -1 * sin(joint[5]), 0, 0,
-		0, 0, -1 * sin(angle6), -1 * L4*sin(angle6),
-		sin(joint[5])*sin(angle6), cos(joint[5])*sin(angle6), 0, 0,
+		0, 0, -1 * sin(angle6), -1 * L4 * sin(angle6),
+		sin(joint[5])* sin(angle6), cos(joint[5])* sin(angle6), 0, 0,
 		0, 0, 0, 1;
 
 	Matrix<4, 4> T06;
@@ -67,7 +83,7 @@ Matrix<4, 4> GWj_Transformation(float *joint)
 }
 
 // Get Rc2w rotational transform.
-Matrix<3, 3> C2W_transform(float *position)
+Matrix<3, 3> C2W_transform(float* position)
 {
 	// get Rc2w transform from YPR
 	// 010308 - KIM
@@ -89,13 +105,13 @@ Matrix<3, 3> C2W_transform(float *position)
 }
 
 // Get Ree2w rotational transform.
-Matrix<3, 3> EE2C_transform(float *position)
+Matrix<3, 3> EE2C_transform(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	register float c_y = position[3] * M_PI / 180.0f;
-	register float c_p = position[4] * M_PI / 180.0f;
-	register float c_r = position[5] * M_PI / 180.0f;
+	float c_y = position[3] * M_PI / 180.0f;
+	float c_p = position[4] * M_PI / 180.0f;
+	float c_r = position[5] * M_PI / 180.0f;
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, -sin(c_p), 0, 1, 0, sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), sin(c_r), 0, -sin(c_r), cos(c_r);
@@ -118,13 +134,13 @@ Matrix<3, 3> EE2C_transform(float *position)
 
 
 // Get Ree2w rotational transform.  zc test
-Matrix<3, 3> EE2w_transform3(float *position)
+Matrix<3, 3> EE2w_transform3(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	register float c_y = position[3] * M_PI / 180.0f;
-	register float c_p = -position[4] * M_PI / 180.0f;
-	register float c_r = sign(position[5])*(180 - abs(position[5])) * M_PI / 180.0f;
+	float c_y = position[3] * M_PI / 180.0f;
+	float c_p = -position[4] * M_PI / 180.0f;
+	float c_r = sign(position[5]) * (180 - abs(position[5])) * M_PI / 180.0f;
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, sin(c_p), 0, 1, 0, -sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), -sin(c_r), 0, sin(c_r), cos(c_r);
@@ -142,13 +158,13 @@ Matrix<3, 3> EE2w_transform3(float *position)
 	return Rc2w;
 }
 // Get Ree2w rotational transform.  zc test
-Matrix<3, 3> EE2w_transform2(float *position)
+Matrix<3, 3> EE2w_transform2(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	register float c_y = position[3] * M_PI / 180.0f;
-	register float c_p = position[4] * M_PI / 180.0f;
-	register float c_r = -position[5] * M_PI / 180.0f;
+	float c_y = position[3] * M_PI / 180.0f;
+	float c_p = position[4] * M_PI / 180.0f;
+	float c_r = -position[5] * M_PI / 180.0f;
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, -sin(c_p), 0, 1, 0, sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), sin(c_r), 0, -sin(c_r), cos(c_r);
@@ -167,7 +183,7 @@ Matrix<3, 3> EE2w_transform2(float *position)
 }
 
 // Get Rc2w rotational transform for yaw angle only - for relative L/R/F/B.
-Matrix<3, 3> C2W_transform2(float *position)
+Matrix<3, 3> C2W_transform2(float* position)
 {
 	// get Rc2w transform from YPR
 	// 010308 - KIM
@@ -189,11 +205,11 @@ Matrix<3, 3> C2W_transform2(float *position)
 }
 
 //Ree2w for just yaw angle - used for relative L/R/F/B
-Matrix<3, 3> EE2C_transform2(float *position)
+Matrix<3, 3> EE2C_transform2(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	register float c_y = position[3] * M_PI / 180.0f;
+	float c_y = position[3] * M_PI / 180.0f;
 
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = 1, 0, 0, 0, 1, 0, 0, 0, 1;
@@ -228,24 +244,24 @@ Matrix<3, 3> NormalizeRotationMatrix(Matrix<3, 3> Rx)
 
 	return Ry;
 }
-/////____________________Mushtaq _______
+/////____________________ _______
   //////// finding the distance between the camera and link3 functions
 /////////////////////////////////////////////////////////////////////////
 ColumnVector<3> inverse_kinematics_MANUS_q1q2q3(float x, float y, float z)
 {
 	float L2 = 396.7, d2 = 99.2, d4 = 323.4;
 	float q1, q2, q3, A, B, s1, c1, s3, c3;
-	q1 = atan2(y, x) - atan2(d2, -sqrt(x*x + y * y - d2 * d2));
+	q1 = atan2(y, x) - atan2(d2, -sqrt(x * x + y * y - d2 * d2));
 	s1 = sin(q1);
 	c1 = cos(q1);
-	s3 = ((c1*x + s1 * y)*(c1*x + s1 * y) + z * z - d4 * d4 - L2 * L2) / (2 * d4*L2);
+	s3 = ((c1 * x + s1 * y) * (c1 * x + s1 * y) + z * z - d4 * d4 - L2 * L2) / (2 * d4 * L2);
 	c3 = sqrt(1 - s3 * s3);
 	q3 = atan2(s3, c3);
 	s3 = sin(q3);
 	c3 = cos(q3);
 
-	A = (c1*x + s1 * y)*d4*c3 - (d4*s3 + L2)*z;
-	B = d4 * c3*z + (d4*s3 + L2)*(c1*x + s1 * y);
+	A = (c1 * x + s1 * y) * d4 * c3 - (d4 * s3 + L2) * z;
+	B = d4 * c3 * z + (d4 * s3 + L2) * (c1 * x + s1 * y);
 	q2 = atan2(A, B);
 
 	ColumnVector<3> q;
@@ -282,8 +298,8 @@ float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVe
 		tD = c;
 	}
 	else {                 // get the closest points on the infinite lines
-		sN = (b*e - c * d);
-		tN = (a*e - b * d);
+		sN = (b * e - c * d);
+		tN = (a * e - b * d);
 		if (sN < 0.0) {        // sc < 0 => the s=0 edge is visible
 			sN = 0.0;
 			tN = e;
@@ -346,14 +362,14 @@ ColumnVector<3> link3_1st_end_postion(float q1, float q2, float q3)
 
 
 	Matrix<4, 4> T03;
-	T03 = A1 * A2*A3;
+	T03 = A1 * A2 * A3;
 
 	ColumnVector<3> P1;
 	P1 = T03(1, 4), T03(2, 4), T03(3, 4);
 	return P1;
 }
 
-float DistanceBetween_Camera_Link3(float *position)
+float DistanceBetween_Camera_Link3(float* position)
 {
 	float x = position[0];
 	float y = position[1];
@@ -397,7 +413,7 @@ float DistanceBetween_Camera_Link3(float *position)
 // Communication functions.
 //=============================================================================
 // Communication thread.
-void sthread_CAN(void *arg)
+void sthread_CAN(void* arg)
 {
 	// Server configurations.
 	char host_str[256];
@@ -500,7 +516,7 @@ void sthread_CAN(void *arg)
 						packet_pos += packet_CAN.Read(user_str[i], packet_pos);
 
 					user_str[1] = '\0';
-					gripper_closedness = (int)atof((const char *)user_str);
+					gripper_closedness = (int)atof((const char*)user_str);
 					myRcv.key.writeLock();
 					myRcv.command = 'j';
 					myRcv.key.unlock();
@@ -522,6 +538,14 @@ void sthread_CAN(void *arg)
 					assistant_flag = false;
 					oneclick_mode = 0;
 					move_arm = -1;
+				}
+				else if ((command == BTN_GRIPPER_ON))
+				{
+					btn_gripper_ctl_flag = true;
+				}
+				else if ((command == BTN_GRIPPER_OFF))
+				{
+					btn_gripper_ctl_flag = false;
 				}
 			}
 			else if (source == SPC)
@@ -588,7 +612,7 @@ void sthread_CAN(void *arg)
 						packet_pos += packet_CAN.Read(user_str[i], packet_pos);
 
 					user_str[3] = '\0';
-					gripper_closedness = (int)atof((const char *)user_str);
+					gripper_closedness = (int)atof((const char*)user_str);
 
 					myRcv.key.writeLock();
 					myRcv.command = 'j';
@@ -635,7 +659,7 @@ void sthread_CAN(void *arg)
 						packet_pos += packet_CAN.Read(user_str[i], packet_pos);
 
 					user_str[3] = '\0';
-					speed_mode = (int)atof((const char *)user_str);
+					speed_mode = (int)atof((const char*)user_str);
 
 					if (speed_mode > 4)
 						speed_mode = 4;
@@ -773,7 +797,7 @@ void sthread_CAN(void *arg)
 						float tmp1 = (180.0f - pos[5]) - (180.0f - opos[5]);
 						dr = (tmp1 >= 0.0f) ? ((tmp1 <= 180.0f) ? tmp1 : tmp1 - 360.0f) : ((tmp1 > -180.0f) ? tmp1 : 360.0f + tmp1);
 
-						cypr[0] = 20.0f*dy / dt;	cypr[1] = 20.0f*dp / dt;	cypr[2] = 20.0f*dr / dt;
+						cypr[0] = 20.0f * dy / dt;	cypr[1] = 20.0f * dp / dt;	cypr[2] = 20.0f * dr / dt;
 
 						for (int i = 0; i < 3; ++i) {
 							dypr[i] = oypr[i] + (cypr[i] - oypr[i]) * (dt / 1000.0f) * 5.0f;
@@ -791,8 +815,8 @@ void sthread_CAN(void *arg)
 						Matrix<3, 1> Rde;
 						// Cross product of We & d_c_ee.	
 						Rde = We(2, 1) * d_c_ee(3, 1) - We(3, 1) * d_c_ee(2, 1),
-							We(3, 1) * d_c_ee(1, 1) - We(1, 1) * d_c_ee(3, 1),
-							We(1, 1) * d_c_ee(2, 1) - We(2, 1) * d_c_ee(1, 1);
+							We(3, 1)* d_c_ee(1, 1) - We(1, 1) * d_c_ee(3, 1),
+							We(1, 1)* d_c_ee(2, 1) - We(2, 1) * d_c_ee(1, 1);
 
 						for (int i = 0; i < 3; ++i)	Rde(i + 1, 1) = Rde(i + 1, 1);
 
@@ -810,7 +834,7 @@ void sthread_CAN(void *arg)
 						// Limit linear velocity.
 						for (int i = 0; i < 3; ++i) {
 							control_input = Vw(i + 1, 1);
-							Vw(i + 1, 1) = (fabs(control_input) > v_lim) ? (float)(sign(control_input)*v_lim) : (float)control_input;
+							Vw(i + 1, 1) = (fabs(control_input) > v_lim) ? (float)(sign(control_input) * v_lim) : (float)control_input;
 						}
 
 						// Set speed variables of MANUS ARM.
@@ -970,9 +994,9 @@ void Help(void)
 }
 
 // Update the pos information in shared memory.
-void UpdatePos(const float *pos)
+void UpdatePos(const float* pos)
 {
-	register char pos_str[256];
+	char pos_str[256];
 
 	sprintf_s(pos_str, "%1c%06.2f%1c%06.2f%1c%06.2f%1c%06.2f%1c%06.2f%1c%06.2f%1c%06.0f%1d",
 		((pos[0] > 0) ? '+' : '-'), fabs(pos[0]), ((pos[1] > 0) ? '+' : '-'), fabs(pos[1]),
@@ -985,21 +1009,22 @@ void UpdatePos(const float *pos)
 	robot_pos->Write((unsigned char*)pos_str, 50 * sizeof(BYTE), 0);
 	robot_pos.Unlock();
 };
-void UpdateSpaceMouse(const int *spacemouse)
+//Robson also updates speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode via GUI
+void UpdateSpaceMouse(const int* spacemouse)
 {
-	register char pos_str[256];
-	register char pos_str2[256];
+	char pos_str[256];
+	char pos_str2[256];
 
 	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%5d%2d%2d%2d%2d%2d%2d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],//0:3 spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1], regrasping? }
 		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), //speed [x y z yaw pitch roll] 
 		int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation),
 		// speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode;move suggestion ;sum for the space mouse input
-		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]) );
-		//  each axis of the spacemouse is in operating or not.
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]));
+	//  each axis of the spacemouse is in operating or not.
 
 
-	//cout << pos_str << endl;
+//cout << pos_str << endl;
 	sprintf_s(pos_str2, "%d%d%d%d%2d%2d%2d%2d%2d%2d%d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
 		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), int(init_stop));
@@ -1012,13 +1037,13 @@ void UpdateSpaceMouse(const int *spacemouse)
 	spaceMouseValues.Unlock();
 
 
-	register char pos_str3[256];
+	char pos_str3[256];
 
 
 	sprintf_s(pos_str3, "%d%d%d%d%d%d%d%d%d%d%d%d",
 		block_movement[1], block_movement[2], block_movement[3], block_movement[4],
-		block_movement[5], block_movement[6], block_movement[7], block_movement[8], 
-		block_movement[9], block_movement[10], block_movement[11], block_movement[12] );
+		block_movement[5], block_movement[6], block_movement[7], block_movement[8],
+		block_movement[9], block_movement[10], block_movement[11], block_movement[12]);
 
 	block_direction2->SetWritePos(0);
 	block_direction2.Lock();
@@ -1049,7 +1074,7 @@ void DisplayPos(float* pos)
 {
 	gotoxy(1, 24);
 	time_t secs = time(0);
-	tm *t = localtime(&secs);
+	tm* t = localtime(&secs);
 	//printf("%04d-%02d-%02d\n",t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
 	char pos_name[256];
 	sprintf_s(pos_name, "C:\\MANUS\\CommonSpace\\movement_files\\pos%04d-%02d-%02d.txt", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
@@ -1061,10 +1086,10 @@ void DisplayPos(float* pos)
 	printf("[%d]  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f %06.2f(%1d) \n",
 		speed_mode, pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], speed[7], (block_all_motions ? 1 : 0));
 	int time_check = TimeCheck();
-	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " << 
-		    speed[7] << "  " << btn_cmd << "  " << spaceMouseEnabled << "  " << spaceMouseMode << "  " <<
-			spacemouse_operation[0] << "  " << spacemouse_operation[1] << "  " << spacemouse_operation[2] << "  " << 
-		    spacemouse_operation[3] << "  " << spacemouse_operation[4] << "  " << spacemouse_operation[5] << "  " << "\n";
+	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " <<
+		speed[7] << "  " << btn_cmd << "  " << spaceMouseEnabled << "  " << spaceMouseMode << "  " <<
+		spacemouse_operation[0] << "  " << spacemouse_operation[1] << "  " << spacemouse_operation[2] << "  " <<
+		spacemouse_operation[3] << "  " << spacemouse_operation[4] << "  " << spacemouse_operation[5] << "  " << time_check << "  " << btn_gripper_ctl_flag << "\n";
 
 	if ((fabs(task_goal_pos[0] - pos[0]) < 50.0f) && (fabs(task_goal_pos[1] - pos[1]) < 50.0f) && (robot_in_out_of_range == false))
 	{
@@ -1080,14 +1105,14 @@ void DisplayPos(float* pos)
 }
 
 // Show current command.
-void ShowCommand(char *str)
+void ShowCommand(char* str)
 {
 	gotoxy(1, 16);
 	printf(str);
 }
 
 // Show arm status.
-void ShowStatus(char *str)
+void ShowStatus(char* str)
 {
 	gotoxy(1, 17);
 	printf(str);
@@ -1251,7 +1276,7 @@ void PrintStatus(void)
 // Reset all variables.
 void ResetAll(void)
 {
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)//
 		speed[i] = 0;
 	if ((cbox == FOLD_IN) || (cbox == FOLD_OUT))
 		cbox = FREE;
@@ -1268,8 +1293,41 @@ void ResetAll(void)
 	home_pos_flag = false;		// reset home_pos_flag
 	adjust_pos = false;
 	grab_in_progress = false;
+	lift_in_progress = false;
 	init_fine_motion = false;
+	if (set_point_vel || set_points_control)
+	{
+		set_point_vel = false;
+		set_points_control = false;
+		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
+	}
+}
 
+/////
+void ResetAll2(void) /// mushtaq 
+{
+	for (int i = 4; i < 8; i++)//
+		speed[i] = 0;
+	speed[0] = 0;
+	speed[1] = 0;
+	speed[2] = 0;
+	if ((cbox == FOLD_IN) || (cbox == FOLD_OUT))
+		cbox = FREE;
+	rotation_start1 = false;
+	rotation_start2 = false;
+	new_status = true;
+	test_x_flag = false;
+	job_done = true;
+	job_complete = true;
+	job_complete2 = true;
+	approach_flag = false;
+	retreat_flag = false;
+	auto_mode_start = false;	// set it to the first status;; new auto-mode objective will be given
+	home_pos_flag = false;		// reset home_pos_flag
+	adjust_pos = false;
+	grab_in_progress = false;
+	lift_in_progress = false;
+	init_fine_motion = false;
 	if (set_point_vel || set_points_control)
 	{
 		set_point_vel = false;
@@ -1454,8 +1512,8 @@ void ManualControl(char ch)
 	ColumnVector<6> t;
 	Matrix<3, 3> Ree2w, Rypr2w, Rc2w;
 	ColumnVector<3> vw, ww, vc, wc, wypr, vt;
-
-
+	/*gotoxy(1, 50);
+	cout << "[Warning!]:" << ch << endl;*/
 	switch (ch)
 	{
 
@@ -1482,10 +1540,49 @@ void ManualControl(char ch)
 		break;
 	case '+':	// Increase Speed.
 		speed_mode++;
-		speed_mode = (speed_mode > 4) ? 4 : speed_mode;
+		//speed_mode = (speed_mode > 4) ? 4 : speed_mode;
+		speed_mode = (speed_mode > 12) ? 12 : speed_mode;
 		UpdatePos(pos);
 		SendCommand(CAN, GUI, UPDATE_SPEED, 0);
 		break;
+
+
+	case'M':// mushtaq to  find F_min for slip paper 7/3/2021
+		gotoxy(1, 50);
+		//cout << "Enter F_d value" << endl;
+		//cin >> F_d;
+		/*cout << "Enter k1 value:";
+		cin >> k1;
+		cout << "Enter k2 value:" ;
+		cin >> k2;
+		cout << "Enter k3 value:" ;
+		cin >> k3;
+		cout << "Enter gamma_1 value:" ;
+		cin >> gamma_1;
+		cout << "Enter gamma_2 value:" ;
+		cin >> gamma_2;
+		cout << "Enter initial value of a_hat: " ;
+		cin >> init_a_hat;
+		cout << "Enter initial value of b_hat: ";
+		cin >> init_b_hat;
+		cout << "Enter contact_force_min value: ";
+		cin >> contact_force_min;
+		cout << "Enter MAX_CART_GRIP_close value: ";
+		cin >> MAX_CART_GRIP_close;*/
+		cout << "Enter vdx value: ";
+		cin >> vdx;
+		cout << "Enter vdy value: ";
+		cin >> vdy;
+		cout << "Fdx value: ";
+		cin >> fdx;
+
+
+		cout << "Enter move flag move ";
+		cin>> move_flag_in_x;
+		
+		break;
+
+
 	case '-':	// Decrease Speed.
 		speed_mode--;
 		speed_mode = (speed_mode < 0) ? 0 : speed_mode;
@@ -1495,15 +1592,16 @@ void ManualControl(char ch)
 	case '9':	// Reverse roll angle.
 		reverse_flag = (reverse_flag == false) ? true : false;
 		break;
-	case 'i':	// Lift up.
+	case 'i':	// Lift up the base frame
 		if (cbox == CARTESIAN) { speed[0] = 1; new_status = true; }
 		else if (cbox == JOINT) { speed[0] = 1; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
-	case 'k':	// Lift up.
+	case 'k':	// Lift down the base frame
 		if (cbox == CARTESIAN) { speed[0] = -1; new_status = true; }
 		else if (cbox == JOINT) { speed[0] = -1; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+
 		break;
 	case 'q':	// X axis.
 		if (cbox == CARTESIAN) { speed[1] = linear_speed_limit[speed_mode]; new_status = true; }
@@ -1525,12 +1623,13 @@ void ManualControl(char ch)
 		else if (cbox == JOINT) { speed[2] = -MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
-	case 'e':	// Z axis.
+	case 'e':	// Z axis. lift up the end effector 
 		if (cbox == CARTESIAN) { speed[3] = linear_speed_limit[speed_mode]; new_status = true; }
 		else if (cbox == JOINT) { speed[3] = MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+		lift_in_progress = true;
 		break;
-	case 'd':	// Z axis.
+	case 'd':	// Z axis. move down the end effector 
 		if (cbox == CARTESIAN) { speed[3] = -linear_speed_limit[speed_mode]; new_status = true; }
 		else if (cbox == JOINT) { speed[3] = -MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -1566,14 +1665,14 @@ void ManualControl(char ch)
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'u':	// Open gripper.
-		if (cbox == CARTESIAN) { speed[7] = MAX_CART_GRIP; new_status = true; grasp_test = 2; grasp_inipos = 0; }
+		if (cbox == CARTESIAN) { speed[7] = 14; new_status = true; grasp_test = 2; grasp_inipos = 0; }
 		else if (cbox == JOINT) { speed[7] = MAX_JOINT_GRIP; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		open_in_progress = true;
 		init_force = 0;
 		break;
 	case 'j':	// Close gripper.
-		if (cbox == CARTESIAN) { speed[7] = -MAX_CART_GRIP; new_status = true; grasp_test = 1; grasp_inipos = pos[6]; }
+		if (cbox == CARTESIAN) { speed[7] = -MAX_CART_GRIP_close; new_status = true; grasp_test = 1; grasp_inipos = pos[6]; }
 		else if (cbox == JOINT) { speed[7] = -MAX_JOINT_GRIP; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		if (!init_system)
@@ -1582,7 +1681,8 @@ void ManualControl(char ch)
 			SendCommand(CAN, FSR, GRAB, ' ');
 		}
 		break;
-	case ' ': {
+	case ' ':
+	{
 		grasp_test = 0;
 		grasp_inipos = 0;
 		grasp_flag = 0;
@@ -1593,7 +1693,7 @@ void ManualControl(char ch)
 
 		ResetAll();
 	}
-			  break;
+	break;
 	case EXIT:
 		gotoxy(1, 38);
 		if (!UnloadAll())
@@ -1722,7 +1822,7 @@ void ManualControl(char ch)
 	case 'v': // ??? wz 07282011
 		cout << endl << "[case 'v']vvvvvvvvvvvvvvvvvvvvvvvvvvv" << endl;
 		infile.open("C:\\MANUS\\CommonSpace\\Setting\\myvel.txt");
-		infile >> t;
+		infile << t;
 		infile.close();
 		vwg = t(1), t(2), t(3);	// translational velocity in CC
 		wwg = t(4), t(5), t(6);	// rotational velocity in CC
@@ -1745,7 +1845,7 @@ void ManualControl(char ch)
 	case 'c':
 		cout << endl << "[case 'c']ccccccccccccccccccccccccccc" << endl;
 		infile.open("C:\\MANUS\\CommonSpace\\Setting\\myvel.txt");
-		infile >> t;
+		infile << t;
 		infile.close();
 
 		vc = t(1), t(2), t(3);
@@ -1860,7 +1960,7 @@ void ManualControl(char ch)
 					for (int i = 1; i < 4; i++)
 					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i-1]= 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] =  0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 
 					}
 
@@ -1875,7 +1975,7 @@ void ManualControl(char ch)
 					for (int i = 4; i < 7; i++)
 					{
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 					for (int i = 1; i < 4; i++)
 					{
@@ -1904,15 +2004,15 @@ void ManualControl(char ch)
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
 						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
-						spacemouse_operation[i-1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
+						spacemouse_operation[i - 1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
 							command_max = sp_command[i - 1];
 							command_axis = i - 1;
 						}
 					}
-					
-					
+
+
 					switch (command_axis)//-1 : no motion,all speed are 0; 0: along forward/ backward,  1: L\R   ,2: up/down 
 					{
 					case(0)://0 : along forward / backward
@@ -1973,11 +2073,40 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-					spacemouse_operation[command_axis] = 1*sign(command_max);
+					spacemouse_operation[command_axis] = 1 * sign(command_max);
 					for (int i = 4; i < 7; i++)
 					{
 						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
+				}
+				else if (spaceMouseMode == 4)  // Gripper mode
+				{
+					if (spaceMouse[2] < -500)
+					{
+						//ManualControl('j');//close
+						speed[7] = -MAX_CART_GRIP;
+						new_status = true;
+						grasp_test = 1;
+						grasp_inipos = pos[6];
+						spm_gripper = 1;
+						//spacemouse_operation[2] = -1;
+					}
+					else if (spaceMouse[2] > 500)
+					{
+						//ManualControl('u');//open
+						speed[7] = MAX_CART_GRIP;
+						new_status = true;
+						grasp_test = 2;
+						grasp_inipos = 0;
+						spm_gripper = 2;
+						//spacemouse_operation[2] = 1;
+					}
+					else if (spaceMouse[2] < 500 && spaceMouse[2]>-500)
+					{
+						speed[7] = 0;
+						spm_gripper = 0;
+						spacemouse_operation[2] = 0;
 					}
 				}
 				else if (spaceMouseMode == 5)  // hybird mode in gripper frame
@@ -2056,7 +2185,7 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-					spacemouse_operation[command_axis] = 1*sign(command_max);
+					spacemouse_operation[command_axis] = 1 * sign(command_max);
 					if (command_axis == 0 && command_max > 0)
 					{
 
@@ -2068,6 +2197,40 @@ void ManualControl(char ch)
 							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
 							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 						}
+					}
+				}
+				if (btn_gripper_ctl_flag)
+				{
+					if (btn_gripper_ctl[0] == 1 && btn_gripper_ctl[1] == 1)
+					{
+						speed[7] = 0;
+						spm_gripper = 0;
+						//spacemouse_operation[2] = 0;
+					}
+					else if (btn_gripper_ctl[0] == 1)
+					{
+						speed[7] = -MAX_CART_GRIP;//close
+						new_status = true;
+						grasp_test = 1;
+						grasp_inipos = pos[6];
+						spm_gripper = 1;
+						//spacemouse_operation[2] = -1;
+					}
+					else if (btn_gripper_ctl[1] == 1)
+					{
+						//ManualControl('u');//open
+						speed[7] = MAX_CART_GRIP;
+						new_status = true;
+						grasp_test = 2;
+						grasp_inipos = 0;
+						spm_gripper = 2;
+						//spacemouse_operation[2] = 1;
+					}
+					else
+					{
+						speed[7] = 0;
+						spm_gripper = 0;
+						//spacemouse_operation[2] = 0;
 					}
 				}
 				spm_operation = 0;
@@ -2187,13 +2350,13 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			}
 			// Yaw, pitch, roll in degrees.
 			for (int i = 3; i < 6; i++)
-				pos[i] = 0.1* raw_pos[i];
+				pos[i] = 0.1 * raw_pos[i];
 
 			//
 
-			pos[3] = pos[3]+1.5 ;//-0*1.2
-			pos[4] = pos[4]-5.8;//-0*2.6
-			pos[5] = pos[5]+3.7;//zc -0*5.2
+			pos[3] = pos[3];// +90;//-0*1.2,  mushtaq Jan 2022 for corecting yaw angle
+			pos[4] = pos[4] - 2.3;//-0*2.6, was -8.3  May 2 ,2019
+			pos[5] = pos[5] - 0.6;//zc -0*5.2, was -9 
 			if (pos[5] < -180.0)
 				pos[5] = 360 - abs(pos[5]);
 			if (reverse_flag)
@@ -2431,11 +2594,11 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 				speed[j + 1] = 0;
 			// for old block_dir end*/
 
-			if (block_movement[2*j+1] == 1 && speed[j + 1] > 0)
+			if (block_movement[2 * j + 1] == 1 && speed[j + 1] > 0)
 				speed[j + 1] = 0;
 			if (block_movement[2 * j + 2] == 1 && speed[j + 1] < 0)
 				speed[j + 1] = 0;
-	
+
 
 		}
 	}
@@ -2453,16 +2616,24 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 	switch (cbox)
 	{
 	case CARTESIAN:
-		xmitMsg.ID = 0x371;
-		xmitMsg.LEN = 8;
-		for (int i = 0; i < xmitMsg.LEN; i++)
-		{
-			// Cartesian movement data.	
-			xmitMsg.RDATA[i] = (BYTE)speed[i];
-			//gotoxy(1, 52);
-			//cout << TimeCheck() << endl;
-		}
-		break;
+	      {xmitMsg.ID = 0x371;
+	       xmitMsg.LEN = 8;
+	        //float spd_x = -speed[1]; // correct the issue of control box // mushtaq feb 2022// 
+	        //float spd_y = speed[2];
+	         /*speed[1] = -spd_y;
+	        speed[2] = spd_x;*/
+			/*xmitMsg.RDATA[0] = (BYTE)speed[0];
+			xmitMsg.RDATA[1] = (BYTE)spd_y;
+			xmitMsg.RDATA[2] = (BYTE)spd_x;*/
+	     for (int i = 0; i < xmitMsg.LEN; i++)
+	          {
+
+		     // Cartesian movement data.	
+		        xmitMsg.RDATA[i] = (BYTE)speed[i];
+		    //gotoxy(1, 52);
+		     //cout << TimeCheck() << endl;
+	          }
+	       break; }
 	case JOINT:
 		xmitMsg.ID = 0x374;
 		xmitMsg.LEN = 8;
@@ -2504,7 +2675,7 @@ int pd_control2(void)
 	if (home_pos_flag == true)
 	{
 		// go to preset pos
-		register float tmp1, tmp2;
+		float tmp1, tmp2;
 		for (int i = 0; i < 6; ++i)
 		{
 			if (i == 5) // roll -180 ~ 180 : linear scailing
@@ -2537,7 +2708,7 @@ int pd_control2(void)
 	else if (adjust_pos == true)
 	{
 		// go to preset pos
-		register float tmp1, tmp2;
+		float tmp1, tmp2;
 		for (int i = 0; i < 6; ++i)
 		{
 			if (i == 5) // roll -180 ~ 180 : linear scailing
@@ -2632,8 +2803,8 @@ int pd_control2(void)
 			We = nRc2eep * Wypr2;	/* in degrees */
 
 			Rde = We(2, 1) * dee2c(3, 1) - We(3, 1) * dee2c(2, 1),
-				We(3, 1) * dee2c(1, 1) - We(1, 1) * dee2c(3, 1),
-				We(1, 1) * dee2c(2, 1) - We(2, 1) * dee2c(1, 1);
+				We(3, 1)* dee2c(1, 1) - We(1, 1) * dee2c(3, 1),
+				We(1, 1)* dee2c(2, 1) - We(2, 1) * dee2c(1, 1);
 
 			for (int i = 0; i < 3; ++i)
 				Rde(i + 1, 1) = Rde(i + 1, 1) * convert;
@@ -2670,7 +2841,7 @@ int pd_control2(void)
 	else
 	{
 		// return to user, 
-		register float tmp1, tmp2;
+		float tmp1, tmp2;
 		// translation (set-point move),
 		for (int i = 0; i < 3; ++i)
 		{
@@ -2719,7 +2890,7 @@ int pd_control2(void)
 	gotoxy(1, 25);
 	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 
-	////  Mushtaq  enable camera collision check on auto motion
+	////    enable camera collision check on auto motion
 	float cam_dist;
 	cam_dist = DistanceBetween_Camera_Link3(pos);
 	gotoxy(1, 41);
@@ -3012,7 +3183,7 @@ int pd_controlJoint(void)
 
 			float dDiff;
 
-			eprev1[i] = (pd[i] - (pos[i] * .1f))*flip;
+			eprev1[i] = (pd[i] - (pos[i] * .1f)) * flip;
 			dDiff = (eprev1[i] - oldDiff[i]) / DeltaT;
 
 			float control_input = Kp[i] * eprev1[i] + Kd[i] * dDiff;
@@ -3086,7 +3257,7 @@ int pd_controlx()
 	float tmp1 = (180.0f - pos[5]) - (180.0f - opos[5]);
 	dr = (tmp1 >= 0.0f) ? ((tmp1 <= 180.0f) ? tmp1 : tmp1 - 360.0f) : ((tmp1 > -180.0f) ? tmp1 : 360.0f + tmp1);
 
-	cypr[0] = 20.0f*dy / dt;	cypr[1] = 20.0f*dp / dt;	cypr[2] = 20.0f*dr / dt;
+	cypr[0] = 20.0f * dy / dt;	cypr[1] = 20.0f * dp / dt;	cypr[2] = 20.0f * dr / dt;
 
 	for (int i = 0; i < 3; ++i) {
 		dypr[i] = oypr[i] + (cypr[i] - oypr[i]) * (dt / 1000.0f) * 5.0f;
@@ -3101,8 +3272,8 @@ int pd_controlx()
 
 	We = transpose(Ree2w) * Rypr2w * Dypr;	// [deg]
 	Rde = We(2) * d_c_ee(3, 1) - We(3) * d_c_ee(2, 1),
-		We(3) * d_c_ee(1, 1) - We(1) * d_c_ee(3, 1),
-		We(1) * d_c_ee(2, 1) - We(2) * d_c_ee(1, 1);
+		We(3)* d_c_ee(1, 1) - We(1) * d_c_ee(3, 1),
+		We(1)* d_c_ee(2, 1) - We(2) * d_c_ee(1, 1);
 
 	for (int i = 0; i < 3; ++i)	Rde(i + 1) = -Rde(i + 1)/* * convert*/;
 
@@ -3119,7 +3290,7 @@ int pd_controlx()
 	Pc = pos[0], pos[1], pos[2];
 	Pc = Pc + Ree2w * d_c_ee;
 
-	FILE *fp = fopen("C:\\MANUS\\CommonSpace\\Run\\outc.txt", "a");
+	FILE* fp = fopen("C:\\MANUS\\CommonSpace\\Run\\outc.txt", "a");
 	fprintf(fp, "%d ", TimeCheck());
 	for (int i = 0; i < 6; ++i) fprintf(fp, "%.3f ", pos[i]);
 	for (int i = 0; i < 3; ++i) fprintf(fp, "%.3f ", Pc(i + 1));
@@ -3171,10 +3342,20 @@ bool LoadAll(void)
 	}
 	else
 		cout << "[Info]: Shared memory robot_pos is available!" << endl;
+
 	if (!force.OpenMappedMemory("FORCE"))
 	{
 		cout << "[Error!]: Shared memory force is not available!" << endl;
 		return false;
+	}
+
+	for (long double  i = 0; i < 6; i++) {
+		string sbuf("F/T " + std::to_string(i));
+		if (!FT_sensor[(int)i].OpenMappedMemory(sbuf))
+		{
+			cout << "[Error!]: Shared memory F/T Sensor is not available!" << endl;
+			return false;
+		}
 	}
 	if (!LPS.OpenMappedMemory("LPS"))
 	{
@@ -3184,6 +3365,11 @@ bool LoadAll(void)
 	if (!slip_vel.OpenMappedMemory("SLIPVEL"))
 	{
 		cout << "[Error!]: Shared memory slip_vel is not available!" << endl;
+		return false;
+	}
+	if (!pos_vel2.OpenMappedMemory("POSIT2"))
+	{
+		cout << "[Error!]: Shared memory pos_vel2 is not available!" << endl;
 		return false;
 	}
 	if (!pos_vel.OpenMappedMemory("POSIT"))
@@ -3198,18 +3384,18 @@ bool LoadAll(void)
 	}
 	if (!spaceMouseValues.OpenMappedMemory("SPACEMOUSE"))
 	{
-		cout << "[Error!]: Shared memory takktile is not available!" << endl;
+		cout << "[Error!]: Shared memory SPACEMOUSE is not available!" << endl;
 		return false;
 	}
 	if (!sug_speed.OpenMappedMemory("sug speed"))
 	{
-		cout << "[Error!]: Shared memory takktile is not available!" << endl;
+		cout << "[Error!]: Shared memory sug speed is not available!" << endl;
 		return false;
 	}
 
 	if (!block_direction.OpenMappedMemory("block"))
 	{
-		cout << "[Error!]: Shared memory takktile is not available!" << endl;
+		cout << "[Error!]: Shared memory block is not available!" << endl;
 		return false;
 	}
 
@@ -3379,39 +3565,236 @@ char reliable(int num, char val)
 
 void ReadForce(float cur_for)
 {
-	register char read_pos_str[256], read_str[256];
+	char read_pos_str[256], read_str[256];
 
 	force->SetReadPos(0);
 	force.Lock();
-	force->Read((unsigned char *)read_pos_str, 7 * sizeof(BYTE), 0);
+	force->Read((unsigned char*)read_pos_str, 7 * sizeof(BYTE), 0);
 	force.Unlock();
 
 	memcpy(read_str, read_pos_str, 7 * sizeof(BYTE));
-	cur_for = (float)atof((const char *)read_str);
+	cur_for = (float)atof((const char*)read_str);
 
 	cur_force = cur_for;
 
-	gotoxy(1, 30);
-	printf("Force: %.3f", cur_force);
-	gotoxy(30, 30);
+	/*gotoxy(1, 30);
+	printf("Force: %.3f", cur_force);*/
+    gotoxy(30, 30);
 	printf("Speed mode: %d", speed_mode);
 }
+
+//......Mushtaq, Feb 2022 :reading from ati-ia F/T  sensor
+void interac_perc(void) {
+	int i;
+	Matrix<3, 3> Rw2e;
+	Rw2e = transpose(EE2w_transform3(pos));
+
+	// to be chaneged later : //
+	float fdz = 1;
+	//float fdx = 1;
+	float vdz = 0;
+	float Thrz = 0;
+	//float vdx = 0;
+	//float vdy = 0;
+	float Thr_y = 0;
+	float Thr_x = 0.01;
+	float alpha_x = 0;
+	float alpha_y = 0;
+	float T_xy = 2;  // for generating  osci in y , z to get feeling force
+	ColumnVector<3> Vxyz_ee, Vxyz_w;
+	Matrix<3, 3> Re2w;
+	Re2w = EE2w_transform3(pos);
+
+	if (flag_start1 == 0)
+	{
+		flag_start1 = 1;
+		ini_time_inte_perc = TimeCheck();
+	}
+	elapsed_time1 = ((float)TimeCheck() - (float)ini_time_inte_perc) / 1000; // in sec
+
+	if (switch_contact == 0 && abs(abs(F_ee[0]) - fdx) > Thr_x)
+	{
+		//Vxyz_ee(1) = vdx * (1 + (F_ee[0] / fdx));
+		//Vxyz_ee(2) = 0;
+		Vxyz_ee(3) = 0;
+		elapsed_time_y = (TimeCheck() - time_y_ini) / 1000;
+		//Vxyz_ee(2) = vdy * sign(float(sin(2 * M_PI * elapsed_time1 / T_xy)));
+		Vxyz_ee(1) = 0;
+
+		speed[4]= vdy * sign(float(sin(2 * M_PI * elapsed_time1 / T_xy)));
+
+		//speed[4] = vdy;
+	}
+	else
+	{
+		Vxyz_ee(1) = 0;
+		Vxyz_ee(2) = 0;
+		Vxyz_ee(3) = 0;
+		/*move_flag_in_x = 0;
+		flag_start1 = 0;*/
+
+
+		/*if (elapsed_time1 > 1)
+		{
+			swy = 1;
+			time_y_ini = TimeCheck();
+			flag_touch = 0;
+			speed[4] = 0;
+		}*/
+
+		if (swy == 1)
+		{
+			elapsed_time_y = (TimeCheck() - time_y_ini) / 1000;
+			//Vxyz_ee(2) = vdy * sign(float(sin(2 * M_PI * elapsed_time_y / T_xy)));
+
+
+
+		}
+		/*if (elapsed_time1 < 5)
+		{
+
+
+			Vxyz_ee(1) = vdx;
+			Vxyz_ee(2) = 0;
+			Vxyz_ee(3) = 0;
+
+		}
+		else
+		{
+
+			move_flag_in_x = 0;
+			flag_start1 = 0;
+			Vxyz_ee(1) = 0;
+			Vxyz_ee(2) = 0;
+			Vxyz_ee(3) = 0;
+
+		}*/
+
+		/*if (elapsed_time1 > 60)
+		{
+			move_flag_in_x = 0;
+			flag_start1 = 0;
+			Vxyz_ee(1) = 0;
+			Vxyz_ee(2) = 0;
+			Vxyz_ee(3) = 0;
+		}*/
+	}
+		Vx_ee = Vxyz_ee(1);
+		Vy_ee = Vxyz_ee(2);
+		Vz_ee = Vxyz_ee(3);
+		Vxyz_w = Re2w * Vxyz_ee;
+
+		if (elapsed_time1 > 30)
+		{
+			
+			speed[4] = 0;
+			flag_start1 = 0;
+			move_flag_in_x = 0;
+
+		}
+
+		for (i = 1; i < 4; i++)
+
+		{
+			speed[i] = Vxyz_w(i);
+			
+		}
+		new_status = true;
+
+		gotoxy(1, 55);
+		printf("Vy_ee", Vy_ee);
+
+		counter += 1;
+}
+void ReadForceTorque(double (&cur_FT)[6])
+{
+	char read_pos_str[256];
+	int i;
+
+	for (int i = 0; i < 6; i++)
+	{
+		FT_sensor[i]->SetReadPos(0);
+		FT_sensor[i].Lock();
+		FT_sensor[i]->Read((unsigned char*)read_pos_str, 10 * sizeof(BYTE), 0);
+		FT_sensor[i].Unlock();
+		cur_FT[i] = static_cast<double>(atof(static_cast<const char*>(read_pos_str)));
+    }
+	
+	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
+	ColumnVector<3> Mg_w, F_offset,T_offset,F_unb,T_unb, r_vect, F_bias, F_temp,T_temp, F_ee_temp, T_ee_temp;
+	Matrix<3, 3> Rw2e;
+	Rw2e = transpose(EE2w_transform3(pos));
+	//Rh2FT_s = -0.002, -0.998, 0.0617, 0.224, -0.060, -0.972, 0.975, 0.013, 0.224; // rotation matrix from wrist to FT sensor// from calibration
+	//Rh2FT_s = -0.05556, -0.9949, 0.0838, 0.2130, -0.0702, -0.9745, 0.9755, 0.0720, 0.2080; // rotatio
+	Rh2FT_s = -0.0065, -0.9991, 0.0421, -0.080, -0.0414, -0.9959, 0.9968, -0.0098, -0.0796; // rotatio
+    //Mg_w = 0, 0, -0.623; //  mass of wrist in N  // mushtaq, Feb 2022
+	Mg_w = 0, 0, -5.832;
+	//F_offset = -21.999, -13.203, 23.397;
+	//T_offset = -0.3016, 0.8030, 0.2234;
+	//r_vect = 0.0008, -0.0019, 0.0823;
+	//F_offset = -14.5532,-13.775,18.0673;
+	//T_offset = -0.2717, 0.3703, 0.2079;
+	//r_vect = -0.0008, 0.0005, -0.0030;
+	/*F_offset = (-15.586 - 0.1228), (-14.022 - 0.1060), (14.212+4.9509);
+	T_offset = (-0.3636 + 0.057331), (0.5146 - 0.04665), (0.1977 - 0.0063);*/
+	F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
+	T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
+	r_vect = 0.0021, -0.0038, 0.0781;
+
+	//crossProduct
+
+	Rw2FT_s= Rh2FT_s*Rw2e;
+
+	F_unb = Rw2FT_s * Mg_w + F_offset;
+	F_bias = Rw2FT_s * Mg_w;
+	T_unb = crossProduct(r_vect, F_bias) + T_offset;
+	
+	double cur_FT_unbias[6] = { 0,0 ,0,0,0,0 };
+
+	for (i = 0; i < 3; i++)
+	{
+		cur_FT_unbias[i] = cur_FT[i] - F_unb(i + 1);
+		cur_FT_unbias[i + 3] = cur_FT[i+3]-T_unb(i + 1);
+	}
+
+	F_temp = cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2] ;
+	T_temp = cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5];
+	F_ee_temp = transpose(Rh2FT_s) * F_temp;
+	T_ee_temp = transpose(Rh2FT_s) * T_temp;
+
+	for (i = 0; i < 3; i++)
+	{
+		F_ee[i] =  F_ee_temp(i + 1);
+		T_ee[i] =  T_ee_temp(i + 1);
+	}
+	
+	gotoxy(1, 32);
+	printf(" Force/Torque_biased: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", cur_FT[0], cur_FT[1], cur_FT[2], cur_FT[3], cur_FT[4], cur_FT[5] );
+	gotoxy(1, 33);
+	printf(" Force/Torque_unbiased: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2], cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5]);
+	gotoxy(1, 35);
+	printf(" FT_ee: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", F_ee[0], F_ee[1], F_ee[2], T_ee[0], T_ee[1], T_ee[2]);
+	//printf(" Fy:%.3f", cur_FT[2]);
+}
+
+
+
 
 void ReadOBJ(void)
 {
 
-	register char Spacemouse_str[256], read_str[256], pos_sign[3];
-	register int i, j;
+	char Spacemouse_str[256], read_str[256], pos_sign[3];
+	int i, j;
 
 	Obj_in->SetReadPos(0);
 	Obj_in.Lock();
-	Obj_in->Read((unsigned char *)Spacemouse_str, 2 * sizeof(BYTE), 0);
+	Obj_in->Read((unsigned char*)Spacemouse_str, 2 * sizeof(BYTE), 0);
 	Obj_in.Unlock();
 
 	for (i = 0; i < 2; i++)
 	{
 		memcpy(read_str, Spacemouse_str + i, sizeof(BYTE));
-		obj_in[i] = (int)atof((const char *)read_str);
+		obj_in[i] = (int)atof((const char*)read_str);
 	}
 
 	//memcpy( read_str, Spacemouse_str + 49, sizeof(BYTE) );
@@ -3423,20 +3806,20 @@ void ReadOBJ(void)
 
 }
 
-void ReadLPS(int *LPS_value)
+void ReadLPS(int* LPS_value)
 {
-	register char read_LPS_str[256], read_str[256];
-	register int i;
+	char read_LPS_str[256], read_str[256];
+	int i;
 
 	LPS->SetReadPos(0);
 	LPS.Lock();
-	LPS->Read((unsigned char *)read_LPS_str, 8 * sizeof(BYTE), 0);
+	LPS->Read((unsigned char*)read_LPS_str, 8 * sizeof(BYTE), 0);
 	LPS.Unlock();
 
 	for (i = 0; i < 2; i++)
 	{
 		memcpy(read_str, read_LPS_str + 4 * i, 4 * sizeof(BYTE));
-		LPS_value[i] = (int)atof((const char *)read_str);
+		LPS_value[i] = (int)atof((const char*)read_str);
 		//LPS_value[1] = 10.0;
 	}
 
@@ -3492,87 +3875,44 @@ void LPScheck(void)
 
 
 }
-//
-//void ReadSlip(double cur_vel)
-//{
-//	register char read_pos_str[256], read_str[256];
-//
-//	slip_vel->SetReadPos(0);
-//	slip_vel.Lock();
-//	slip_vel->Read((unsigned char *)read_pos_str, 8*sizeof(BYTE), 0 );
-//	slip_vel.Unlock();
-//
-//	memcpy( read_str, read_pos_str, 8*sizeof(BYTE) );
-//	cur_vel = (double)atof((const char *)read_str);
-//
-//	
-//	cur_velocity = cur_vel*1000;
-//	cur_velocity2 = cur_vel*1000;
-//	raw_velocity = cur_vel*1000;
-//	//if (initial_vel){
-//	//	old_vel = cur_velocity;
-//	//	initial_vel = false;
-//	//}
-//	//if ((cur_velocity==old_vel && cur_velocity == old_vel2 && cur_velocity == old_vel3 )/* || (cur_velocity<0)*/ ){
-//	//	cur_velocity = 0;
-//	//}
-//	//old_vel3 = old_vel2;
-//	//old_vel2 = old_vel;
-//	//old_vel = cur_velocity2;
-//
-//	gotoxy(1,32);
-//	printf("Velocity: %.3f",cur_velocity);
-//
-//}
 
-//void ReadPosit(double cur_pos)
-//{
-//	register char read_pos_str[256], read_str[256];
-//	//SleepMs(3);
-//	pos_vel->SetReadPos(0);
-//	pos_vel.Lock();
-//	pos_vel->Read((unsigned char *)read_pos_str, 8*sizeof(BYTE), 0 );
-//	pos_vel.Unlock();
-//
-//	memcpy( read_str, read_pos_str, 8*sizeof(BYTE) );
-//	cur_pos = (double)atof((const char *)read_str);
-//
-//	//cur_position = cur_pos*1000;
-//	cur_position = cur_pos;
-//	gotoxy(1,33);
-//	printf("Position: %.3f",cur_position);
-//}
 
-void ReadPosit(void)//with position filter
+
+
+void ReadPosit(void) //with position filter
 {
-	register char read_pos_str[256], read_str[256], read_str2[256];
-	double cur_pos,cur_pos_y;
+	char read_pos_str[256], read_str[256], read_str2[256];
+	double cur_pos, cur_pos_y;
 	//SleepMs(3);
 	pos_vel->SetReadPos(0);
 	pos_vel.Lock();
-	pos_vel->Read((unsigned char *)read_pos_str, 20 * sizeof(BYTE), 0);
+	pos_vel->Read((unsigned char*)read_pos_str, 20 * sizeof(BYTE), 0);
 	pos_vel.Unlock();
 
 	memcpy(read_str, read_pos_str, 10 * sizeof(BYTE));
-	cur_pos = (double)atof((const char *)read_str);
+	cur_pos = (double)atof((const char*)read_str);
 	cur_pos_nf = cur_pos;
 
-	memcpy(read_str2, read_pos_str+10, 10 * sizeof(BYTE));
-	cur_pos_y = (double)atof((const char *)read_str2);
+	memcpy(read_str2, read_pos_str + 10, 10 * sizeof(BYTE));
+	cur_pos_y = (double)atof((const char*)read_str2);
 	cur_pos_nf_y = cur_pos_y;
 
 	//exp smoothing
 
-	cur_pos_f = al * cur_pos + (1 - al)*o_p;
+	cur_pos_f = al * cur_pos + (1 - al) * o_p;
 	o_p = cur_pos_f;
-	cur_pos_f_y = al * cur_pos_y + (1 - al)*o_p_y;
+	cur_pos_f_y = al * cur_pos_y + (1 - al) * o_p_y;
 	o_p_y = cur_pos_f_y;
 	//cur_position = cur_pos*1000;
-	cur_position = cur_pos_f;
+	cur_position = cur_pos_f;// current position x
 	cur_position_y = cur_pos_f_y;
-	gotoxy(1, 33);
-	printf("Position: %.3f      position_y: %.3f", cur_position,cur_position_y);
+	//gotoxy(1, 33);
+	//printf("position_x: %.3f   position_y: %.3f", cur_position,cur_position_y);
+	//printf("Position: %.3f      position_y: %.3f", cur_pos, cur_pos_nf_y);
+
+
 }
+
 
 void ReadVel(void)
 {
@@ -3580,7 +3920,6 @@ void ReadVel(void)
 	dtt = cur_t - old_t;
 	cur_velocity = (cur_position - old_position) / (cur_t - old_t);
 	cur_velocity_y = (cur_position_y - old_position_y) / (cur_t - old_t);
-	//cur_velocity = (cur_position-old_position)/(2);
 	old_t = cur_t;
 	old_position = cur_position;
 	old_position_y = cur_position_y;
@@ -3589,7 +3928,7 @@ void ReadVel(void)
 	x2d[1] = x2d[0];
 	x2d[0] = cur_velocity;
 	y2d[1] = y2d[0];
-	y2d[0] = cur_velocity_f;	
+	y2d[0] = cur_velocity_f;
 
 	cur_velocity_f_y = b2[0] * cur_velocity_y + b2[1] * x2d_y[0] + b2[2] * x2d_y[1] - a2[0] * y2d_y[0] - a2[1] * y2d_y[1];
 	x2d_y[1] = x2d_y[0];
@@ -3597,17 +3936,75 @@ void ReadVel(void)
 	y2d_y[1] = y2d_y[0];
 	y2d_y[0] = cur_velocity_f_y;
 
-	
 
-	gotoxy(1, 32);
-	printf("Velocity: %.3f  vel_y: %.6f", cur_velocity_f,cur_velocity_f_y);
+
+	//gotoxy(1, 32);
+	//printf("vel_x: %.3f  vel_y: %.6f cur_time: %d" , cur_velocity_f,cur_velocity_f_y, cur_t);
 }
+void ReadPosit2(void)//with position filter
+{
+	char read_pos_str[256], read_str[256], read_str2[256];
+	double cur_pos2, cur_pos_y2;
+	//SleepMs(3);
+	pos_vel2->SetReadPos(0);
+	pos_vel2.Lock();
+	pos_vel2->Read((unsigned char*)read_pos_str, 20 * sizeof(BYTE), 0);
+	pos_vel2.Unlock();
 
+	memcpy(read_str, read_pos_str, 10 * sizeof(BYTE));
+	cur_pos2 = (double)atof((const char*)read_str);
+	cur_pos_nf2 = cur_pos2;
+
+	memcpy(read_str2, read_pos_str + 10, 10 * sizeof(BYTE));
+	cur_pos_y2 = (double)atof((const char*)read_str2);
+	cur_pos_nf_y2 = cur_pos_y2;
+
+	//exp smoothing
+
+	cur_pos_f2 = al * cur_pos2 + (1 - al) * o_p2; // current position x 2
+	o_p2 = cur_pos_f2;
+	cur_pos_f_y2 = al * cur_pos_y2 + (1 - al) * o_p_y2;
+	o_p_y2 = cur_pos_f_y2;
+	//cur_position2 = cur_pos2*1000; // current position2
+	cur_position2 = cur_pos_f2;
+	cur_position_y2 = cur_pos_f_y2;
+	//gotoxy(1, 46);
+	//printf("position_x2: %.3f  position_y2: %.3f", cur_position2, cur_position_y2);
+
+
+
+}
+void ReadVel2(void)
+{
+	cur_t2 = TimeCheck();
+	dtt2 = cur_t2 - old_t2;
+	cur_velocity2 = (cur_position2 - old_position2) / (cur_t2 - old_t2);
+	cur_velocity_y2 = (cur_position_y2 - old_position_y2) / (cur_t2 - old_t2);
+	//cur_velocity = (cur_position-old_position)/(2);
+	old_t2 = cur_t2;
+	old_position2 = cur_position2;
+	old_position_y2 = cur_position_y2;
+
+	cur_velocity_f2 = b2[0] * cur_velocity2 + b2[1] * x2d2[0] + b2[2] * x2d2[1] - a2[0] * y2d2[0] - a2[1] * y2d2[1];
+	x2d2[1] = x2d2[0];
+	x2d2[0] = cur_velocity2;
+	y2d2[1] = y2d2[0];
+	y2d2[0] = cur_velocity_f2;
+
+	cur_velocity_f_y2 = b2[0] * cur_velocity_y2 + b2[1] * x2d_y2[0] + b2[2] * x2d_y2[1] - a2[0] * y2d_y2[0] - a2[1] * y2d_y2[1];
+	x2d_y2[1] = x2d_y[0];
+	x2d_y2[0] = cur_velocity_y2;
+	y2d_y2[1] = y2d_y[0];
+	y2d_y2[0] = cur_velocity_f_y2;
+
+	//gotoxy(1, 45);
+	//printf("vel_x2: %.3f  vel_y2: %.6f  cur_time: %d", cur_velocity_f2, cur_velocity_f_y2, cur_t2);
+}
 //
 void ReadTaKK(void)
 {
-	//register char read_pos_str[256], read_str[256];
-	//register int i;
+	//char read_pos_str[256], read_str[256];
+	//int i;
 	//takktile->SetReadPos(0);
 	//takktile.Lock();
 	//takktile->Read((unsigned char *)read_pos_str, 100*sizeof(BYTE), 0 );
@@ -3626,12 +4023,12 @@ void ReadTaKK(void)
 	//printf("[%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d]\n", cur_takk[0],cur_takk[1],cur_takk[2],cur_takk[3],cur_takk[4],cur_takk[5],
 	//	cur_takk[6],cur_takk[7],cur_takk[8],cur_takk[9],cur_takk[10],cur_takk[11]);
 
-	register char Spacemouse_str[256], read_str[256], pos_sign[3];
-	register int i, j;
+	char Spacemouse_str[256], read_str[256], pos_sign[3];
+	int i, j;
 
 	takktile->SetReadPos(0);
 	takktile.Lock();
-	takktile->Read((unsigned char *)Spacemouse_str, 30 * sizeof(BYTE), 0);
+	takktile->Read((unsigned char*)Spacemouse_str, 30 * sizeof(BYTE), 0);
 	takktile.Unlock();
 
 	int old_touch_pos[10];
@@ -3641,7 +4038,7 @@ void ReadTaKK(void)
 	{
 		old_touch_pos[i] = touch_pos[i];
 		memcpy(read_str, Spacemouse_str + i, sizeof(BYTE));
-		touch_pos[i] = (int)atof((const char *)read_str);
+		touch_pos[i] = (int)atof((const char*)read_str);
 		sum0 += touch_pos[i];
 		if (touch_pos[i] != old_touch_pos[i])
 			touch_pos_change[i] = 1;
@@ -3681,7 +4078,7 @@ void GraspController(void)
 	float cur_distance;
 	float old_pos = cur_position;
 
-	float Fa = (1 / u_hat)*(w_hat + k * cur_velocity_f);
+	float Fa = (1 / u_hat) * (w_hat + k * cur_velocity_f);
 	float err = abs(cur_force - Fa);
 
 	//err_data << cur_time << ", " << err << "\n";
@@ -3709,10 +4106,10 @@ void GraspController(void)
 		cur_distance = abs(cur_position - old_pos) * 1000;
 		dt = (cur_time - old_time) / 1000;
 		w_hat = gamma1 * cur_distance + .625;
-		u_hat_dot = -gamma2 / u_hat * w_hat*cur_velocity_f;
+		u_hat_dot = -gamma2 / u_hat * w_hat * cur_velocity_f;
 		u_hat += u_hat_dot * dt;
 
-		Fa = (1 / u_hat)*(w_hat + k * cur_velocity_f);
+		Fa = (1 / u_hat) * (w_hat + k * cur_velocity_f);
 		err = cur_force - Fa;
 		old_time = cur_time;
 		old_pos = cur_position;
@@ -3867,8 +4264,8 @@ void GraspController(void)
 void ReadSugspeed(void)
 {
 
-	//register char speed_str[256], read_str[256];
-	//register int i;
+	//char speed_str[256], read_str[256];
+	//int i;
 
 	//sug_speed->SetReadPos(0);
 	//sug_speed.Lock();
@@ -3891,24 +4288,24 @@ void ReadSugspeed(void)
 void Readblock_dir(void)
 {
 	block_flag = false;
-	register char block_str[256], read_str[256];
-	register int i;
+	char block_str[256], read_str[256];
+	int i;
 
 	block_direction->SetReadPos(0);
 	block_direction.Lock();
-	block_direction->Read((unsigned char *)block_str, 20 * sizeof(BYTE), 0);
+	block_direction->Read((unsigned char*)block_str, 20 * sizeof(BYTE), 0);
 	block_direction.Unlock();
 
 	for (i = 0; i < 6; i++)
 	{
 		memcpy(read_str, block_str + 3 * i, 3 * sizeof(BYTE));
-		block_dir[i] = (int)atof((const char *)read_str);
+		block_dir[i] = (int)atof((const char*)read_str);
 		if (block_dir[i] != 0)
 			block_flag = true;
 	}
 
 	memcpy(read_str, block_str + 18, sizeof(BYTE));
-	btn_pressed = (int)atof((const char *)read_str);
+	btn_pressed = (int)atof((const char*)read_str);
 
 	user_oprt[0] = user_oprt[1];//check user is operation or not
 	if (btn_pressed == 1 || spm_operation > 1500)
@@ -3959,44 +4356,121 @@ void LowPassFilter2(void)
 
 }
 
+void init_grasp2(void) // to test  F_min
+{
+	if (grab_in_progress)
+	{
+
+		ReadForce(cur_force);
+		// a reading on the right gripper and the cur_force matching the contact min force satisfies the condition for ready to lift
+		bool contact_on_both_fingers = ((abs(cur_velocity_f) > 0) || (abs(cur_velocity_f2) > 0)) && (cur_force > contact_force_min) && grasp_flag == INITIAL;
+		if (contact_on_both_fingers && !ready_to_lift)
+
+		{
+			ResetAll();
+			ReadForce(cur_force);
+			init_force = cur_force;
+			last_b_hat = init_force;// mushtaq
+			last_a_hat = init_force / 9.81; // mushtaq
+			pos_before_lifting = pos[2]; //record the position before lifting 
+			hold_init = TimeCheck();
+			init_stop = 1; // used to indicate regrasping via updatespacemouse to the GUI where text to speech is carried out and text is displayed
+			speed[7] = 0; //stop the gripper 
+			new_status = true;
+			//SendCommand2(SPC, TTS_SPEAK, ready_to_lift);
+			SendCommand2(SPC, TTS_SPEAK, READY_LIFT); // mushtaq
+
+			ready_to_lift = true;
+		}
+		if ((cbox == CARTESIAN) && (pos[6] < -25000.0f))
+		{
+			SendCommand(CAN, FSR, FSR_END, EMPTY_MESSAGE);
+			ResetAll();
+			//continue;
+		}
+
+	}
+}
+
+void regrasping_algorithm2(void) // mushtaq to test F_min
+
+{
+	ReadForce(cur_force);
+	int adj_time_out = 30000;
+	if (grasp_flag == INITIAL) {
+		
+		ReadForce(cur_force);
+
+		if ((cur_force > 0.1) && (ready_to_lift && !grab_in_progress && !open_in_progress && (TimeCheck() - hold_init) > 6000))
+		{
+		
+			ResetAll2();
+			grasp_flag = ADAPTIVE_REGRASPING;
+			old_time = TimeCheck(); // used for angular disp calculations this servers as the initial value
+			ini_adt = TimeCheck(); // initialize adjust timer 
+		}
+	}
+	if (grasp_flag == ADAPTIVE_REGRASPING) {
+		
+		cur_time = TimeCheck();
+
+		dt0 = (cur_time - old_time) / 1000;
+
+		speed[7] = -5 * sin(dt0 * 2 * M_PI * 0.1);
+		new_status = true;
+
+		old_time = cur_time;   
+		ReadForce(cur_force);
+	}
+	if ((TimeCheck() - ini_adt) > adj_time_out) {
+
+		grasp_flag = INITIAL;
+		ResetAll();
+	}
+
+}
+
+
+
+//ROBSON SUMMER 2020 NEWLY IMPLEMENTED ALGO
+// Updated last 7/9/2020
 void init_grasp(void)
 {
 	if (grab_in_progress)
 	{
 
-		//if ( cur_force>0.5 &&( fabs(force_que[3] - force_que[2]) <= tol )
-		//	&& ( fabs(force_que[2] - force_que[1]) <= tol )
-		//	&& ( fabs(force_que[1] - force_que[0]) <= tol ) 
-		//	&& ( fabs(force_que[4] - force_que[3]) <= tol ) 
-		//	/*&& ( fabs(force_que[5] - force_que[4]) <= tol*/ ) {
-		//	ResetAll();
-		//	}
-		if (cur_force > 0) {
-			P_int = pos[6];
-		}
+		ReadForce(cur_force);
+		// a reading on the right gripper and the cur_force matching the contact min force satisfies the condition for ready to lift
+		bool contact_on_both_fingers = ((abs(cur_velocity_f) > 0) || (abs(cur_velocity_f2) > 0)) && (cur_force > contact_force_min) && grasp_flag == INITIAL;
+		if (contact_on_both_fingers && !ready_to_lift)
 
-		if (abs(cur_velocity_f) > 0.005 / 1000 && cur_force > 4 && grasp_flag == 0) // new algoritm
 		{
 			ResetAll();
 			ReadForce(cur_force);
 			init_force = cur_force;
-			init_stop = 1;
+			//last_b_hat = init_force;// mushtaq
+			//last_a_hat= init_force/9.81; // mushtaq
+			pos_before_lifting = pos[2]; //record the position before lifting 
 			hold_init = TimeCheck();
-			//SendCommand2(SPC, TTS_SPEAK, READY_LIFT);
-			//ready_lift = true;
-			/*P_int = pos[6];	*/
+			init_stop = 1; // used to indicate regrasping via updatespacemouse to the GUI where text to speech is carried out and text is displayed
+			speed[7] = 0; //stop the gripper 
+			new_status = true;
+			//SendCommand2(SPC, TTS_SPEAK, ready_to_lift);
+			SendCommand2(SPC, TTS_SPEAK, READY_LIFT); // mushtaq
+			
+			ready_to_lift = true;
 		}
-		else if (grasp_flag == 0) // force flatness detection grasping
-		{
-			tol = 0.2;
-			if (cur_force > 4.5 && (fabs(force_que[3] - force_que[2]) <= tol)
-				&& (fabs(force_que[2] - force_que[1]) <= tol)
-				&& (fabs(force_que[1] - force_que[0]) <= tol)
-				&& (fabs(force_que[4] - force_que[3]) <= tol) && init_stop == 0) {
-				ResetAll();
-				init_stop = 1;
-			}
-		}
+		//else if (grasp_flag == INITIAL) // force flatness detection grasping
+		//{
+		//	tol = 0.2;
+		//	if (cur_force > 4.5 && (fabs(force_que[3] - force_que[2]) <= tol)
+		//		&& (fabs(force_que[2] - force_que[1]) <= tol)
+		//		&& (fabs(force_que[1] - force_que[0]) <= tol)
+		//		&& (fabs(force_que[4] - force_que[3]) <= tol) && init_stop == 0) {
+		//		ResetAll();
+		//		init_stop = 1;
+		//	}
+		//}
 
 
 		if ((cbox == CARTESIAN) && (pos[6] < -25000.0f))
@@ -4008,227 +4482,274 @@ void init_grasp(void)
 	}
 }
 
-void regrasp(void)
+
+
+	
+
+
+
+//ROBSON SUMMER 2020 NEWLY IMPLEMENTED ALGO
+// Updated last 7/9/2020
+void regrasping_algorithm(void)
 {
-	int adj_time_out = 2000;
-	grasp_end = 0;
-	grasp_start = 0;
-	grasp_npos = pos[6];
-	e_force = cur_force - F_d;
-	e_pos = pos[6] - stoppos;
-	cur_velocity_f_in = cur_velocity_f; //sqrt(pow(cur_velocity_f, 2) + pow(cur_velocity_f_y, 2));
+	//control gains 
+	//k1 = 400;// 50,10,600,
+	//k2 = 20;//15,8,10; //200 //400 updated on 5/14/2021//
+	//k3 = 1.1;//1.2//2
+	//gamma_1 = 35 ; // was 70 (6/23/2021 mushtaq ), 1000, ,20, 200
+	//gamma_2 = 16;//  was 30 (6/23/2021 mushtaq ) ,,1500 updated on 5/14/2021//
 
-	if (grasp_flag == 10 && (TimeCheck() - ini_adt) <= adj_time_out)
-	{
-		//if (adjust >=3 ){
-		//	if (adjust<=3)
-		//		adjust+=1;
-		//	else adjust = 0;
-		//}
+	int adj_time_out = 10000; // 15 sec
+	//the mouse x direction is considered here because it corresponds to  the y slip direction w.r.t the gripper
+	// we are assuming the gripper is in its most used direction which is the front view of the object 
+	// we need to account for the case where the object is grapped from the top view of the object 
+	//if v1 or v2 is 0 that means the object is not rotating so ang_vel = 0
+	/*if ((abs(cur_velocity_f) < 0.25 / 100000) || (abs(cur_velocity_f2) < 0.25 / 100000)) ang_vel = 0;
+	else  ang_vel = (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d;*/
+	cur_velocity_f2 = cur_velocity_f;
+	ang_vel =( (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10; //  *10 mushtaq in rad/sec
+	lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2)*10; // *10 mushtaq  //in m/s
+	bool slip_detected = (abs(cur_velocity_f) > 0.25 / 10000) || (abs(cur_velocity_f2) > 0.25 / 10000);
+	
+	if (grasp_flag == INITIAL) {
 
-		if (adjust == 2) {
+		ReadForce(cur_force);
+		init_force = cur_force;
+		if ((cur_force > 0.1) && (ready_to_lift && slip_detected &&
+			!grab_in_progress && !open_in_progress && (TimeCheck() - hold_init) > 3000))
+		{
+			// if slip is detected here we have to go to adaptive grasping 
+				//if the curr_force is <0.001 that means the object is not grasped anymore || abs(e_force) > 1
 			//ResetAll();
-			adjust = 0;
+			ResetAll2(); // mushtaq
+			grasp_flag = ADAPTIVE_REGRASPING;
+			//last_b_hat = 2;// mushtaq
+			//last_a_hat = 2 / 9.81; // mushtaq
+			lin_dist1 = 0;//mushtaq in cm
+			lin_dist2 = 0;
+			old_pos = cur_position;//mushtaq
+			old_pos2 = cur_position2;
+			old_time = TimeCheck(); // used for angular disp calculations this servers as the initial value
+			ini_adt = TimeCheck(); // initialize adjust timer 
+			error_close_to_zero_count = 0; // reset our steady state ~0 error counter
 		}
-		if (adjust == 1)
-			adjust = 2;
-
-		//if (abs(e_pos)> 1000 && adjust == 0){    //position
-		//	//speed[7] = (6*e_force); //force
-		//	speed[7] = -(2*e_pos/1000); //g_pos
-		//	new_status = true;
-		//	//ManualControl( 'u' );
-		//	adjust = 1;
-		//}
-		if (abs(e_force) > 0.1 && adjust == 0) {    //force
-			speed[7] = (k2*e_force); //force
-
-									 //speed[7] = -(2*e_pos/1000); //g_pos
-			new_status = true;
-			//ManualControl( 'u' );
-			adjust = 1;
-		}
-
-		//else if (e_force < -0.3 && adjust == 0){
-		//	//ManualControl( 'j' );
-		//	speed[7] = -(7.5*e_force); 
-		//	new_status = true;
-		//	adjust = 1;
-		//}
-
-		if (abs(e_force) <= 0.2 && adjust == 0)
-		{ //force
-			ResetAll();
-			if ((TimeCheck() - ini_adt) <= adj_time_out)
-				grasp_flag = 10;
-			else grasp_flag = 0;
-		}
-		//if (abs(e_pos) <= 1000 && adjust ==0){    // g_position
-		//	ResetAll();
-		//	if ((TimeCheck()-ini_adt)<=10000)
-		//		grasp_flag = 10;
-		//	else grasp_flag = 0;
-		//}
+	
 	}
 
-	if (grasp_flag == 10 && (TimeCheck() - ini_adt) > adj_time_out)
-		grasp_flag = 0;
-
-	if (grasp_flag >= 6 && grasp_flag < 10)
+	if (grasp_flag == ADAPTIVE_REGRASPING)
 	{
-		if (grasp_flag <= 8)
-			grasp_flag += 1;
-		else grasp_flag = 10;
+		
+
+		float g = 9.81;
+		cur_time = TimeCheck();
+		
+		dt0 = (cur_time - old_time);
+		//if v1 or v2 is 0 that means the object is not rotating 
+		/*if ((abs(cur_velocity_f) < 0.25 / 100000) || (abs(cur_velocity_f2) < 0.25 / 100000)) ang_vel = 0;
+		else  ang_vel = (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d;*/
+		cur_velocity_f2 = cur_velocity_f;
+		ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10; // in rad/s
+		lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2)*10;  // in m/s mushtaq
+		angl_dis += ang_vel * dt0 / 1000; // to change to dt0 to seconds robson: check the integration method used 
+		a_hat_dot = -gamma_1 * (lin_vel);
+		b_hat_dot = -gamma_2 * (ang_vel)*cos(angl_dis);
+		
+		b_hat = last_b_hat + b_hat_dot * dt0 / 1000; // to change to dt0 from millisec to seconds 
+		a_hat = last_a_hat + a_hat_dot * dt0 / 1000; // to change to dt0 from millisec to seconds :j
+		lin_dist1 = old_pos-cur_position;
+		lin_dist2 = old_pos2-cur_position2;
+		
+		F_d1 = abs(a_hat * g*cos((180-pos[5])* 3.1415 /180) - k1 * lin_vel);
+		F_d2 = abs(b_hat * cos(angl_dis) - k2 * ang_vel);
+		F_d = max(F_d1, F_d2);
+		
+
+		/*if (F_d > max_force) { // mushtaq 6/23/2021
+			F_d = max_force;
+
+		}*/
+
+		/*if (F_d < init_force) {
+			ReadForce(cur_force);
+			F_d = cur_force;
+
+		}*/
+		
+
+		gotoxy(1, 34);
+		printf("F_d1: %.3f", F_d1);
+		gotoxy(15, 34);
+		printf("F_d2: %.3f", F_d2);
+		gotoxy(30, 34);
+		printf("F_dmax: %.3f", F_d);
+		gotoxy(1, 33);
+		printf("b_hd: %.3f", b_hat_dot);
+		gotoxy(15, 33);
+		printf("a_hd: %.3f", a_hat_dot);
+		gotoxy(30, 33);
+		printf("b_h: %.3f", b_hat);
+		gotoxy(45, 33);
+		printf("a_h: %.3f", a_hat);
+
+		//update our previous recodridng of time, ahat, bhat
+		old_time = cur_time;
+		last_b_hat = b_hat;
+		last_a_hat = a_hat;
+		
+		gotoxy(1, 32);
+		printf("last_b_h: %.3f", last_b_hat);
+		gotoxy(15, 32);
+		printf("last_a_h: %.3f", last_a_hat);
+		gotoxy(30, 32);
+		printf("t: %d", dt0);
+		ReadForce(cur_force);
+		e_force = cur_force - F_d;
+		speed[7] = (k3 * e_force); //apply gripper velocity 
+		//speed[7] = -7 * sin(((TimeCheck() - ini_adt) /1000) * 2 * M_PI * 0.4);
+		new_status = true; // this is for higher level commands in other modules 
+		grasp_flag = CHECK_STEADYSTATE_ERROR;
+		
+		if (cur_force < 0.1 || (TimeCheck() - ini_adt) > adj_time_out) {
+			//if the curr_force is 0 that means the object is not grasped anymore
+			// if time is > adj_timeout the adaptive grasping is taking too long 
+			grasp_flag = INITIAL;
+			ResetAll();
+			//ResetAll2();
+		}
+		
+	}
+
+
+	if (grasp_flag == CHECK_STEADYSTATE_ERROR) {
+
+		ReadForce(cur_force);
+		e_force = cur_force - F_d;
+		if (cur_force < 0.1 || (TimeCheck() - ini_adt) > adj_time_out) {
+			//if the curr_force is 0 that means the object is not grasped anymore
+			// if time is > adj_timeout the adaptive grasping is taking too long 
+			grasp_flag = INITIAL;
+			ResetAll(); 
+			//ResetAll2();
+		}
+		//else if (slip_detected || abs(e_force) > 0.1) {
+		else if (abs(cur_velocity_f2) > 0.03 / 10000) {
+			//error force is greater than 0.1 means we haven't matched the desired force
+			//if slip is detected here we have to go back to adaptive regrasping 
+			grasp_flag = ADAPTIVE_REGRASPING;
+			error_close_to_zero_count = 0; // reset our steady state ~0 error counter
+		}
+		//else if (!slip_detected && abs(e_force) <= 0.1) { 
+		else if (abs(cur_velocity_f2) <= 0.03 / 10000) {
+			error_close_to_zero_count++;
+			//we count how many times the error is recorded to be <=0.1 this is to prevent making the conclusion that
+			// the curr force crossing the desired force once is enough to claim that the error is ~0 in steady state 
+			if (error_close_to_zero_count > 100) {
+				// if the count > 100 we can consider this a condition to claim that adaptive regrasping is done successfully
+				grasp_flag = INITIAL;
+				ResetAll(); 
+				//ResetAll2();
+			}
+		}
+		gotoxy(50, 34);
+		printf("error_close_to_zero_count: %d", error_close_to_zero_count);
+
+		//else grasp_flag = ADAPTIVE_REGRASPING;
 
 	}
 
-	//if (grasp_flag==5 )
-	//{
-	//	grasp_flag = 2;
+	//while (grasp_flag == OPEN_LOOP_GRASPING) {
+	//	F_d = max_force;
+	//	ReadForce(cur_force);
+	//	e_force = cur_force - F_d;
+	//	speed[7] = (k2 * e_force); //gripper velocity 
+	//	new_status = true;
+	//	if (!slip_detected) break;
+	//	if (cur_force < 0.001) {
+	//		//if the curr_force is 0 that means the object is not grasped anymore
+	//		break;
+	//	}
 	//}
 
-	if (grasp_flag == 4)
-	{
-		if ((TimeCheck() - ini_adt) < adj_time_out)
-			grasp_flag = 2;
-		else
+
+
+}
+
+void grasping_with_desired_force(float F_desired)
+{
+	//control gains 
+	k3 = 2;
+	F_d = F_desired;
+
+	ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10; // in rad/s
+	lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2) * 10;  // in m/s mushtaq
+	gotoxy(20, 34);
+	printf("error_close_to_zero_count: %d", error_close_to_zero_count);
+	if (grasp_flag == INITIAL) {
+
+		ReadForce(cur_force);
+		e_force = cur_force - F_d;
+		if ((cur_force > 0.1) && ready_to_lift&& abs(e_force) > 0.1 &&
+			!grab_in_progress && !open_in_progress && (TimeCheck() - hold_init) > 1000)
 		{
-			grasp_flag = 6;
-			//ini_adt = TimeCheck();
+			// error force is greater than 0.1 means we haven't matched the desired force
+			ResetAll();
+			grasp_flag = ADAPTIVE_REGRASPING;
+			error_close_to_zero_count = 0;
+			old_time = TimeCheck(); // used for angular disp calculations
+		}
+	}
+
+	if (grasp_flag == ADAPTIVE_REGRASPING)
+	{
+
+		cur_time = TimeCheck();
+		dt0 = (cur_time - old_time);
+		ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10; // in rad/s
+		lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2) * 10;  // in m/s mushtaq
+		angl_dis += ang_vel * dt0 / 10; //scaled up angl disp by 100
+		if (F_d > max_force) {
+			F_d = max_force;
+
+		}
+
+		gotoxy(1, 34);
+		printf("F_d: %.3f", F_d);
+		ReadForce(cur_force);
+		e_force = cur_force - F_d;
+		speed[7] = (k3 * e_force); //gripper velocity 
+		new_status = true;
+		old_time = cur_time;
+		if (cur_force < 0.1)
+		{
+			grasp_flag = INITIAL;
 			ResetAll();
 		}
+		else if (abs(e_force) <= 0.1)
+		{
+			error_close_to_zero_count++;
+			//we count how many times the error is recorded to be <=0.1 this is to prevent making the conclusion that
+			// the curr force crossing the desired force once is enough to claim that the error is ~0 in steady state 
 
-	}
-
-	if (grasp_flag == 3)
-	{
-		//GraspController();
-		cur_time = TimeCheck();
-		cur_distance = (cur_position - old_pos) / 1000;
-		dt0 = (cur_time - old_time);
-
-		////original approach
-
-		last_w_hat = w_hat;
-		last_u_hat = u_hat;
-		w_hat += gamma1 * cur_distance;//gamma1*cur_distance + .625
-		u_hat_dot = -gamma2 / u_hat * (w_hat + k * cur_velocity_f_in)*cur_velocity_f_in;//-gamma2/u_hat*w_hat*cur_velocity_f
-		u_hat += u_hat_dot * dt0 / 1000;
-		if (u_hat <= 0.2)
-			u_hat = 0.2;
-		old_pos = cur_position;
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);
-
-
-		if (F_d > 16) { F_d = 16; }
-		if (F_d < 0) { F_d = 3; }
-		//P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
-		gotoxy(1, 34);
-		printf("F_desire: %.3f", F_d);
-		gotoxy(20, 34);
-		printf("u_h: %.3f", u_hat);
-		gotoxy(35, 34);
-		printf("w_h: %.3f", w_hat);
-		//gotoxy(55,34);
-		//printf("w_h: %.3f",pow(2.0,2.0));
-		//err = cur_force - Fa;
-		old_time = cur_time;
-
-		//stoppos = pos[6]+5500;
-		grasp_flag = 4;
-		//ini_adt = TimeCheck();
-		e_force = cur_force - F_d;
-		//speed[7] = (k2*e_force); //force
-		speed[7] = (k2*e_force); //position
-		if (abs(speed[7]) < 1) {
-			if (speed[7] > 0)	speed[7] = 1;
-			else if (speed[7] < 0) speed[7] = -1;
+			if (error_close_to_zero_count > 100) {
+				// if the count > 10 we can consider this a condition to claim that adaptive regrasping is done successfully
+				grasp_flag = INITIAL;
+				ResetAll();
+			}
 		}
-		if (abs(e_force) / F_d < 0.03)speed[7] = 0;
-		new_status = true;
-	}
-
-	if (grasp_flag == 2)
-	{
-		grasp_flag = 3;
 
 	}
 
 
-	if (cur_force < 0.2)
-	{
-		  
-		last_u_hat = 2;//2   
-		last_w_hat = 14;//2   
-	}
-
-
-	if (grasp_flag == 1)
-	{
-		//ManualControl( 'j' );
-		ini_adt = TimeCheck();
-
-		//initial estimated value
-		w_hat = last_w_hat;//2     
-		u_hat = last_u_hat;//2   
-		u_hat_dot = 0;
-
-
-		//float tol = 0.01;
-
-		//int Que_count = 0;
-		//bool Que_tick = false;
-
-		//int cur_time = 0;
-		//int old_time = TimeCheck();
-		//float dt;
-		//float cur_distance;
-		old_pos = cur_position;
-
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);//original approach
-
-													 //P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
-
-
-		e_force = cur_force - F_d;
-		//e_pos = pos[6]-P_d;
-		speed[7] = (k2*e_force); //gripper velocity
-		new_status = true;
-		grasp_inipos = pos[6];
-		grasp_start = 1;
-		grasp_flag = 2;
-		old_time = TimeCheck();
-	}
-
-	if (grasp_flag == 11)
-	{
-		grasp_flag = 1;
-
-	}
-
-
-
-	if (((cur_force > 0.2) && (abs(cur_velocity_f_in) > 0.25 / 1000) &&
-		!grab_in_progress && !open_in_progress && (grasp_flag == 0)
-		&& (TimeCheck() - hold_init) > 1000))
-	{
-		grasp_flag = 11;
-		//SendCommand2(SPC, TTS_SPEAK, ADJ_F);
-		ResetAll();
-	}
 }
 
 void oneclick(void)
 {
-	//if (assistant_flag)  // Assistant mode
-	//{
-		//**** Suggested move calculations ****//
-		/*oneclick_mode = 1;*/
+
 	for (int i = 0; i < 5; i++)
 	{
 		currentPosition[i] = pos[i];//(xcam,zcam,z,y,p,r)
 	}
-	currentPosition[5] = sign(pos[5])*(180 - fabs(pos[5]));
+	currentPosition[5] = sign(pos[5]) * (180 - fabs(pos[5]));
 	float rotationThreshold = 4;
 	float positionThreshold = 10;
 
@@ -4241,15 +4762,9 @@ void oneclick(void)
 		{
 			err_dp += pow(pos[i] - set_pos[i], 2);
 		}
-		//if (sqrt(err_dp) < 5)
-		//{
 
-		//}
-		//SleepMs(1000);
-		//if (job_done && !auto_mode_start && !adjust_pos)
-		//gotoxy(1, 51);
 		//cout << err_dp << endl;
-		if (sqrt(err_dp) < 7 && !adjust_pos&&requestframe)
+		if (sqrt(err_dp) < 7 && !adjust_pos && requestframe)
 		{
 			//SleepMs(1000);
 
@@ -4268,7 +4783,6 @@ void oneclick(void)
 			}
 			movetopos();
 			oneclick_mode = 1;
-
 			ofstream assistantFLAG;
 			assistantFLAG.open("C:\\MANUS\\CommonSpace\\Assistant\\assistantFLAG.txt", ios::out);
 			assistantFLAG << 1 << "\n";
@@ -4281,8 +4795,8 @@ void oneclick(void)
 
 
 	}
-	else if (oneclick_mode == 1)  //oneclick_mode=1 indicate the stage : after assistant was turned on,until Matlab fnished processing, keep checking flag file.
-									// all the feedback cases was written in GUI.Functions.cpp arount 5178 line: switch(oneclick_mode)
+	else if (oneclick_mode == 1)  //oneclick_mode=1 indicate the stage : after assistant was turned on,until Matlab finished processing, keep checking flag file.
+									// all the feedback cases was written in GUI.Functions.cpp around 5178 line: switch(oneclick_mode)
 	{
 		char Mflag_str[256];
 		sprintf_s(Mflag_str, "C:\\MANUS\\CommonSpace\\Assistant\\Mflag.txt");
@@ -4317,31 +4831,7 @@ void oneclick(void)
 					}
 				}
 				fclose(R_pos);
-				//if (btn_flag == false)// voice feedfack "ready to go" after Matlab part was finished and desire position was read.
-				//{
-				//	// read object mask from MATLAB output
-				//	FILE* ROI = fopen("C:\\MANUS\\CommonSpace\\Assistant\\ROI.txt", "r");
-				//	if (ROI != NULL)
-				//	{
-				//		float roi[4] = {};
-				//		for (int i = 0; i < 4; ++i)
-				//		{
-				//			fscanf_s(ROI, "%f ", &roi[i]);
-				//		}
-				//		this->object_x = roi[0] * this->scaleFactorX;
-				//		this->object_y = roi[1] * this->scaleFactorX;
-				//		this->object_width = roi[2] * this->scaleFactorX;
-				//		this->object_height = roi[3] * this->scaleFactorX;
-				//		cout << "ROI loaded" << endl;
-				//		this->object_box = true;
-				//	}
-				//	fclose(ROI);
 
-				//	svr->SendCommand(SPC, TTS_SPEAK, AS_READY);
-				//	strcpy(text_buff, "Found the object, ready to assist.");
-				//	manual_main_1click_btn->activate();
-				//	SleepMs(2000);
-				//}
 
 				p_frame_w(1, 1) = requestedPosition[8];
 				p_frame_w(2, 1) = requestedPosition[9];
@@ -4358,32 +4848,24 @@ void oneclick(void)
 				//svr->SendCommand(SPC, TTS_SPEAK, OBJ_FAR);
 				//strcpy(text_buff, "Object is too far away.");
 				assistant_flag = false;
-
 				//manual_assistant_btn->copy_label("Assistant : Off");
 				ofstream assistantFLAG;
 				assistantFLAG.open("C:\\MANUS\\CommonSpace\\Assistant\\assistantFLAG.txt", ios::out);
 				assistantFLAG << 0 << "\n";
 				assistantFLAG.close();
 				btn_flag = false;
-				//close_sg = false;
-				//gripper_center = false;
 			}
 			else if (M_flag_reading[0] == 2)// when matlab can't find any pairs, remind the user try it again
 			{
 				if (move_arm == 0)
 				{
 					oneclick_mode = 2;
-					//svr->SendCommand(SPC, TTS_SPEAK, AS_ERR);
-					//strcpy(text_buff, "Can't find the object, please move the arm and try it again.");
-					//assistant_flag = false;
 
-					//manual_assistant_btn->copy_label("Assistant : Off");
 					ofstream assistantFLAG;
 					assistantFLAG.open("C:\\MANUS\\CommonSpace\\Assistant\\assistantFLAG.txt", ios::out);
 					assistantFLAG << 0 << "\n";
 					assistantFLAG.close();
 					btn_flag = false;
-
 					// set adjusted position
 					for (int i = 0; i < 6; i++)
 					{
@@ -4401,7 +4883,6 @@ void oneclick(void)
 						set_pos[4] = set_pos[4] - 18.0f;
 					}
 					moveto = false;
-
 					movetopos();
 					requestframe = true;
 					t_adj = TimeCheck();
@@ -4416,8 +4897,6 @@ void oneclick(void)
 					btn_flag = false;
 					oneclick_mode = 9;
 				}
-				//close_sg = false;
-				//gripper_center = false;
 			}
 			fclose(M_flag);
 		}
@@ -4434,11 +4913,6 @@ void oneclick(void)
 		}
 		deltaPosition[6] = requestedPosition[6] - currentPosition[3];
 		deltaPosition[7] = requestedPosition[7] - currentPosition[4];
-
-		//ee_deltaPosition[6] = requestedPosition[6] - currentPosition[3];
-		//ee_deltaPosition[7] = requestedPosition[7] - currentPosition[4];
-
-
 		deltaPosition[8] = requestedPosition[8] - currentPosition[0];
 		deltaPosition[9] = requestedPosition[9] - currentPosition[1];
 		deltaPosition[10] = requestedPosition[10] - currentPosition[2];
@@ -4469,56 +4943,42 @@ void oneclick(void)
 
 		old_fine_adjust = fine_adjust;
 
-		//if (!move_as_suggested&&  user_oprt[1] == 1 && update_sug != 1)
-		//{
-		//	update_sug = 1;
-		//	suggestedButtonSwitch = 'Z';
-		//}
-		//suggest_btn2(ee_deltaPosition);
-		//if (oneclick_mode < 6)
-		//{
-			if (spaceMouseEnabled && (spaceMouseMode != 3))
+
+		if (spaceMouseEnabled && (spaceMouseMode != 3))
+		{
+			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+				//after mode switching , start over the suggestion 
 			{
-				if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
-					//after mode switching , start over the suggestion 
+				if (suggestedButtonSwitch != 'X')
 				{
-					if (suggestedButtonSwitch != 'X')
-					{
-						update_sug = 1;
-						suggestedButtonSwitch = 'Z';
-					}
+					update_sug = 1;
+					suggestedButtonSwitch = 'Z';
 				}
-				suggest_btn2(deltaPosition, 0);
 			}
-			else
-			{
-				suggest_btn2(ee_deltaPosition, 1);
-			}
-		//}
+			suggest_btn2(deltaPosition, 0);
+		}
+		else
+		{
+			suggest_btn2(ee_deltaPosition, 1);
+		}
 
 
 
-		//gotoxy(1, 27);
-		//cout << "[";
-		//for (int jj = 0; jj < 10; jj++)
-		//{
-		//	cout << "  " << jj << ':' << ee_deltaPosition[jj] << "  ";
-		//}
-		//cout << "] \n"<< suggestedMotion<<endl;
+
 
 
 		// if user move the robot away far from the desire position, change assist mode to phase 1: reaching the object
 		if (
 			((fabs(deltaPosition[1]) > 20) ||
 			(fabs(deltaPosition[2]) > 20) ||
-			(abs(deltaPosition[3]) > 7) ||
-			(abs(deltaPosition[4]) > 7) ||
-			(abs(deltaPosition[5]) > 7))&& oneclick_mode>4)
+				(abs(deltaPosition[3]) > 7) ||
+				(abs(deltaPosition[4]) > 7) ||
+				(abs(deltaPosition[5]) > 7)) && oneclick_mode > 4)
 		{
 
 			if (deltaPosition[0] > 70)
 			{
-				fine_adjust = '0';//if deltaposion larger than the threshold,  active the reaching phase
+				fine_adjust = '0';//if deltaPosition larger than the threshold,  active the reaching phase
 				oneclick_mode = 5;
 			}
 		}
@@ -4624,15 +5084,11 @@ void oneclick(void)
 
 			if ((sum_speed == 0) && (fine_adjust == '0'))//when reach the desire position, sum of abs(speed) goes to zero, than start auto gripping process
 			{
-				//svr->SendCommand3(GUI, CAN, TP_END, ' ');//stop
-				//SleepMs(100);
-				//svr->SendCommand(SPC, TTS_SPEAK, AS_DOWN);//facing object
+
 				SleepMs(100);
-				//strcpy(text_buff, "Gripper is in front of the object. ");
+
 				fine_adjust = '1';
-				//svr->SendCommand(SPC, TTS_SPEAK, ONECLICK_1);
-				//strcpy(text_buff, "Approach to the object.");
-				//cls_n = 0;
+
 				for (int k = 0; k < 6; k++)
 				{
 					temp_pos[k] = requestedPosition[k];
@@ -4652,32 +5108,16 @@ void oneclick(void)
 			adj_dire = 0, 0, 0;
 
 
-			//cv::Mat EE2W_m(3, 3, CV_32FC1);
-			//EE2W_transform(robot_pos, EE2W_m);
 
-			//float ca[3] = { 1, 0, 0 };
-			//float adj0[3] = { 0, 0, 0 };
-			//cv::Mat ca_M(3, 1, CV_32FC1, ca);
-			//cv::Mat adj_dire(3, 1, CV_32FC1, adj0);
-			//cv::Mat wa;
-			//cv::Mat delta_temp;
-
-			//wa = EE2W_m * ca_M;
-			//cout << wa << endl;
 			if (obj_in[1] == 1)
 			{
 				if (fine_adjust != '4')
 				{
-					//svr->SendCommand3(GUI, CAN, TP_END, ' ');//stop motion
+
 					for (int i = 0; i < 6; i++)
 						suggspeed[i] = 0;
 
 
-					//SendSugspeed();//write to speed[]
-
-
-					//SleepMs(100);
-					//svr->SendCommand(SPC, TTS_SPEAK, ONECLICK_3);
 				}
 
 				fine_adjust = '4';
@@ -4819,8 +5259,7 @@ void oneclick(void)
 				{
 					for (int i = 0; i < 3; i++)
 						suggspeed[i] = -wa(i + 1, 1) * 30;
-					//SendSugspeed();
-					//cout << "1" << endl;
+
 				}
 				else if (dist_d > 10)
 				{
@@ -4829,8 +5268,7 @@ void oneclick(void)
 						suggspeed[i] = d_po[i] /
 							sqrt(pow(d_po[0], 2) + pow(d_po[1], 2) + pow(d_po[2], 2)) * 15;
 					}
-					//SendSugspeed();
-					//cout << "2" << endl;
+
 				}
 				else
 				{
@@ -4855,19 +5293,17 @@ void oneclick(void)
 					//cout << "3" << endl;
 				}
 				break;
-			case '3'://move after retreat
-					 //cout << "move gripper" << endl;
+			case '3':
 
 				break;
-			case '4'://suggest close gripper
-					 //cout << "close gripper" << endl;
+			case '4':
 				oneclick_mode = 8;
 				break;
 
 			}
 		}
 	}
-	//}//  assistant mode end
+
 }
 
 
@@ -4878,7 +5314,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	int right_bound = 640 - left_bound;
 	int up_bound = small_bound ? 40 : 60;
 	int bottom_bound = 480 - up_bound;
-	float overshoot=0;
+	float overshoot = 0;
 	(axis < 3) ? overshoot = 10.0 : overshoot = 5.0;
 	offset = offset + overshoot;
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
@@ -4891,7 +5327,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	{
 		temp_pos[i] = Position[i];
 	}
-	if (ee&&axis < 2)
+	if (ee && axis < 2)
 	{
 		switch (axis)
 		{
@@ -4921,7 +5357,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	ROB_pos = temp_pos[0], temp_pos[1], temp_pos[2];
 
 	camera_offset = 95, 20, 70;
-	EE2W_m2_t = transpose(EE2W_m2*EE2c);//*EE2c
+	EE2W_m2_t = transpose(EE2W_m2 * EE2c);//*EE2c
 	testt = EE2W_m2 * camera_offset;
 	p_frame = EE2W_m2_t * (p_frame_w - ROB_pos - EE2W_m2 * camera_offset);
 
@@ -5036,38 +5472,38 @@ void Operation_check(void)
 
 	//if (previousSuggestedMotion != 9)
 	//{
-		if (user_oprt[1] == 1)// specific order to make the button suggestion updated correctly.   modified with caution!!
-		{
-			if (user_cmd == suggestedMotion&& suggestedMotion!=9)
-			{
-				move_as_suggested[0] = move_as_suggested[1];
-				move_as_suggested[1] = 1;
-				move_as_suggested[2] = 1;
-			}
-			else if (user_cmd != 10)
-			{
-				move_as_suggested[0] = move_as_suggested[1];
-				move_as_suggested[1] = 2;// if no operation in list, then turn the flag to true.
-			}
-		}
-		else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+	if (user_oprt[1] == 1)// specific order to make the button suggestion updated correctly.   modified with caution!!
+	{
+		if (user_cmd == suggestedMotion && suggestedMotion != 9)
 		{
 			move_as_suggested[0] = move_as_suggested[1];
-			move_as_suggested[1] = 0;
+			move_as_suggested[1] = 1;
+			move_as_suggested[2] = 1;
+		}
+		else if (user_cmd != 10)
+		{
+			move_as_suggested[0] = move_as_suggested[1];
+			move_as_suggested[1] = 2;// if no operation in list, then turn the flag to true.
+		}
+	}
+	else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+	{
+		move_as_suggested[0] = move_as_suggested[1];
+		move_as_suggested[1] = 0;
 
-		}
-		else {
-			move_as_suggested[0] = move_as_suggested[1];
-			move_as_suggested[1] = 0;
-			move_as_suggested[2] = 0;
-		}
+	}
+	else {
+		move_as_suggested[0] = move_as_suggested[1];
+		move_as_suggested[1] = 0;
+		move_as_suggested[2] = 0;
+	}
 	//}
-	if (oprt_end&&move_as_suggested[1] == 0 && move_as_suggested[0] == 2&&move_as_suggested[2]!=1&& suggestedButtonSwitch!='X')
+	if (oprt_end && move_as_suggested[1] == 0 && move_as_suggested[0] == 2 && move_as_suggested[2] != 1 && suggestedButtonSwitch != 'X')
 	{
 		gotoxy(1, 59);
 		printf("!!!!sugg  update :          %d", TimeCheck());
-			update_sug = 1;
-			suggestedButtonSwitch = 'Z';
+		update_sug = 1;
+		suggestedButtonSwitch = 'Z';
 	}
 
 }
@@ -5087,7 +5523,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 		temp_pos[i] = Position[i];
 	}
 
-	if (ee&&axis < 2)
+	if (ee && axis < 2)
 	{
 		switch (axis)
 		{
@@ -5112,7 +5548,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 	}
 
 	if (roll_correction)
-		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+		temp_pos[5] = sign(temp_pos[5]) * (180 - fabs(temp_pos[5]));
 
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
@@ -5141,7 +5577,7 @@ float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool rol
 		temp_pos[i] = Position[i];
 	}
 
-	if (ee&&axis < 2)
+	if (ee && axis < 2)
 	{
 		switch (axis)
 		{
@@ -5166,7 +5602,7 @@ float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool rol
 	}
 
 	if (roll_correction)
-		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+		temp_pos[5] = sign(temp_pos[5]) * (180 - fabs(temp_pos[5]));
 
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
@@ -5189,10 +5625,10 @@ void block_camcls_move(void)
 	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
 	int ee;
 
-	(spaceMouseEnabled && (spaceMouseMode != 3&& spaceMouseMode != 5)) ? ee = 0 : ee = 1;
+	(spaceMouseEnabled && (spaceMouseMode != 3 && spaceMouseMode != 5)) ? ee = 0 : ee = 1;
 	//when space mouse is enabled and not in mode3(hybrid in gripper frame) and mode 5(one click mode), the control command is in world frame.
 
-	float dist_cam0,dist_cam1;
+	float dist_cam0, dist_cam1;
 
 	dist_cam0 = cam_cls_check2(pos, 0, float(0), ee, false);
 
@@ -5206,11 +5642,11 @@ void block_camcls_move(void)
 			{
 				if (i < 3)// 0 1 2 : x y z axis
 				{
-					dist_cam1 = cam_cls_check2(pos, i,  float(j * 6 * off), ee, false);//5cm for translation motion
+					dist_cam1 = cam_cls_check2(pos, i, float(j * 6 * off), ee, false);//5cm for translation motion
 				}
 				else // 3 4 5: yaw pitch roll axis
 				{
-					dist_cam1 = cam_cls_check2(pos, i, float( j * 3 * off), ee, false);// 3degree for rotation motion
+					dist_cam1 = cam_cls_check2(pos, i, float(j * 3 * off), ee, false);// 3degree for rotation motion
 				}
 
 				cam_flag = (dist_cam1 < dist_cam0);
@@ -5233,12 +5669,9 @@ void block_camcls_move(void)
 
 
 
-
 void suggest_btn2(float deltaPosition[13], int ee)
 {
 
-	//int suggestedButtonSwitch;
-	//int	suggestedButton = 0;
 
 	float rotationThreshold = 3;
 	float positionThreshold = 10;
@@ -5247,43 +5680,9 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	int sug_order = 9;
 	float cam_dist;
 	bool cam_cls_flag = false;
-	//int thres;
-	//float deltaPosition_o[6] ;// should be global
-	//for (int i = 0; i < 6; i++)
-	//{
-	//	deltaPosition_o[i] = deltaPosition[i];
-	//}
 
-	//if (sg_stage == 2)
-	//{
-		//if (init_sug&&suggestedButtonSwitch != 'X')
-		//	init_sug = false;
 
 	Operation_check();
-
-	//if (user_oprt[0] == 1 && user_oprt[1] == 0 )// monitor the user operation has started for the suggestion update
-	//{
-	//	oprt_end = true;
-	//}
-	//else if (user_oprt[0] == 0 && user_oprt[1] == 0)
-	//{
-	//	oprt_end = false;
-	//}
-
-
-	//if (move_as_suggested[0]==0&&move_as_suggested[1]==1&& update_sug != 1)
-	//{
-	//	update_sug = 1;
-	//	suggestedButtonSwitch = 'Z';
-	//	oprt_end = false;
-	//	gotoxy(1, 56);
-	//	printf("sugg: updated   %d",TimeCheck());
-	//}
-	//else
-	//{
-	//	gotoxy(1, 57);
-	//	printf("sugg:          %d",TimeCheck());
-	//}
 
 
 	gotoxy(1, 55);
@@ -5319,8 +5718,8 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		{
 			if (update_sug != 0)// if doesn't arrive the final desiren positon
 			{
-				
-				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false, deltaPosition);// first check object in view or not.
+
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee, false, deltaPosition);// first check object in view or not.
 
 				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
@@ -5348,7 +5747,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 				else
 				{
-					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee,false, deltaPosition) != 0 ||
+					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee, false, deltaPosition) != 0 ||
 						(cam_cls_flag != 0))
 						//when the object in view get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
 						// then break the movement in half or more,
@@ -5407,7 +5806,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 				}
 			}
 		}
-		else if (axis<6)// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
+		else if (axis < 6)// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
 			// so, when the gripper is very close to the object, just suggested the motion directly to the desire posiion. 
 		{
 			if (axis < 3)
@@ -5423,7 +5822,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	}
 
 	gotoxy(1, 50);
-	printf("suggeested: %u    axis: %d      thres  %f      ", suggestedButtonSwitch,axis,thres );
+	printf("suggeested: %u    axis: %d      thres  %f      ", suggestedButtonSwitch, axis, thres);
 
 	gotoxy(1, 53);
 	printf("delta position  x: %.3f  y:%.3f   z:  %.3f  yaw: %.3f  pitch: %.3f   roll:   %.3f ", deltaPosition[0], deltaPosition[1], deltaPosition[2], deltaPosition[3], deltaPosition[4], deltaPosition[5]);
@@ -5645,11 +6044,10 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	//}
 }
 
-void suggest_btn(float *deltaPosition)
+void suggest_btn(float* deltaPosition)
 {
 
-	//int suggestedButtonSwitch;
-	//int	suggestedButton = 0;
+
 	float rotationThreshold = 3;
 	float positionThreshold = 10;
 
@@ -5679,7 +6077,7 @@ void suggest_btn(float *deltaPosition)
 				suggestedMotion = 4;
 			}
 		}
-		else if (abs(deltaPosition[7]) > 2 * rotationThreshold&& init_sug)// pitch
+		else if (abs(deltaPosition[7]) > 2 * rotationThreshold && init_sug)// pitch
 		{
 			if (deltaPosition[7] > 0)
 			{
@@ -5692,7 +6090,7 @@ void suggest_btn(float *deltaPosition)
 				suggestedMotion = -5;
 			}
 		}
-		else if (init_sug&&btn_cmd == 'n')
+		else if (init_sug && btn_cmd == 'n')
 		{
 			init_sug = false;// once gripper are pointing to the object, start to achieve
 			//suggestedButton = "A";//approach
@@ -5834,7 +6232,7 @@ void suggest_btn(float *deltaPosition)
 				suggestedButtonSwitch = 'U';
 			}
 			break;
-		case 'D'://2st up down
+		case 'D'://2nd up down
 				 //if (yout)
 				 //{
 				 //	suggestedButtonSwitch = 'p';
@@ -5863,7 +6261,7 @@ void suggest_btn(float *deltaPosition)
 				suggestedButtonSwitch = 'F';
 			}
 			break;
-		case 'O'://2st pitch
+		case 'O'://2nd pitch
 				 //if (yout)
 				 //{
 				 //	suggestedButtonSwitch = 'u';
@@ -5938,7 +6336,7 @@ void suggest_btn(float *deltaPosition)
 
 					//fine_adjust = true;
 					btn_flag = false;
-					//fine_count = 0;
+					//fine_close_to_zero_count = 0;
 					//svr->SendCommand(SPC, TTS_SPEAK, AS_DOWN);
 					//gripper_center = true;
 				}
@@ -6076,8 +6474,7 @@ void suggest_btn(float *deltaPosition)
 
 void movetopos(void)// move to certain position
 {
-	//int packet_pos = 3;
-	//float tmp;
+
 
 	if (!moveto)
 	{
@@ -6102,9 +6499,6 @@ void movetopos(void)// move to certain position
 		moveto = true;
 	}
 }
-
-
-
 
 
 ////--------------------------------------------------------
@@ -6415,7 +6809,7 @@ LRESULT WINAPI HandleNTEvent(HWND hWnd, unsigned msg, WPARAM wParam,
 *    NONE
 *
 *--------------------------------------------------------------------------*/
-void CreateSPWindow(int atx, int aty, int hi, int wid, TCHAR *string)
+void CreateSPWindow(int atx, int aty, int hi, int wid, TCHAR* string)
 {
 	WNDCLASS  wndclass;     /* our own instance of the window class */
 	//HINSTANCE hInst;        /* handle to our instance */
@@ -6483,7 +6877,7 @@ void CreateSPWindow(int atx, int aty, int hi, int wid, TCHAR *string)
 *    NONE
 *
 *----------------------------------------------------------------------*/
-void SbMotionEvent(SiSpwEvent *pEvent)
+void SbMotionEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buff0[30];                            /* text buffer for TX */
 	TCHAR buff1[30];                            /* text buffer for TY */
@@ -6520,7 +6914,7 @@ void SbMotionEvent(SiSpwEvent *pEvent)
 	hdc = GetDC(hWndMain);
 
 	/* print buffers */
-	TCHAR *buf = _T("Motion Event              ");
+	TCHAR* buf = _T("Motion Event              ");
 	TextOut(hdc, 0, 0, buf, (int)_tcslen(buf));
 	TextOut(hdc, 0, 20, devicename, (int)_tcslen(devicename));
 	TextOut(hdc, 15, 100, buff0, len0);
@@ -6588,7 +6982,7 @@ void SbZeroEvent()
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
-TCHAR *V3DKeyToName(TCHAR *buf, int buflen, V3DKey v3dk)
+TCHAR* V3DKeyToName(TCHAR* buf, int buflen, V3DKey v3dk)
 {
 	switch (v3dk)
 	{
@@ -6834,12 +7228,11 @@ void SbButtonPressEvent(int buttonnumber)
 	}
 	spaceMouse[6] ^= mask;
 	spaceButtonsToggle[2] = spaceButtons[2];
-	if (spaceButtons[0] && spaceButtons[1])
-	{
+	if (spaceButtons[0] && spaceButtons[1]) {
 		spaceButtons[2] = !spaceButtons[2];
 		spaceButtonsToggle[0] = false;
 		spaceButtonsToggle[1] = false;
-		//spaceMouseMode = 0;
+		spaceMouseMode = 0;
 
 	}
 
@@ -7084,8 +7477,7 @@ void SbButtonReleaseEvent(int buttonnumber)
 
 		spaceButtons[0] = false;
 		if (spaceButtons[1] == false) tempButton = false;
-		if (tempButton == false && tempButton2 == false)
-		{
+		if (tempButton == false && tempButton2 == false) {
 			spaceButtonsToggle[0] = !spaceButtonsToggle[0];
 			spaceButtonsToggle[2] = true;
 		}
@@ -7333,7 +7725,7 @@ void SbButtonReleaseEvent(int buttonnumber)
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
-void HandleDeviceChangeEvent(SiSpwEvent *pEvent)
+void HandleDeviceChangeEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
 	hdc = GetDC(hWndMain);
@@ -7355,7 +7747,7 @@ void HandleDeviceChangeEvent(SiSpwEvent *pEvent)
 	}
 	ReleaseDC(hWndMain, hdc);
 }
-void HandleV3DCMDEvent(SiSpwEvent *pEvent)
+void HandleV3DCMDEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
 	hdc = GetDC(hWndMain);
@@ -7524,7 +7916,7 @@ void HandleV3DCMDEvent(SiSpwEvent *pEvent)
 	}
 	ReleaseDC(hWndMain, hdc);
 }
-void HandleAppEvent(SiSpwEvent *pEvent)
+void HandleAppEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
 	hdc = GetDC(hWndMain);

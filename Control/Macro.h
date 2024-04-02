@@ -11,8 +11,8 @@
 
 #define MAX_CART				70
 #define MAX_JOINT				1
-#define MAX_JOINT_GRIP			10
-#define MAX_CART_GRIP			13
+//#define MAX_JOINT_GRIP			15 // was 10,  mushtaq
+//#define MAX_CART_GRIP			15
 #define MAX_JOINT_YPR			3
 #define MAX_CART_YPR			6
 
@@ -38,8 +38,8 @@
 #define ARM_FOLDED_STRETCHED	2
 #define BLOCKED_DOF				3
 #define MAX_M1_ROTATION			4
-#define MAX_CART_GRIP			11//original15    zc
-#define MAX_JOINT_GRIP			10
+#define MAX_CART_GRIP			11//original 15    zc //2, 3 mushtaq to slow down closing of gripper for slipping exp
+#define MAX_JOINT_GRIP			15 // was 10 mushtaq
 #define M_PI 3.1415926535897
 
 #endif

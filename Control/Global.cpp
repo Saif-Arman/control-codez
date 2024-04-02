@@ -19,6 +19,8 @@ int spaceMouseMode = 0;
 int spaceMouseMode_count = 5;
 int spaceMouseMode_old = 0;
 bool spaceButtons[3] = {false};
+bool btn_gripper_ctl[2] = { false };
+bool btn_gripper_ctl_flag = false;
 bool spaceButtonsToggle[3] = {false};
 char cbox = CARTESIAN;
 unsigned char manus_status = 0, manus_message = 0;
@@ -27,6 +29,9 @@ int start_time = 0;
 int end_time = 0;
 bool tempButton = false;
 bool tempButton2 = false;
+
+//Robson for grasping expt
+float  pos_before_lifting = 0;
 
 // Interlock object.
 received myRcv;
@@ -41,7 +46,9 @@ unsigned char source, command, destination;
 MappedMemory robot_pos;
 MappedMemory LPS;
 MappedMemory force;
+MappedMemory FT_sensor[6];  // mushtaq  Feb 2022
 MappedMemory slip_vel;
+MappedMemory pos_vel2; // : it was "pos_vel'
 MappedMemory pos_vel;
 MappedMemory takktile;
 MappedMemory spaceMouseValues;
@@ -64,14 +71,15 @@ float opos[8];
 float rpos[8];
 
 // Speed control.
-int linear_speed_limit[5] = {10,30,50,20,127};
+//int linear_speed_limit[5] = {10,30,50,20,127};
+int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
 int angular_speed_limit[5] = {1,3,5,7,10};
 int suggspeed[7];
 //int joint_speed_limit[5] = {.5,1.5,.5,.7,1};
 
 int oneSecondStart = 0;
 
-int speed_mode = 2;
+int speed_mode = 0;
 int start_time_set_point_vel;
 int mode = MANUAL_MODE;
 int gripper_closedness = 0;
@@ -83,7 +91,10 @@ float oldDiff[6] = {0};
 float PrevTime[6] = {0};
 
 //Grasping Control
+float cur_force_takk = 0; /// 
 float cur_force = 0;
+double F_ee[3]= { 0, 0 ,0 };
+double T_ee[3] = { 0 ,0 ,0 };
 float e_force = 0;
 float raw_velocity;
 float init_force = 0;
@@ -92,26 +103,48 @@ double cur_velocity_y = 0;
 double cur_velocity_f = 0;//zc
 double cur_velocity_f_in = 0;//zc
 double cur_velocity_f_y = 0;//zc
+
+double cur_velocity_f_in2 = 0;// 
+double cur_velocity2 = 0; // t
+double cur_velocity_y2 = 0; // 
+double cur_velocity_f2 = 0; //
+double cur_velocity_f_y2 = 0; //
 //bool initial_vel = true;//zc
 //double old_vel = 0;//zc
 //double old_vel2 = 0;//zc
 //double old_vel3 = 0;//zc
 int old_t = 0;//zc
+int old_t2 = 0;//
 int cur_t = 0;//zc
 int dtt= 0 ;
+int cur_t2 = 0;//
+int dtt2 = 0;
 float a2[2] = {  -1.6041  ,  0.6705};
 float b2[3] = {0.0166   , 0.0332  ,  0.0166};//fc = 25
+//
 float x2d[2] = { 0,0 };
 float x2d_y[2] = { 0,0 };
 float y2d[2] = { 0,0 };
 float y2d_y[2] = { 0,0 };
+
+float x2d2[2] = { 0,0 };
+float x2d_y2[2] = { 0,0 };
+float y2d2[2] = { 0,0 };
+float y2d_y2[2] = { 0,0 };
+
 float al = 0.03;
 double o_p  = 0;
 double o_p_y  = 0;
+double o_p2 = 0;
+double o_p_y2 = 0;
 double cur_pos_f = 0;
 double cur_pos_f_y = 0;
 double cur_pos_nf = 0;
 double cur_pos_nf_y = 0;
+double cur_pos_f2 = 0; // 
+double cur_pos_f_y2 = 0;
+double cur_pos_nf2 = 0;
+double cur_pos_nf_y2 = 0;
 float tol = 0.18;
 float new_force = 0;
 float old_force = 0;
@@ -185,19 +218,45 @@ int stt = 0;
 
 double old_position = 0;//zc
 double old_position_y = 0;//zc
+double old_position2 = 0;//
+double old_position_y2 = 0;//
 double old_pos = 0;//zc
+double old_pos2 = 0; //mushtaq
 double cur_position = 0;
 double cur_position_y = 0;
-float k =1500 ;//5  zc
-float k2 = 6;//5  zc
+double cur_position2 = 0; /// 
+double cur_position_y2 = 0;
+float k = 1500;//5  zc
 float gamma1 = 2500; // 0.004, 0.001, 0.005, 0.00085
 float gamma2 = 25;//1.5
 float w_hat = 2;//0.098
 float u_hat = 2;//0.45
 
-float last_w_hat ;//
-float last_u_hat ;//
+// adaptive grasping with lin and ang vel Robson  some are also reassigned in grasping func
+float gamma_1 = 3; //
+float gamma_2 = 1.2; //
+float k1 = 400;// 
+float k2 = 15; // 1.5;//5
+float k3 = 1.5;
+float b_hat = 0;
+float a_hat = 0;
+float last_b_hat = 2;
+float last_a_hat = 2 / 9.81;
+float init_b_hat = 2;
+float init_a_hat = 2 / 9.81;
+float contact_force_min=1.5; // mushtaq
+float lin_vel = 0;//
+float ang_vel = 0; //
+float angl_dis = 0;// 
+float a_hat_dot = 0;//
+float b_hat_dot = 1.7;//
 
+double lin_dist1 = 0;//mushtaq
+double lin_dist2 = 0;
+int MAX_CART_GRIP_close = 7;
+
+float last_w_hat;//
+float last_u_hat;//
 float u_hat_dot = 0;
 int cur_time = 0;
 int dt0;
@@ -211,6 +270,8 @@ bool Que_tick = false;
 float force_que[5] = {0};
 float vel_que[6] = {0};//zc
 float F_d = 0;
+float F_d1 = 0;
+float F_d2 = 0;
 float P_d = 0;
 float p1 =      -185.9;
 float p2 =        1544;
@@ -249,7 +310,7 @@ int pctime, potime;
 LARGE_INTEGER tickspersecond, tick, tick_time;
 
 // PCAN variables.
-TPCANHandle m_Handle = PCAN_PCIBUS1;
+TPCANHandle m_Handle =  PCAN_USBBUS1; //PCAN_PCIBUS1;
 TPCANStatus stsResult;
 TPCANMsg rcvMsg, xmitMsg;
 TPCANTimestamp CANTimeStamp;
@@ -262,6 +323,7 @@ bool debug_on = true;
 bool robot_in_out_of_range = false;
 bool grab_in_progress = false;
 bool open_in_progress = false;
+bool lift_in_progress = false;
 bool init_system = true;
 bool reverse_flag = false;
 bool tts_in_progress = false;
@@ -283,7 +345,7 @@ bool set_points_control = false;
 bool rotation_start1 = false;
 bool rotation_start2 = false;
 bool grasp_control = false;
-bool ready_lift = false;
+bool ready_to_lift = false;
 
 
 
@@ -315,3 +377,22 @@ ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
+// Interactive Perceiption parameters// Mushtaq Feb 2022
+int switch_contact= 0;
+int swx = 0;
+int swy = 0;
+int ini_time_inte_perc = 0;
+int flag_touch = 0;
+int flag_start1 = 0;
+int flag_start2 = 0;
+float elapsed_time1=0;
+float elapsed_time_y = 0;
+int move_flag_in_x=0;
+float fdx = 0.3;
+float vdx = 0;
+float vdy = 0;
+float Vx_ee = 0;
+float Vy_ee = 0;
+float Vz_ee = 0;
+float time_y_ini = 0;
+int counter = 0;

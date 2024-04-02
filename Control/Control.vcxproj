@@ -22,7 +22,7 @@
     <ProjectGuid>{B6E8BE2F-61F6-48A8-96B2-19A0F0E6E4BC}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Control</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -73,7 +73,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files %28x86%29\3Dconnexion\3DxWare SDK\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>C:\MANUS\CommonSpace\Include\3DxWare SDK\Inc;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -105,12 +105,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;__VISUALC__;QMATH_DLL;QMATH_DLL_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\MANUS\CommonSpace\Include\CxUtils;C:\MANUS\CommonSpace\Include\MANUS;C:\MANUS\CommonSpace\Include\Pthread;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\MANUS\CommonSpace\Include\CxUtils;C:\MANUS\CommonSpace\Include\MANUS;C:\MANUS\CommonSpace\Include\Pthread;C:\MANUS\CommonSpace\Include\3DxWare SDK;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Program Files %28x86%29\3Dconnexion\3DxWare SDK\Lib\x64;C:\MANUS\CommonSpace\Lib\CxUtils\x64;C:\MANUS\CommonSpace\Lib\PCAN_PCI\x64;C:\MANUS\CommonSpace\Lib\Pthread\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\MANUS\CommonSpace\Lib\3DxWare SDK\Lib\x64;C:\MANUS\CommonSpace\Lib\CxUtils\x64;C:\MANUS\CommonSpace\Lib\PCAN_PCI\x64;C:\MANUS\CommonSpace\Lib\Pthread\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libcxutils_64_d.lib;PCANBasic.lib;pthreadVC2_x64.lib;siapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -152,6 +152,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="..\..\..\CommonSpace\Sensor_Data\sensor_data.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\sensor_data_fsr.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\slp_data1.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\slp_data2.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\t_data.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\vel_data.txt" />
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
@@ -169,6 +175,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="RowVector.hpp" />
     <ClInclude Include="RWLock.hpp" />
+    <ClInclude Include="SensorCalibrator.h" />
     <ClInclude Include="SpaceMouse.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -182,6 +189,7 @@
     <ClCompile Include="GenericException.cpp" />
     <ClCompile Include="Global.cpp" />
     <ClCompile Include="PCANBasicClass.cpp" />
+    <ClCompile Include="SensorCalibrator.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
