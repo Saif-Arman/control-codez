@@ -3774,6 +3774,7 @@ void ReadForceTorque(double (&cur_FT)[6])
 	gotoxy(1, 35);
 	printf(" FT_ee: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", F_ee[0], F_ee[1], F_ee[2], T_ee[0], T_ee[1], T_ee[2]);
 	//printf(" Fy:%.3f", cur_FT[2]);
+    //test text
 }
 
 
