@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
 
-	ForceTorqueManager FTMgr;
+	//ForceTorqueManager FTMgr;
 
 	double cur_FT[6] = { 0, 0, 0, 0, 0, 0 };
 

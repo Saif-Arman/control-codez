@@ -13,5 +13,6 @@ public:
 private:
 	std::vector<double>_calibration;
 	//double cur_FT[6] = { 0, 0, 0, 0, 0, 0 };
-	std::vector<double>_cur_FT = std::vector<double>(6);
+	/*std::vector<double>_cur_FT = std::vector<double>(6);*/
+	std::vector<double>_cur_FT;
 };
