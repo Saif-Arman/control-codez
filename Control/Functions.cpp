@@ -1547,7 +1547,7 @@ void ManualControl(char ch)
 		break;
 
 
-	case'M':// mushtaq to  find F_min for slip paper 7/3/2021
+	case 'M':// mushtaq to  find F_min for slip paper 7/3/2021
 		gotoxy(1, 50);
 		//cout << "Enter F_d value" << endl;
 		//cin >> F_d;
@@ -1937,7 +1937,7 @@ void ManualControl(char ch)
 		cout << "[flag] reliable " << ((fu_flag) ? "on" : "off") << endl;
 		break;
 		//Brandon 12/15/16 SPACE MOUSE CONTROL
-	case'#':
+	case '#':
 		if (spaceMouseEnabled)
 		{
 			//These > values are the deadbands for the mouse. Change for more/less sensitivity.	
@@ -3727,7 +3727,7 @@ void ReadForceTorque(double (&cur_FT)[6])
 	//Rh2FT_s = -0.05556, -0.9949, 0.0838, 0.2130, -0.0702, -0.9745, 0.9755, 0.0720, 0.2080; // rotatio
 	Rh2FT_s = -0.0065, -0.9991, 0.0421, -0.080, -0.0414, -0.9959, 0.9968, -0.0098, -0.0796; // rotatio
     //Mg_w = 0, 0, -0.623; //  mass of wrist in N  // mushtaq, Feb 2022
-	Mg_w = 0, 0, -5.832;
+	Mg_w = 0, 0, -5.832; 
 	//F_offset = -21.999, -13.203, 23.397;
 	//T_offset = -0.3016, 0.8030, 0.2234;
 	//r_vect = 0.0008, -0.0019, 0.0823;
@@ -3774,7 +3774,6 @@ void ReadForceTorque(double (&cur_FT)[6])
 	gotoxy(1, 35);
 	printf(" FT_ee: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", F_ee[0], F_ee[1], F_ee[2], T_ee[0], T_ee[1], T_ee[2]);
 	//printf(" Fy:%.3f", cur_FT[2]);
-    //test text
 }
 
 
