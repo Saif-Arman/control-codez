@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h> 
 #include <string>
+#include "ForceTorqueManager.h"
 //#include "SpaceMouse.h"
 //grasping algorithm flags
 #define OPEN_LOOP_GRASPING 3
@@ -1083,8 +1084,12 @@ void DisplayPos(float* pos)
 	float dist;
 	dist = sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2])));
 
-	printf("[%d]  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f %06.2f(%1d) \n",
-		speed_mode, pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], speed[7], (block_all_motions ? 1 : 0));
+	printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%1d) \n",
+		speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
+	gotoxy(1, 25);
+	printf("    Yaw: %06.2f, Pitch: %06.2f, Roll: %06.2f, Speed: %06.2f \n",
+		pos[3], pos[4], pos[5], speed[7]);
+
 	int time_check = TimeCheck();
 	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " <<
 		speed[7] << "  " << btn_cmd << "  " << spaceMouseEnabled << "  " << spaceMouseMode << "  " <<
@@ -1128,7 +1133,7 @@ void ShowFrequency(int time)
 		time = 1;
 
 	if (time > 0)
-		sprintf(str, "Freq: %f", 1000.0 / (float)time);
+		sprintf(str, "Freq: %09.4f", 1000.0 / (float)time);
 	else
 		sprintf(str, "Freq: Normal");
 	printf(str);
@@ -1547,7 +1552,7 @@ void ManualControl(char ch)
 		break;
 
 
-	case'M':// mushtaq to  find F_min for slip paper 7/3/2021
+	case 'M':// mushtaq to  find F_min for slip paper 7/3/2021
 		gotoxy(1, 50);
 		//cout << "Enter F_d value" << endl;
 		//cin >> F_d;
@@ -1569,16 +1574,28 @@ void ManualControl(char ch)
 		cin >> contact_force_min;
 		cout << "Enter MAX_CART_GRIP_close value: ";
 		cin >> MAX_CART_GRIP_close;*/
+		gotoxy(1, 45);
+		cout << "\r                                                                             \r";
 		cout << "Enter vdx value: ";
 		cin >> vdx;
+		gotoxy(1, 45);
+		cout << "\r                                   \r";
 		cout << "Enter vdy value: ";
 		cin >> vdy;
+		gotoxy(1, 45);
+		cout << "\r                                   \r";
 		cout << "Fdx value: ";
 		cin >> fdx;
-
-
+		gotoxy(1, 45);
+		cout << "\r                                   \r";
 		cout << "Enter move flag move ";
-		cin>> move_flag_in_x;
+		bool newstate;
+		cin >> newstate;
+		FTMgr.set_move_flag_x(newstate);
+
+		gotoxy(1, 45);
+		cout << "\r                                   \r";
+		cout << "vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx << ", move flag: " << FTMgr.get_move_flag_x();
 		
 		break;
 
@@ -2434,7 +2451,7 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		{
 			DisplayPos(pos);
 
-			gotoxy(1, 35);
+			gotoxy(1, 38);
 
 			//cout << "[wRc] " << endl;
 			//cout << C2W_transform(pos);
@@ -3581,203 +3598,6 @@ void ReadForce(float cur_for)
     gotoxy(30, 30);
 	printf("Speed mode: %d", speed_mode);
 }
-
-//......Mushtaq, Feb 2022 :reading from ati-ia F/T  sensor
-void interac_perc(void) {
-	int i;
-	Matrix<3, 3> Rw2e;
-	Rw2e = transpose(EE2w_transform3(pos));
-
-	// to be chaneged later : //
-	float fdz = 1;
-	//float fdx = 1;
-	float vdz = 0;
-	float Thrz = 0;
-	//float vdx = 0;
-	//float vdy = 0;
-	float Thr_y = 0;
-	float Thr_x = 0.01;
-	float alpha_x = 0;
-	float alpha_y = 0;
-	float T_xy = 2;  // for generating  osci in y , z to get feeling force
-	ColumnVector<3> Vxyz_ee, Vxyz_w;
-	Matrix<3, 3> Re2w;
-	Re2w = EE2w_transform3(pos);
-
-	if (flag_start1 == 0)
-	{
-		flag_start1 = 1;
-		ini_time_inte_perc = TimeCheck();
-	}
-	elapsed_time1 = ((float)TimeCheck() - (float)ini_time_inte_perc) / 1000; // in sec
-
-	if (switch_contact == 0 && abs(abs(F_ee[0]) - fdx) > Thr_x)
-	{
-		//Vxyz_ee(1) = vdx * (1 + (F_ee[0] / fdx));
-		//Vxyz_ee(2) = 0;
-		Vxyz_ee(3) = 0;
-		elapsed_time_y = (TimeCheck() - time_y_ini) / 1000;
-		//Vxyz_ee(2) = vdy * sign(float(sin(2 * M_PI * elapsed_time1 / T_xy)));
-		Vxyz_ee(1) = 0;
-
-		speed[4]= vdy * sign(float(sin(2 * M_PI * elapsed_time1 / T_xy)));
-
-		//speed[4] = vdy;
-	}
-	else
-	{
-		Vxyz_ee(1) = 0;
-		Vxyz_ee(2) = 0;
-		Vxyz_ee(3) = 0;
-		/*move_flag_in_x = 0;
-		flag_start1 = 0;*/
-
-
-		/*if (elapsed_time1 > 1)
-		{
-			swy = 1;
-			time_y_ini = TimeCheck();
-			flag_touch = 0;
-			speed[4] = 0;
-		}*/
-
-		if (swy == 1)
-		{
-			elapsed_time_y = (TimeCheck() - time_y_ini) / 1000;
-			//Vxyz_ee(2) = vdy * sign(float(sin(2 * M_PI * elapsed_time_y / T_xy)));
-
-
-
-		}
-		/*if (elapsed_time1 < 5)
-		{
-
-
-			Vxyz_ee(1) = vdx;
-			Vxyz_ee(2) = 0;
-			Vxyz_ee(3) = 0;
-
-		}
-		else
-		{
-
-			move_flag_in_x = 0;
-			flag_start1 = 0;
-			Vxyz_ee(1) = 0;
-			Vxyz_ee(2) = 0;
-			Vxyz_ee(3) = 0;
-
-		}*/
-
-		/*if (elapsed_time1 > 60)
-		{
-			move_flag_in_x = 0;
-			flag_start1 = 0;
-			Vxyz_ee(1) = 0;
-			Vxyz_ee(2) = 0;
-			Vxyz_ee(3) = 0;
-		}*/
-	}
-		Vx_ee = Vxyz_ee(1);
-		Vy_ee = Vxyz_ee(2);
-		Vz_ee = Vxyz_ee(3);
-		Vxyz_w = Re2w * Vxyz_ee;
-
-		if (elapsed_time1 > 30)
-		{
-			
-			speed[4] = 0;
-			flag_start1 = 0;
-			move_flag_in_x = 0;
-
-		}
-
-		for (i = 1; i < 4; i++)
-
-		{
-			speed[i] = Vxyz_w(i);
-			
-		}
-		new_status = true;
-
-		gotoxy(1, 55);
-		printf("Vy_ee", Vy_ee);
-
-		counter += 1;
-}
-void ReadForceTorque(double (&cur_FT)[6])
-{
-	char read_pos_str[256];
-	int i;
-
-	for (int i = 0; i < 6; i++)
-	{
-		FT_sensor[i]->SetReadPos(0);
-		FT_sensor[i].Lock();
-		FT_sensor[i]->Read((unsigned char*)read_pos_str, 10 * sizeof(BYTE), 0);
-		FT_sensor[i].Unlock();
-		cur_FT[i] = static_cast<double>(atof(static_cast<const char*>(read_pos_str)));
-    }
-	
-	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
-	ColumnVector<3> Mg_w, F_offset,T_offset,F_unb,T_unb, r_vect, F_bias, F_temp,T_temp, F_ee_temp, T_ee_temp;
-	Matrix<3, 3> Rw2e;
-	Rw2e = transpose(EE2w_transform3(pos));
-	//Rh2FT_s = -0.002, -0.998, 0.0617, 0.224, -0.060, -0.972, 0.975, 0.013, 0.224; // rotation matrix from wrist to FT sensor// from calibration
-	//Rh2FT_s = -0.05556, -0.9949, 0.0838, 0.2130, -0.0702, -0.9745, 0.9755, 0.0720, 0.2080; // rotatio
-	Rh2FT_s = -0.0065, -0.9991, 0.0421, -0.080, -0.0414, -0.9959, 0.9968, -0.0098, -0.0796; // rotatio
-    //Mg_w = 0, 0, -0.623; //  mass of wrist in N  // mushtaq, Feb 2022
-	Mg_w = 0, 0, -5.832;
-	//F_offset = -21.999, -13.203, 23.397;
-	//T_offset = -0.3016, 0.8030, 0.2234;
-	//r_vect = 0.0008, -0.0019, 0.0823;
-	//F_offset = -14.5532,-13.775,18.0673;
-	//T_offset = -0.2717, 0.3703, 0.2079;
-	//r_vect = -0.0008, 0.0005, -0.0030;
-	/*F_offset = (-15.586 - 0.1228), (-14.022 - 0.1060), (14.212+4.9509);
-	T_offset = (-0.3636 + 0.057331), (0.5146 - 0.04665), (0.1977 - 0.0063);*/
-	F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
-	T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
-	r_vect = 0.0021, -0.0038, 0.0781;
-
-	//crossProduct
-
-	Rw2FT_s= Rh2FT_s*Rw2e;
-
-	F_unb = Rw2FT_s * Mg_w + F_offset;
-	F_bias = Rw2FT_s * Mg_w;
-	T_unb = crossProduct(r_vect, F_bias) + T_offset;
-	
-	double cur_FT_unbias[6] = { 0,0 ,0,0,0,0 };
-
-	for (i = 0; i < 3; i++)
-	{
-		cur_FT_unbias[i] = cur_FT[i] - F_unb(i + 1);
-		cur_FT_unbias[i + 3] = cur_FT[i+3]-T_unb(i + 1);
-	}
-
-	F_temp = cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2] ;
-	T_temp = cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5];
-	F_ee_temp = transpose(Rh2FT_s) * F_temp;
-	T_ee_temp = transpose(Rh2FT_s) * T_temp;
-
-	for (i = 0; i < 3; i++)
-	{
-		F_ee[i] =  F_ee_temp(i + 1);
-		T_ee[i] =  T_ee_temp(i + 1);
-	}
-	
-	gotoxy(1, 32);
-	printf(" Force/Torque_biased: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", cur_FT[0], cur_FT[1], cur_FT[2], cur_FT[3], cur_FT[4], cur_FT[5] );
-	gotoxy(1, 33);
-	printf(" Force/Torque_unbiased: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2], cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5]);
-	gotoxy(1, 35);
-	printf(" FT_ee: Fx: %.3f, Fy: %.3f ,Fz: %.3f, Tx: %.3f ,Ty: %.3f, Tz: %.3f ", F_ee[0], F_ee[1], F_ee[2], T_ee[0], T_ee[1], T_ee[2]);
-	//printf(" Fy:%.3f", cur_FT[2]);
-    //test text
-}
-
-
 
 
 void ReadOBJ(void)

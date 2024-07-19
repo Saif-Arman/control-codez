@@ -378,6 +378,7 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
 // Interactive Perceiption parameters// Mushtaq Feb 2022
+ForceTorqueManager FTMgr;
 int switch_contact= 0;
 int swx = 0;
 int swy = 0;
@@ -387,7 +388,7 @@ int flag_start1 = 0;
 int flag_start2 = 0;
 float elapsed_time1=0;
 float elapsed_time_y = 0;
-int move_flag_in_x=0;
+//int move_flag_in_x=0;
 float fdx = 0.3;
 float vdx = 0;
 float vdy = 0;

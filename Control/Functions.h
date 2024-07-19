@@ -118,7 +118,7 @@ char reliable(int num,char val);					//function meant to make the robot less rel
 void ReadForce(float cur_for);						//function to read force data from shared memory
 //void ReadForceTorque(double cur_ft[6]);				//function to read from FT sensor and remove the bias // Mushtaq
 void ReadForceTorque(double (&cur_ft)[6]);				//function to read from FT sensor and remove the bias // Nick 2024
-void interac_perc(void);						    // function for interactive perception// Feb 2022 // Mushtaq
+//void interac_perc(void);						    // function for interactive perception// Feb 2022 // Mushtaq
 void ReadLPS(int *LPS_value);						//function to read LPS data from shared memory
 //void ReadSlip(double cur_vel);						//function to read slip sensor velocity data from shared memory
 void ReadPosit();						//function to read slip sensor position data from shared memory

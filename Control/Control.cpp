@@ -156,10 +156,6 @@ int main(int argc, char* argv[])
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
 
-	//ForceTorqueManager FTMgr;
-
-	double cur_FT[6] = { 0, 0, 0, 0, 0, 0 };
-
 	while( 1 )
 	{
 		start_time = TimeCheck();
@@ -664,10 +660,10 @@ int main(int argc, char* argv[])
 			force_t = TimeCheck();
 		}
 
-		if (move_flag_in_x ==1)
-			interac_perc();
+		if (FTMgr.get_move_flag_x() == 1)
+			FTMgr.interac_perc();
 		
-		ReadForceTorque(cur_FT);
+		FTMgr.ReadForceTorque();
 		ReadPosit();
 		ReadPosit2();
 		ReadVel();
@@ -687,7 +683,7 @@ int main(int argc, char* argv[])
 		
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);
-		gotoxy(1, 39);
+		gotoxy(1, 40);
 		//printf("The closest distance between the camera and link3 %.3f", cam_dist);
 		if ((cam_dist < 38) && !cam_cls)
 		{

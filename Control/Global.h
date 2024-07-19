@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 #include <stdio.h>
+#include "ForceTorqueManager.h"
 
 
 
@@ -401,7 +402,7 @@ extern BOOL				InitInstance(HINSTANCE, int);
 extern LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
 // Interactive Perception // mushtaq Feb 2022
-
+extern ForceTorqueManager FTMgr;
 extern int switch_contact ;
 extern int swx ;
 extern int swy ;
@@ -414,7 +415,7 @@ extern int flag_start1;
 extern int flag_start2;
 extern float elapsed_time1;
 extern float elapsed_time_y;
-extern int move_flag_in_x;
+//extern int move_flag_in_x;
 extern float fdx;
 extern float vdx;
 extern float vdy;
