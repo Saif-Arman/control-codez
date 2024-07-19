@@ -1954,7 +1954,7 @@ void ManualControl(char ch)
 		cout << "[flag] reliable " << ((fu_flag) ? "on" : "off") << endl;
 		break;
 		//Brandon 12/15/16 SPACE MOUSE CONTROL
-	case'#':
+	case '#':
 		if (spaceMouseEnabled)
 		{
 			//These > values are the deadbands for the mouse. Change for more/less sensitivity.	
