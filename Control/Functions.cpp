@@ -133,7 +133,6 @@ Matrix<3, 3> EE2C_transform(float* position)
 	return Rc2w;
 }
 
-
 // Get Ree2w rotational transform.  zc test
 Matrix<3, 3> EE2w_transform3(float* position)
 {
@@ -158,6 +157,7 @@ Matrix<3, 3> EE2w_transform3(float* position)
 
 	return Rc2w;
 }
+
 // Get Ree2w rotational transform.  zc test
 Matrix<3, 3> EE2w_transform2(float* position)
 {
@@ -245,6 +245,7 @@ Matrix<3, 3> NormalizeRotationMatrix(Matrix<3, 3> Rx)
 
 	return Ry;
 }
+
 /////____________________ _______
   //////// finding the distance between the camera and link3 functions
 /////////////////////////////////////////////////////////////////////////
@@ -274,7 +275,7 @@ ColumnVector<3> inverse_kinematics_MANUS_q1q2q3(float x, float y, float z)
 //    Input:  two 3D line segments S1 and S2
 //    Return: the shortest distance between S1 and S2
 
-
+//-----------------------------------------------------------------------------------
 float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVector<3> P3, ColumnVector<3> P4)
 {
 	float SMALL_NUM = 0.00000001;
@@ -349,6 +350,7 @@ float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVe
 	return dist;   // return the closest distance
 }
 
+//-----------------------------------------------------------------------------------
 ColumnVector<3> link3_1st_end_postion(float q1, float q2, float q3)
 {
 	float L2 = 396.7, d2 = 99.2, d4 = 323.4;
@@ -370,6 +372,7 @@ ColumnVector<3> link3_1st_end_postion(float q1, float q2, float q3)
 	return P1;
 }
 
+//-----------------------------------------------------------------------------------
 float DistanceBetween_Camera_Link3(float* position)
 {
 	float x = position[0];
@@ -407,8 +410,6 @@ float DistanceBetween_Camera_Link3(float* position)
 	return dist;
 
 }
-
-///////////////////////////
 
 //=============================================================================
 // Communication functions.
@@ -927,6 +928,7 @@ void SendCommand(const unsigned char source, const unsigned char destination, co
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void SendCommand2(unsigned char target, unsigned char command, unsigned char snd_data)
 {
 	packet_CAN.Clear();       //  Clear packet and encode data.
@@ -944,7 +946,6 @@ void SendCommand2(unsigned char target, unsigned char command, unsigned char snd
 	packet_CAN.Clear();
 
 }
-
 
 // Send voice command to SPC.
 void TTSSpeak(unsigned char seq)
@@ -1025,7 +1026,7 @@ void UpdateSpaceMouse(const int* spacemouse)
 	//  each axis of the spacemouse is in operating or not.
 
 
-//cout << pos_str << endl;
+	//cout << pos_str << endl;
 	sprintf_s(pos_str2, "%d%d%d%d%2d%2d%2d%2d%2d%2d%d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
 		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), int(init_stop));
@@ -1058,6 +1059,7 @@ void UpdateSpaceMouse(const int* spacemouse)
 
 
 };
+
 // Display speed information.
 void DisplaySpeed(void)
 {
@@ -1308,7 +1310,7 @@ void ResetAll(void)
 	}
 }
 
-/////
+//-----------------------------------------------------------------------------------
 void ResetAll2(void) /// mushtaq 
 {
 	for (int i = 4; i < 8; i++)//
@@ -3013,6 +3015,7 @@ int pd_control2(void)
 	return 0;
 }
 
+//-----------------------------------------------------------------------------------
 int checkOneSecond(void) {
 	if (oneSecondStart == 0) {
 		oneSecondStart = TimeCheck();
@@ -3074,6 +3077,7 @@ int checkOneSecond(void) {
 //	return 0;
 //}
 
+//-----------------------------------------------------------------------------------
 int pd_controlJoint(void)
 {
 	int CurrentTime[6];
@@ -3245,8 +3249,7 @@ int pd_controlJoint(void)
 	return 0;
 }
 
-
-//
+//-----------------------------------------------------------------------------------
 int pd_controlx()
 {
 	cout << "[Warning!]: pd_controlx mode!" << endl;
@@ -3520,6 +3523,7 @@ bool UnloadAll(void)
 	return true;
 }
 
+//-----------------------------------------------------------------------------------
 char reliable(int num, char val)
 {
 	switch (num)
@@ -3579,6 +3583,7 @@ char reliable(int num, char val)
 	return val;
 }
 
+//-----------------------------------------------------------------------------------
 void ReadForce(float cur_for)
 {
 	char read_pos_str[256], read_str[256];
@@ -3599,7 +3604,7 @@ void ReadForce(float cur_for)
 	printf("Speed mode: %d", speed_mode);
 }
 
-
+//-----------------------------------------------------------------------------------
 void ReadOBJ(void)
 {
 
@@ -3626,6 +3631,7 @@ void ReadOBJ(void)
 
 }
 
+//-----------------------------------------------------------------------------------
 void ReadLPS(int* LPS_value)
 {
 	char read_LPS_str[256], read_str[256];
@@ -3648,6 +3654,7 @@ void ReadLPS(int* LPS_value)
 	printf("LPS  Left: %4d ,Right: %4d", LPS_value[0], LPS_value[1]);
 }
 
+//-----------------------------------------------------------------------------------
 void LPScheck(void)
 {
 	Matrix<3, 1> ca, wa;
@@ -3696,9 +3703,7 @@ void LPScheck(void)
 
 }
 
-
-
-
+//-----------------------------------------------------------------------------------
 void ReadPosit(void) //with position filter
 {
 	char read_pos_str[256], read_str[256], read_str2[256];
@@ -3733,7 +3738,7 @@ void ReadPosit(void) //with position filter
 
 }
 
-
+//-----------------------------------------------------------------------------------
 void ReadVel(void)
 {
 	cur_t = TimeCheck();
@@ -3761,6 +3766,8 @@ void ReadVel(void)
 	//gotoxy(1, 32);
 	//printf("vel_x: %.3f  vel_y: %.6f cur_time: %d" , cur_velocity_f,cur_velocity_f_y, cur_t);
 }
+
+//-----------------------------------------------------------------------------------
 void ReadPosit2(void)//with position filter
 {
 	char read_pos_str[256], read_str[256], read_str2[256];
@@ -3794,6 +3801,8 @@ void ReadPosit2(void)//with position filter
 
 
 }
+
+//-----------------------------------------------------------------------------------
 void ReadVel2(void)
 {
 	cur_t2 = TimeCheck();
@@ -3820,7 +3829,8 @@ void ReadVel2(void)
 	//gotoxy(1, 45);
 	//printf("vel_x2: %.3f  vel_y2: %.6f  cur_time: %d", cur_velocity_f2, cur_velocity_f_y2, cur_t2);
 }
-//
+
+//-----------------------------------------------------------------------------------
 void ReadTaKK(void)
 {
 	//char read_pos_str[256], read_str[256];
@@ -3878,7 +3888,8 @@ void ReadTaKK(void)
 	else
 		touch_pos_change[10] = 1;
 }
-////
+
+//-----------------------------------------------------------------------------------
 void GraspController(void)
 {
 	ofstream err_data;
@@ -3989,7 +4000,7 @@ void GraspController(void)
 
 }
 
-//
+//-----------------------------------------------------------------------------------
 //void GraspController(void)
 //{
 //	ofstream err_data;
@@ -4080,7 +4091,7 @@ void GraspController(void)
 //	return;
 //}
 
-
+//-----------------------------------------------------------------------------------
 void ReadSugspeed(void)
 {
 
@@ -4103,8 +4114,7 @@ void ReadSugspeed(void)
 	//cout << int(suggspeed[6]) << endl;
 }
 
-
-
+//-----------------------------------------------------------------------------------
 void Readblock_dir(void)
 {
 	block_flag = false;
@@ -4143,7 +4153,7 @@ void Readblock_dir(void)
 	//cout << "]    "<< spm_operation<<"      \n";
 }
 
-
+//-----------------------------------------------------------------------------------
 void LowPassFilter(void)
 {
 	int lpf_time_passed;
@@ -4160,6 +4170,7 @@ void LowPassFilter(void)
 
 }
 
+//-----------------------------------------------------------------------------------
 void LowPassFilter2(void)
 {
 	int lpf_time_passed;
@@ -4176,6 +4187,7 @@ void LowPassFilter2(void)
 
 }
 
+//-----------------------------------------------------------------------------------
 void init_grasp2(void) // to test  F_min
 {
 	if (grab_in_progress)
@@ -4212,6 +4224,7 @@ void init_grasp2(void) // to test  F_min
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void regrasping_algorithm2(void) // mushtaq to test F_min
 
 {
@@ -4250,10 +4263,9 @@ void regrasping_algorithm2(void) // mushtaq to test F_min
 
 }
 
-
-
 //ROBSON SUMMER 2020 NEWLY IMPLEMENTED ALGO
 // Updated last 7/9/2020
+//-----------------------------------------------------------------------------------
 void init_grasp(void)
 {
 	if (grab_in_progress)
@@ -4302,14 +4314,9 @@ void init_grasp(void)
 	}
 }
 
-
-
-	
-
-
-
 //ROBSON SUMMER 2020 NEWLY IMPLEMENTED ALGO
 // Updated last 7/9/2020
+//-----------------------------------------------------------------------------------
 void regrasping_algorithm(void)
 {
 	//control gains 
@@ -4494,6 +4501,7 @@ void regrasping_algorithm(void)
 
 }
 
+//-----------------------------------------------------------------------------------
 void grasping_with_desired_force(float F_desired)
 {
 	//control gains 
@@ -4562,6 +4570,7 @@ void grasping_with_desired_force(float F_desired)
 
 }
 
+//-----------------------------------------------------------------------------------
 void oneclick(void)
 {
 
@@ -5126,7 +5135,7 @@ void oneclick(void)
 
 }
 
-
+//-----------------------------------------------------------------------------------
 int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound, float offset0[6])
 {
 
@@ -5200,6 +5209,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 
 }
 
+//-----------------------------------------------------------------------------------
 void Operation_check(void)
 {
 	int user_cmd = 10;
@@ -5328,6 +5338,7 @@ void Operation_check(void)
 
 }
 
+//-----------------------------------------------------------------------------------
 bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction)
 {
 	Matrix<3, 1> wa, ca;
@@ -5385,6 +5396,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 
 }
 
+//-----------------------------------------------------------------------------------
 float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool roll_correction)
 {
 	Matrix<3, 1> wa, ca;
@@ -5439,7 +5451,7 @@ float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool rol
 
 }
 
-
+//-----------------------------------------------------------------------------------
 void block_camcls_move(void)
 {
 	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
@@ -5487,8 +5499,7 @@ void block_camcls_move(void)
 	}
 }
 
-
-
+//-----------------------------------------------------------------------------------
 void suggest_btn2(float deltaPosition[13], int ee)
 {
 
@@ -5864,6 +5875,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	//}
 }
 
+//-----------------------------------------------------------------------------------
 void suggest_btn(float* deltaPosition)
 {
 
@@ -6292,6 +6304,7 @@ void suggest_btn(float* deltaPosition)
 //}
 }
 
+//-----------------------------------------------------------------------------------
 void movetopos(void)// move to certain position
 {
 
@@ -6324,7 +6337,7 @@ void movetopos(void)// move to certain position
 ////--------------------------------------------------------
 ////SPACEMOUSE FUNCTIONS BELOW HERE
 ////--------------------------------------------------------
-//
+//-----------------------------------------------------------------------------------
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
@@ -6345,6 +6358,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 	return RegisterClassEx(&wcex);
 }
+
+//-----------------------------------------------------------------------------------
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	PAINTSTRUCT ps;           /* used to paint the client area of a window */
@@ -6398,6 +6413,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	}
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
+
 // Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -6417,6 +6433,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return (INT_PTR)FALSE;
 }
+
 /*--------------------------------------------------------------------------
 * Function: SbInit()
 *
@@ -6465,6 +6482,7 @@ int SbInit()
 	}
 
 }
+
 /*--------------------------------------------------------------------------
 * Function: DispatchLoopNT()
 *
@@ -6541,6 +6559,7 @@ int SbInit()
 //
 //	return( (int) msg.wParam );
 //} 
+
 /*--------------------------------------------------------------------------
 * Function: HandleNTEvent
 *
@@ -6612,6 +6631,7 @@ LRESULT WINAPI HandleNTEvent(HWND hWnd, unsigned msg, WPARAM wParam,
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 
 }
+
 /*--------------------------------------------------------------------------
 * Function: CreateSPWindow
 *
@@ -6682,7 +6702,8 @@ void CreateSPWindow(int atx, int aty, int hi, int wid, TCHAR* string)
 	UpdateWindow(hWndMain);
 
 } /* end of CreateWindow */
-/*----------------------------------------------------------------------
+
+  /*----------------------------------------------------------------------
 * Function: SbMotionEvent()
 *
 * Description:
@@ -6762,6 +6783,7 @@ void SbMotionEvent(SiSpwEvent* pEvent)
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
+
 /*----------------------------------------------------------------------
 * Function: SbZeroEvent()
 *
@@ -6802,6 +6824,8 @@ void SbZeroEvent()
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
+
+//-----------------------------------------------------------------------------------
 TCHAR* V3DKeyToName(TCHAR* buf, int buflen, V3DKey v3dk)
 {
 	switch (v3dk)
@@ -7008,6 +7032,7 @@ TCHAR* V3DKeyToName(TCHAR* buf, int buflen, V3DKey v3dk)
 
 	return buf;
 }
+
 /*----------------------------------------------------------------------
 * Function: SbButtonPressEvent()
 *
@@ -7274,6 +7299,7 @@ void SbButtonPressEvent(int buttonnumber)
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
+
 /*----------------------------------------------------------------------
 * Function: SbButtonReleaseEvent()
 *
@@ -7545,6 +7571,8 @@ void SbButtonReleaseEvent(int buttonnumber)
 	/*release our window handle */
 	ReleaseDC(hWndMain, hdc);
 }
+
+//-----------------------------------------------------------------------------------
 void HandleDeviceChangeEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
@@ -7567,6 +7595,8 @@ void HandleDeviceChangeEvent(SiSpwEvent* pEvent)
 	}
 	ReleaseDC(hWndMain, hdc);
 }
+
+//-----------------------------------------------------------------------------------
 void HandleV3DCMDEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
@@ -7736,6 +7766,8 @@ void HandleV3DCMDEvent(SiSpwEvent* pEvent)
 	}
 	ReleaseDC(hWndMain, hdc);
 }
+
+//-----------------------------------------------------------------------------------
 void HandleAppEvent(SiSpwEvent* pEvent)
 {
 	TCHAR buf[100];
@@ -7744,6 +7776,7 @@ void HandleAppEvent(SiSpwEvent* pEvent)
 	TextOut(hdc, 0, 0, buf, (int)_tcslen(buf));
 }
 
+//-----------------------------------------------------------------------------------
 void printPos(float* pos, int locx, int locy)
 {
 	gotoxy(locx, locy);

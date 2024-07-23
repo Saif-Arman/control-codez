@@ -98,8 +98,6 @@ void ForceTorqueManager::ReadForceTorque()
 	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", F_ee[0], F_ee[1], F_ee[2]);
 	gotoxy(1, 37);
 	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", T_ee[0], T_ee[1], T_ee[2]);
-	//printf(" Fy:%.3f", cur_FT[2]);
-	//test text
 }
 
 //......Mushtaq, Feb 2022 :reading from ati-ia F/T  sensor
