@@ -119,8 +119,8 @@ int cur_t = 0;//zc
 int dtt= 0 ;
 int cur_t2 = 0;//
 int dtt2 = 0;
-float a2[2] = {  -1.6041  ,  0.6705};
-float b2[3] = {0.0166   , 0.0332  ,  0.0166};//fc = 25
+float a2[2] = {  -1.6041f  ,  0.6705f};
+float b2[3] = {0.0166f   , 0.0332f  ,  0.0166f};//fc = 25
 //
 float x2d[2] = { 0,0 };
 float x2d_y[2] = { 0,0 };
@@ -132,7 +132,7 @@ float x2d_y2[2] = { 0,0 };
 float y2d2[2] = { 0,0 };
 float y2d_y2[2] = { 0,0 };
 
-float al = 0.03;
+float al = 0.03f;
 double o_p  = 0;
 double o_p_y  = 0;
 double o_p2 = 0;
@@ -145,7 +145,7 @@ double cur_pos_f2 = 0; //
 double cur_pos_f_y2 = 0;
 double cur_pos_nf2 = 0;
 double cur_pos_nf_y2 = 0;
-float tol = 0.18;
+float tol = 0.18f;
 float new_force = 0;
 float old_force = 0;
 float stoppos = 0;
@@ -226,30 +226,30 @@ double cur_position = 0;
 double cur_position_y = 0;
 double cur_position2 = 0; /// 
 double cur_position_y2 = 0;
-float k = 1500;//5  zc
-float gamma1 = 2500; // 0.004, 0.001, 0.005, 0.00085
-float gamma2 = 25;//1.5
-float w_hat = 2;//0.098
-float u_hat = 2;//0.45
+float k = 1500.0f;//5  zc
+float gamma1 = 2500.0f; // 0.004, 0.001, 0.005, 0.00085
+float gamma2 = 25.0f;//1.5
+float w_hat = 2.0f;//0.098
+float u_hat = 2.0f;//0.45
 
 // adaptive grasping with lin and ang vel Robson  some are also reassigned in grasping func
-float gamma_1 = 3; //
-float gamma_2 = 1.2; //
-float k1 = 400;// 
-float k2 = 15; // 1.5;//5
-float k3 = 1.5;
+float gamma_1 = 3.0f; //
+float gamma_2 = 1.2f; //
+float k1 = 400.0f;// 
+float k2 = 15.0f; // 1.5;//5
+float k3 = 1.5f;
 float b_hat = 0;
 float a_hat = 0;
-float last_b_hat = 2;
-float last_a_hat = 2 / 9.81;
-float init_b_hat = 2;
-float init_a_hat = 2 / 9.81;
-float contact_force_min=1.5; // mushtaq
+float last_b_hat = 2.0f;
+float last_a_hat = 2.0f / 9.81f;
+float init_b_hat = 2.0f;
+float init_a_hat = 2.0f / 9.81f;
+float contact_force_min = 1.5f; // mushtaq
 float lin_vel = 0;//
 float ang_vel = 0; //
 float angl_dis = 0;// 
 float a_hat_dot = 0;//
-float b_hat_dot = 1.7;//
+float b_hat_dot = 1.7f;//
 
 double lin_dist1 = 0;//mushtaq
 double lin_dist2 = 0;
@@ -273,10 +273,10 @@ float F_d = 0;
 float F_d1 = 0;
 float F_d2 = 0;
 float P_d = 0;
-float p1 =      -185.9;
-float p2 =        1544;
-float p3 =       -5421;
-float p4 =      -61.91;
+float p1 =      -185.9f;
+float p2 =        1544.0f;
+float p3 =       -5421.0f;
+float p4 =      -61.91f;
 float P_int = 0;
 
 //int cur_takk[12] = {0};
@@ -297,7 +297,7 @@ float lpf_cur2 = 0;
 // Other globals.
 DWORD prevID  = 0x0;
 float pd[6] = {0,0,0,0,0,0};			//desired home position for template1 on 12/24/07 - KIM	12/31/07
-float Kp[6] = {1,1,1,0.8,0.7,0.6};
+float Kp[6] = {1.0f,1.0f,1.0f,0.8f,0.7f,0.6f};
 float eprev1[6];
 float oypr[3], cypr[3], dypr[3];
 Matrix<3,1> d_c_ee;
@@ -386,10 +386,10 @@ int ini_time_inte_perc = 0;
 int flag_touch = 0;
 int flag_start1 = 0;
 int flag_start2 = 0;
-float elapsed_time1=0;
+float elapsed_time1 = 0;
 float elapsed_time_y = 0;
 //int move_flag_in_x=0;
-float fdx = 0.3;
+float fdx = 0.3f;
 float vdx = 0;
 float vdy = 0;
 float Vx_ee = 0;

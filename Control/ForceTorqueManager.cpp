@@ -115,7 +115,7 @@ void ForceTorqueManager::interac_perc()
 	//float vdx = 0;
 	//float vdy = 0;
 	float Thr_y = 0;
-	float Thr_x = 0.01;
+	float Thr_x = 0.01f;
 	float alpha_x = 0;
 	float alpha_y = 0;
 	float T_xy = 2;  // for generating  osci in y , z to get feeling force
@@ -197,9 +197,9 @@ void ForceTorqueManager::interac_perc()
 			Vxyz_ee(3) = 0;
 		}*/
 	}
-	Vx_ee = Vxyz_ee(1);
-	Vy_ee = Vxyz_ee(2);
-	Vz_ee = Vxyz_ee(3);
+	Vx_ee = static_cast<float>(Vxyz_ee(1));
+	Vy_ee = static_cast<float>(Vxyz_ee(2));
+	Vz_ee = static_cast<float>(Vxyz_ee(3));
 	Vxyz_w = Re2w * Vxyz_ee;
 
 	if (elapsed_time1 > 30)
@@ -214,7 +214,7 @@ void ForceTorqueManager::interac_perc()
 	for (i = 1; i < 4; i++)
 
 	{
-		speed[i] = Vxyz_w(i);
+		speed[i] = static_cast<float>(Vxyz_w(i));
 
 	}
 	new_status = true;

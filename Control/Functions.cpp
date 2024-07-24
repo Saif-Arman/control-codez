@@ -1086,7 +1086,7 @@ void DisplayPos(float* pos)
 	ofstream posit;
 	posit.open(pos_name, ios::app);
 	float dist;
-	dist = sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2])));
+	dist = static_cast<float>(sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2]))));
 
 	printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%1d) \n",
 		speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
@@ -1693,7 +1693,7 @@ void ManualControl(char ch)
 		init_force = 0;
 		break;
 	case 'j':	// Close gripper.
-		if (cbox == CARTESIAN) { speed[7] = -MAX_CART_GRIP_close; new_status = true; grasp_test = 1; grasp_inipos = pos[6]; }
+		if (cbox == CARTESIAN) { speed[7] = static_cast<float>(-MAX_CART_GRIP_close); new_status = true; grasp_test = 1; grasp_inipos = pos[6]; }
 		else if (cbox == JOINT) { speed[7] = -MAX_JOINT_GRIP; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		if (!init_system)
@@ -3937,12 +3937,12 @@ void GraspController(void)
 
 		cur_time = TimeCheck();
 		cur_distance = abs(cur_position - old_pos) * 1000;
-		dt = (cur_time - old_time) / 1000;
-		w_hat = gamma1 * cur_distance + .625;
-		u_hat_dot = -gamma2 / u_hat * w_hat * cur_velocity_f;
+		dt = static_cast<float>(cur_time - old_time) / 1000.0f;
+		w_hat = static_cast<float>(gamma1 * cur_distance + .625);
+		u_hat_dot = static_cast<float>(-gamma2 / u_hat * w_hat * cur_velocity_f);
 		u_hat += u_hat_dot * dt;
 
-		Fa = (1 / u_hat) * (w_hat + k * cur_velocity_f);
+		Fa = static_cast<float>((1 / u_hat) * (w_hat + k * cur_velocity_f));
 		err = cur_force - Fa;
 		old_time = cur_time;
 		old_pos = static_cast<float>(cur_position);
@@ -5216,6 +5216,9 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 		return 3;
 	else if (track_y >= bottom_bound)//out of view from buttom side
 		return 4;
+	else // should be impossible
+		exit(1);
+		return 0;
 
 
 }

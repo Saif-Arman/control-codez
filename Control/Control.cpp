@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 
 
 	//space mouse initialize
-	int  res; 
+	//int  res;
 	HINSTANCE hInstance = GetHInstance();
 	HINSTANCE hPrevInstance = GetHPrevInstance();
 	LPWSTR lpCmdLine = GetLPCmdLine();
@@ -473,16 +473,16 @@ int main(int argc, char* argv[])
 
 					// Correction for dependancy between joint 2 and 3
 					Apos[1] = (-1) * pos[1];
-					joint3 = pos[2];
-					joint3 = joint3 + 900 + Apos[1];
+					joint3 = static_cast<int>(pos[2] + 0.5); // +0.5 to round int
+					joint3 = joint3 + 900 + static_cast<int>(Apos[1] + 0.5); // +0.5 to round int
 
 					if (joint3 >= 0)
-						Apos[2] = 1800 - joint3;
+						Apos[2] = static_cast < float>(1800 - joint3);
 					else
-						Apos[2] = -1800 - joint3;
+						Apos[2] = static_cast<float>(-1800 - joint3);
 
-					joint4 = pos[3] + 900;
-					Apos[3] = joint4;
+					joint4 = static_cast<int>(pos[3] + 900 + 0.5); // +0.5 to round int
+					Apos[3] = static_cast<float>(joint4);
 
 					// Bring back the angles between -180 to 180
 					for (int i = 0; i < 7; i++)
@@ -494,7 +494,7 @@ int main(int argc, char* argv[])
 					}
 
 					for (int i = 0; i < 8; i++)
-						Apos[i] = 0.1 * Apos[i];
+						Apos[i] = 0.1f * Apos[i];
 					float Kp[6] = { .5,.5,.5,.5,.5,.5 };
 					// Joint control.
 					for (int i = 0; i < 6; i++)
