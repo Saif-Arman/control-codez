@@ -42,7 +42,7 @@ void ForceTorqueManager::ReadForceTorque()
 	ColumnVector<3> Mg_w, F_offset, T_offset, F_unb, T_unb, r_vect, F_bias, F_temp, T_temp, F_ee_temp, T_ee_temp;
 	Matrix<3, 3> Rw2e;
 	Rw2e = transpose(EE2w_transform3(pos));
-	//Rh2FT_s = -0.002, -0.998, 0.0617, 0.224, -0.060, -0.972, 0.975, 0.013, 0.224; // rotation matrix from wrist to FT sensor// from calibration
+	//Rh2FT_s = -0.002, -0.998, 0.0617, 0.224, -0.060, -0.972, 0.975, 0.013, 0.224; // from calibration
 	//Rh2FT_s = -0.05556, -0.9949, 0.0838, 0.2130, -0.0702, -0.9745, 0.9755, 0.0720, 0.2080; // rotatio
 	Rh2FT_s = -0.0065, -0.9991, 0.0421, -0.080, -0.0414, -0.9959, 0.9968, -0.0098, -0.0796; // rotatio
 	//Mg_w = 0, 0, -0.623; //  mass of wrist in N  // mushtaq, Feb 2022
@@ -67,7 +67,7 @@ void ForceTorqueManager::ReadForceTorque()
 	F_bias = Rw2FT_s * Mg_w;
 	T_unb = crossProduct(r_vect, F_bias) + T_offset;
 
-	double cur_FT_unbias[6] = { 0,0 ,0,0,0,0 };
+	double cur_FT_unbias[6] = {0};
 
 	for (i = 0; i < 3; i++)
 	{
@@ -87,13 +87,13 @@ void ForceTorqueManager::ReadForceTorque()
 	}
 
 	gotoxy(1, 32);
-	printf(" Force_biased:    Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _cur_FT[0], _cur_FT[1], _cur_FT[2]);
+	printf(" Force_raw:    Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _cur_FT[0], _cur_FT[1], _cur_FT[2]);
 	gotoxy(1, 33);
-	printf(" Torque_biased:   Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _cur_FT[3], _cur_FT[4], _cur_FT[5]);
+	printf(" Torque_raw:   Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _cur_FT[3], _cur_FT[4], _cur_FT[5]);
 	gotoxy(1, 34);
-	printf(" Force_unbiased:  Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2]);
+	printf(" Force_corrected:  Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2]);
 	gotoxy(1, 35);
-	printf(" Torque_unbiased: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5]);
+	printf(" Torque_corrected: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5]);
 	gotoxy(1, 36);
 	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", F_ee[0], F_ee[1], F_ee[2]);
 	gotoxy(1, 37);

@@ -34,11 +34,11 @@ normal_distribution<double>distribution(0, 1);
 // This gets the transformation gripper to world using joint angles.
 Matrix<4, 4> GWj_Transformation(float* joint)
 {
-	float L1 = 99.2, L2 = 396.7, L3 = 323.4, L4 = 0;
-	float angle1 = 0, angle2 = (-M_PI / 2), angle3 = 0, angle4 = (M_PI / 2), angle5 = (-M_PI / 2), angle6 = (M_PI / 2);
+	float L1 = 99.2f, L2 = 396.7f, L3 = 323.4f, L4 = 0;
+	float angle1 = 0, angle2 = static_cast<float>(-M_PI / 2.0f), angle3 = 0, angle4 = static_cast<float>(M_PI / 2.0f), angle5 = static_cast<float>(-M_PI / 2.0f), angle6 = static_cast<float>(M_PI / 2.0f);
 	for (int i = 0; i < 8; i++)
 	{
-		joint[i] = joint[i] * M_PI / 180;
+		joint[i] = static_cast<float>(joint[i] * M_PI / 180);
 	}
 
 	Matrix<4, 4> A1;
@@ -110,9 +110,9 @@ Matrix<3, 3> EE2C_transform(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	float c_y = position[3] * M_PI / 180.0f;
-	float c_p = position[4] * M_PI / 180.0f;
-	float c_r = position[5] * M_PI / 180.0f;
+	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
+	float c_p = static_cast<float>(position[4] * M_PI / 180.0f);
+	float c_r = static_cast<float>(position[5] * M_PI / 180.0f);
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, -sin(c_p), 0, 1, 0, sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), sin(c_r), 0, -sin(c_r), cos(c_r);
@@ -138,9 +138,9 @@ Matrix<3, 3> EE2w_transform3(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	float c_y = position[3] * M_PI / 180.0f;
-	float c_p = -position[4] * M_PI / 180.0f;
-	float c_r = sign(position[5]) * (180 - abs(position[5])) * M_PI / 180.0f;
+	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
+	float c_p = static_cast<float>(-position[4] * M_PI / 180.0f);
+	float c_r = static_cast<float>(sign(position[5]) * (180 - abs(position[5])) * M_PI / 180.0f);
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, sin(c_p), 0, 1, 0, -sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), -sin(c_r), 0, sin(c_r), cos(c_r);
@@ -163,9 +163,9 @@ Matrix<3, 3> EE2w_transform2(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	float c_y = position[3] * M_PI / 180.0f;
-	float c_p = position[4] * M_PI / 180.0f;
-	float c_r = -position[5] * M_PI / 180.0f;
+	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
+	float c_p = static_cast<float>(position[4] * M_PI / 180.0f);
+	float c_r = static_cast<float>(-position[5] * M_PI / 180.0f);
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = cos(c_p), 0, -sin(c_p), 0, 1, 0, sin(c_p), 0, cos(c_p);
 	Rr = 1, 0, 0, 0, cos(c_r), sin(c_r), 0, -sin(c_r), cos(c_r);
@@ -210,7 +210,7 @@ Matrix<3, 3> EE2C_transform2(float* position)
 {
 	Matrix<3, 3> Ry, Rp, Rr, Rc2w;
 
-	float c_y = position[3] * M_PI / 180.0f;
+	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
 
 	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1;
 	Rp = 1, 0, 0, 0, 1, 0, 0, 0, 1;
@@ -251,7 +251,7 @@ Matrix<3, 3> NormalizeRotationMatrix(Matrix<3, 3> Rx)
 /////////////////////////////////////////////////////////////////////////
 ColumnVector<3> inverse_kinematics_MANUS_q1q2q3(float x, float y, float z)
 {
-	float L2 = 396.7, d2 = 99.2, d4 = 323.4;
+	float L2 = 396.7f, d2 = 99.2f, d4 = 323.4f;
 	float q1, q2, q3, A, B, s1, c1, s3, c3;
 	q1 = atan2(y, x) - atan2(d2, -sqrt(x * x + y * y - d2 * d2));
 	s1 = sin(q1);
@@ -278,16 +278,16 @@ ColumnVector<3> inverse_kinematics_MANUS_q1q2q3(float x, float y, float z)
 //-----------------------------------------------------------------------------------
 float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVector<3> P3, ColumnVector<3> P4)
 {
-	float SMALL_NUM = 0.00000001;
+	float SMALL_NUM = 0.00000001f;
 	ColumnVector<3> u, v, w;
 	u = P2 - P1;
 	v = P4 - P3;
 	w = P1 - P3;
-	float    a = dotProduct(u, u);         // always >= 0
-	float    b = dotProduct(u, v);
-	float    c = dotProduct(v, v);         // always >= 0
-	float    d = dotProduct(u, w);
-	float    e = dotProduct(v, w);
+	float    a = static_cast<float>(dotProduct(u, u));         // always >= 0
+	float    b = static_cast<float>(dotProduct(u, v));
+	float    c = static_cast<float>(dotProduct(v, v));         // always >= 0
+	float    d = static_cast<float>(dotProduct(u, w));
+	float    e = static_cast<float>(dotProduct(v, w));
 	float    D = a * c - b * b;        // always >= 0
 	float    sc, sN, sD = D;       // sc = sN / sD, default sD = D >= 0
 	float    tc, tN, tD = D;       // tc = tN / tD, default tD = D >= 0
@@ -339,21 +339,21 @@ float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVe
 		}
 	}
 	// finally do the division to get sc and tc
-	sc = (abs(sN) < SMALL_NUM ? 0.0 : sN / sD);
-	tc = (abs(tN) < SMALL_NUM ? 0.0 : tN / tD);
+	sc = static_cast<float>(abs(sN) < SMALL_NUM ? 0.0 : sN / sD);
+	tc = static_cast<float>(abs(tN) < SMALL_NUM ? 0.0 : tN / tD);
 
 	// get the difference of the two closest points
 	ColumnVector<3> dP;
 	dP = w(1) + sc * u(1) - tc * v(1), w(2) + sc * u(2) - tc * v(2), w(3) + sc * u(3) - tc * v(3);  // =  S1(sc) - S2(tc)
 
-	float dist = sqrt(dotProduct(dP, dP));
+	float dist = static_cast<float>(sqrt(dotProduct(dP, dP)));
 	return dist;   // return the closest distance
 }
 
 //-----------------------------------------------------------------------------------
 ColumnVector<3> link3_1st_end_postion(float q1, float q2, float q3)
 {
-	float L2 = 396.7, d2 = 99.2, d4 = 323.4;
+	float L2 = 396.7f, d2 = 99.2f, d4 = 323.4f;
 	Matrix<4, 4> A1;
 	A1 = cos(q1), -sin(q1), 0, 0, sin(q1), cos(q1), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1;
 
@@ -387,9 +387,9 @@ float DistanceBetween_Camera_Link3(float* position)
 	p3_c = 70, -62, 82;  //  first end point coordinate of camera edge in end-effector frame
 	p4_c = -110, -62, 82; // second end point coordinate of camera edge in end-effector frame
 	Q = inverse_kinematics_MANUS_q1q2q3(x, y, z);
-	q1 = Q(1);
-	q2 = Q(2);
-	q3 = Q(3);
+	q1 = static_cast<float>(Q(1));
+	q2 = static_cast<float>(Q(2));
+	q3 = static_cast<float>(Q(3));
 	p1 = link3_1st_end_postion(q1, q2, q3); //first end point coordinate of link3 arm in base frame
 	p2 = x, y, z;     //second end point coordinate of link3 arm in basec frame
 	Matrix<3, 3> R06;  // rotation matrix from the end-effector frame to the base frame
@@ -766,7 +766,7 @@ void sthread_CAN(void* arg)
 
 						float control_input;
 						float w_lim = 10.0f, v_lim = 100.0f;
-						float r2d_const = 180.0f / M_PI;
+						float r2d_const = static_cast < float>(180.0f / M_PI);
 						float dt, dy, dp, dr;
 
 						Rc2w = C2W_transform(pos);
@@ -786,7 +786,7 @@ void sthread_CAN(void* arg)
 						for (int i = 0; i < 3; ++i)
 						{
 							// [rad] -> [deg]
-							control_input = Wypr(i + 1, 1) * r2d_const;
+							control_input = static_cast<float>(Wypr(i + 1, 1) * r2d_const);
 							Wypr(i + 1, 1) = (fabs(control_input) > w_lim) ? (float)(sign(control_input) * w_lim) : (float)control_input;
 						}
 
@@ -835,16 +835,18 @@ void sthread_CAN(void* arg)
 
 						// Limit linear velocity.
 						for (int i = 0; i < 3; ++i) {
-							control_input = Vw(i + 1, 1);
+							control_input = static_cast<float>( Vw(i + 1, 1));
 							Vw(i + 1, 1) = (fabs(control_input) > v_lim) ? (float)(sign(control_input) * v_lim) : (float)control_input;
 						}
 
 						// Set speed variables of MANUS ARM.
 						for (int i = 0; i < 3; i++)
-							speed[i + 1] = (int)Vw(i + 1, 1);
+							speed[i + 1] = static_cast<float>(Vw(i + 1, 1));
+							/*speed[i + 1] = (int)Vw(i + 1, 1);*/ // CHANGED BY NICK JULY 2024
 
 						for (int i = 0; i < 3; i++)
-							speed[i + 4] = (int)Wypr(i + 1, 1);
+							speed[i + 4] = static_cast<float>(Wypr(i + 1, 1));
+							/*speed[i + 4] = (int)Wypr(i + 1, 1);*/ // CHANGED BY NICK JULY 2024
 
 						for (int i = 0; i < 6; i++)
 							command_signal << speed[i + 1] << " ";
@@ -1251,7 +1253,7 @@ void PrintStatus(void)
 		}
 
 		ResetAll();
-		float time_stamp = TimeCheck();
+		float time_stamp = static_cast<float>(TimeCheck());
 		errors << "warning '" << manus_message << "', " << time_stamp << "\n";
 		/* WARNING */
 		if (!block_all_motions)
@@ -1383,13 +1385,13 @@ bool Read_350_360(void)
 		{
 			if (rcvMsg.ID == 0x350)
 			{
-				pos[0] = ((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3];	// X/axis1.
-				pos[1] = ((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5];	// Y/axis2.
-				pos[2] = ((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7];	// Z/axis3.
+				pos[0] = static_cast<float>(((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3]);	// X/axis1.
+				pos[1] = static_cast<float>(((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5]);	// Y/axis2.
+				pos[2] = static_cast<float>(((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7]);	// Z/axis3.
 
 				if (cbox == CARTESIAN)
 					for (int i = 0; i < 3; i++)
-						pos[i] = 0.022 * pos[i];
+						pos[i] = 0.022f * pos[i];
 				else
 					cout << "[Error]: Undefined the position reading!" << endl;
 
@@ -1397,10 +1399,10 @@ bool Read_350_360(void)
 			}
 			if (rcvMsg.ID == 0x360)
 			{
-				pos[3] = ((char)rcvMsg.RDATA[0] << 8) + (unsigned char)rcvMsg.RDATA[1];	// Yaw/axis4.
-				pos[4] = ((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3];	// Pitch/axis5.
-				pos[5] = ((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5];	// Roll/axis6.
-				pos[6] = ((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7];	// gripper.
+				pos[3] = static_cast<float>(((char)rcvMsg.RDATA[0] << 8) + (unsigned char)rcvMsg.RDATA[1]);	// Yaw/axis4.
+				pos[4] = static_cast<float>(((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3]);	// Pitch/axis5.
+				pos[5] = static_cast<float>(((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5]);	// Roll/axis6.
+				pos[6] = static_cast<float>(((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7]);	// gripper.
 
 				if (cbox == CARTESIAN)
 				{
@@ -1414,7 +1416,7 @@ bool Read_350_360(void)
 					}
 					// Yaw, pitch, roll in degrees.
 					for (int i = 3; i < 6; i++)
-						pos[i] = 0.1 * pos[i];
+						pos[i] = 0.1f * pos[i];
 
 					// Process the roll angle. 
 					if (reverse_flag)
@@ -1623,63 +1625,63 @@ void ManualControl(char ch)
 
 		break;
 	case 'q':	// X axis.
-		if (cbox == CARTESIAN) { speed[1] = linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[1] = static_cast<float>(linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[1] = MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'a':	// X axis.
-		if (cbox == CARTESIAN) { speed[1] = -linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[1] = static_cast<float>(-linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[1] = -MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'w':	// Y axis.
-		if (cbox == CARTESIAN) { speed[2] = linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[2] = static_cast<float>(linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[2] = MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 's':	// Y axis.
-		if (cbox == CARTESIAN) { speed[2] = -linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[2] = static_cast<float>(-linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[2] = -MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'e':	// Z axis. lift up the end effector 
-		if (cbox == CARTESIAN) { speed[3] = linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[3] = static_cast<float>(linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[3] = MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		lift_in_progress = true;
 		break;
 	case 'd':	// Z axis. move down the end effector 
-		if (cbox == CARTESIAN) { speed[3] = -linear_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[3] = static_cast<float>(-linear_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[3] = -MAX_JOINT; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'r':	// Yaw.
-		if (cbox == CARTESIAN) { speed[4] = angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[4] = static_cast<float>(angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[4] = MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'f':	// Yaw.
-		if (cbox == CARTESIAN) { speed[4] = -angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[4] = static_cast<float>(-angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[4] = -MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 't':	// Pitch.
-		if (cbox == CARTESIAN) { speed[5] = angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[5] = static_cast<float>(angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[5] = MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'g':	// Pitch.
-		if (cbox == CARTESIAN) { speed[5] = -angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[5] = static_cast<float>(-angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[5] = -MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'y':	// Roll.
-		if (cbox == CARTESIAN) { speed[6] = angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[6] = static_cast<float>(angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[6] = MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'h':	// Roll.
-		if (cbox == CARTESIAN) { speed[6] = -angular_speed_limit[speed_mode]; new_status = true; }
+		if (cbox == CARTESIAN) { speed[6] = static_cast<float>(-angular_speed_limit[speed_mode]); new_status = true; }
 		else if (cbox == JOINT) { speed[6] = -MAX_JOINT_YPR; new_status = true; }
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
@@ -2912,7 +2914,7 @@ int pd_control2(void)
 	////    enable camera collision check on auto motion
 	float cam_dist;
 	cam_dist = DistanceBetween_Camera_Link3(pos);
-	gotoxy(1, 41);
+	gotoxy(1, 42);
 	printf("The closest distance between the camera and link3 %.3f", cam_dist);
 	if ((cam_dist < 38) && !cam_cls)
 	{
@@ -3943,7 +3945,7 @@ void GraspController(void)
 		Fa = (1 / u_hat) * (w_hat + k * cur_velocity_f);
 		err = cur_force - Fa;
 		old_time = cur_time;
-		old_pos = cur_position;
+		old_pos = static_cast<float>(cur_position);
 
 		//Read from MANUS.
 		rcvMsg.ID = 0x0;
@@ -3989,7 +3991,7 @@ void GraspController(void)
 		//Que_count++;
 
 	}
-	F_d = Fa + 0.1;
+	F_d = Fa + 0.1f;
 	if (grasp_end == 0) {
 		grasp_end = 4;
 		gotoxy(1, 34);
@@ -4158,7 +4160,7 @@ void LowPassFilter(void)
 {
 	int lpf_time_passed;
 
-	float lpf_meas = cur_velocity;
+	float lpf_meas = static_cast<float>(cur_velocity);
 	lpf_time_passed = abs(TimeCheck() - lpf_time);
 	if (lpf_time_passed > 500)
 		lpf_cur = lpf_meas;
@@ -4175,7 +4177,7 @@ void LowPassFilter2(void)
 {
 	int lpf_time_passed;
 
-	float lpf_meas = cur_velocity;
+	float lpf_meas = static_cast<float>(cur_velocity);
 	lpf_time_passed = abs(TimeCheck() - lpf_time2);
 	if (lpf_time_passed > 500)
 		lpf_cur = lpf_meas;
@@ -4203,7 +4205,7 @@ void init_grasp2(void) // to test  F_min
 			ReadForce(cur_force);
 			init_force = cur_force;
 			last_b_hat = init_force;// mushtaq
-			last_a_hat = init_force / 9.81; // mushtaq
+			last_a_hat = init_force / 9.81f; // mushtaq
 			pos_before_lifting = pos[2]; //record the position before lifting 
 			hold_init = TimeCheck();
 			init_stop = 1; // used to indicate regrasping via updatespacemouse to the GUI where text to speech is carried out and text is displayed
@@ -4230,7 +4232,8 @@ void regrasping_algorithm2(void) // mushtaq to test F_min
 {
 	ReadForce(cur_force);
 	int adj_time_out = 30000;
-	if (grasp_flag == INITIAL) {
+	if (grasp_flag == INITIAL) 
+	{
 		
 		ReadForce(cur_force);
 
@@ -4243,19 +4246,21 @@ void regrasping_algorithm2(void) // mushtaq to test F_min
 			ini_adt = TimeCheck(); // initialize adjust timer 
 		}
 	}
-	if (grasp_flag == ADAPTIVE_REGRASPING) {
+	if (grasp_flag == ADAPTIVE_REGRASPING) 
+	{
 		
 		cur_time = TimeCheck();
 
 		dt0 = (cur_time - old_time) / 1000;
 
-		speed[7] = -5 * sin(dt0 * 2 * M_PI * 0.1);
+		speed[7] = static_cast<float>(-5 * sin(dt0 * 2 * M_PI * 0.1));
 		new_status = true;
 
 		old_time = cur_time;   
 		ReadForce(cur_force);
 	}
-	if ((TimeCheck() - ini_adt) > adj_time_out) {
+	if ((TimeCheck() - ini_adt) > adj_time_out) 
+	{
 
 		grasp_flag = INITIAL;
 		ResetAll();
@@ -4334,8 +4339,8 @@ void regrasping_algorithm(void)
 	/*if ((abs(cur_velocity_f) < 0.25 / 100000) || (abs(cur_velocity_f2) < 0.25 / 100000)) ang_vel = 0;
 	else  ang_vel = (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d;*/
 	cur_velocity_f2 = cur_velocity_f;
-	ang_vel =( (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10; //  *10 mushtaq in rad/sec
-	lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2)*10; // *10 mushtaq  //in m/s
+	ang_vel = static_cast<float>(((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10); //  *10 mushtaq in rad/sec
+	lin_vel = static_cast<float>(((cur_velocity_f + cur_velocity_f2) / 2)*10); // *10 mushtaq  //in m/s
 	bool slip_detected = (abs(cur_velocity_f) > 0.25 / 10000) || (abs(cur_velocity_f2) > 0.25 / 10000);
 	
 	if (grasp_flag == INITIAL) {
@@ -4367,7 +4372,7 @@ void regrasping_algorithm(void)
 	{
 		
 
-		float g = 9.81;
+		float g = 9.81f;
 		cur_time = TimeCheck();
 		
 		dt0 = (cur_time - old_time);
@@ -4375,8 +4380,8 @@ void regrasping_algorithm(void)
 		/*if ((abs(cur_velocity_f) < 0.25 / 100000) || (abs(cur_velocity_f2) < 0.25 / 100000)) ang_vel = 0;
 		else  ang_vel = (cur_velocity_f2 - cur_velocity_f) / slip_sensor_d;*/
 		cur_velocity_f2 = cur_velocity_f;
-		ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10; // in rad/s
-		lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2)*10;  // in m/s mushtaq
+		ang_vel = static_cast<float>(((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d)*10); // in rad/s
+		lin_vel = static_cast<float>(((cur_velocity_f + cur_velocity_f2) / 2)*10);  // in m/s mushtaq
 		angl_dis += ang_vel * dt0 / 1000; // to change to dt0 to seconds robson: check the integration method used 
 		a_hat_dot = -gamma_1 * (lin_vel);
 		b_hat_dot = -gamma_2 * (ang_vel)*cos(angl_dis);
@@ -4386,8 +4391,8 @@ void regrasping_algorithm(void)
 		lin_dist1 = old_pos-cur_position;
 		lin_dist2 = old_pos2-cur_position2;
 		
-		F_d1 = abs(a_hat * g*cos((180-pos[5])* 3.1415 /180) - k1 * lin_vel);
-		F_d2 = abs(b_hat * cos(angl_dis) - k2 * ang_vel);
+		F_d1 = static_cast<float>(abs(a_hat * g*cos((180-pos[5])* 3.1415 /180) - k1 * lin_vel));
+		F_d2 = static_cast<float>(abs(b_hat * cos(angl_dis) - k2 * ang_vel));
 		F_d = max(F_d1, F_d2);
 		
 
@@ -4508,8 +4513,8 @@ void grasping_with_desired_force(float F_desired)
 	k3 = 2;
 	F_d = F_desired;
 
-	ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10; // in rad/s
-	lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2) * 10;  // in m/s mushtaq
+	ang_vel = static_cast<float>(((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10); // in rad/s
+	lin_vel = static_cast<float>(((cur_velocity_f + cur_velocity_f2) / 2) * 10);  // in m/s mushtaq
 	gotoxy(20, 34);
 	printf("error_close_to_zero_count: %d", error_close_to_zero_count);
 	if (grasp_flag == INITIAL) {
@@ -4532,8 +4537,8 @@ void grasping_with_desired_force(float F_desired)
 
 		cur_time = TimeCheck();
 		dt0 = (cur_time - old_time);
-		ang_vel = ((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10; // in rad/s
-		lin_vel = ((cur_velocity_f + cur_velocity_f2) / 2) * 10;  // in m/s mushtaq
+		ang_vel = static_cast<float>(((cur_velocity_f2 - cur_velocity_f) / slip_sensor_d) * 10); // in rad/s
+		lin_vel = static_cast<float>(((cur_velocity_f + cur_velocity_f2) / 2) * 10);  // in m/s mushtaq
 		angl_dis += ang_vel * dt0 / 10; //scaled up angl disp by 100
 		if (F_d > max_force) {
 			F_d = max_force;
@@ -4631,7 +4636,7 @@ void oneclick(void)
 		sprintf_s(Mflag_str, "C:\\MANUS\\CommonSpace\\Assistant\\Mflag.txt");
 		FILE* M_flag = fopen(Mflag_str, "r");
 		float M_flag_reading[1] = {};
-		int R_t;
+		//int R_t;
 		if (M_flag != NULL)
 		{
 			fscanf_s(M_flag, "%f ", &M_flag_reading[0]);
@@ -4750,8 +4755,8 @@ void oneclick(void)
 		ee_deltaPosition[10] = requestedPosition[10] - currentPosition[2];
 
 
-		ee_deltaPosition[6] = atan(ee_deltaPosition[9] / ee_deltaPosition[8]) / 3.1415 * 180 - currentPosition[3];
-		ee_deltaPosition[7] = atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
+		ee_deltaPosition[6] = static_cast<float>(atan(ee_deltaPosition[9] / ee_deltaPosition[8]) / 3.1415 * 180 - currentPosition[3]);
+		ee_deltaPosition[7] = static_cast<float>(atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4]);
 		deltaPosition[11] = ee_deltaPosition[6];
 		deltaPosition[12] = ee_deltaPosition[7];
 		ee_deltaPosition[11] = ee_deltaPosition[6];
@@ -4767,7 +4772,7 @@ void oneclick(void)
 		e_handxy = W2ee_xy * e_xy;
 		for (int i = 0; i < 2; i++) {
 			//cout<<endl<<"Transformed Delta "<< deltaPosition[i]<<" ";
-			ee_deltaPosition[i] = e_handxy(i + 1, 1);//for suggestion btn
+			ee_deltaPosition[i] = static_cast<float>(e_handxy(i + 1, 1));//for suggestion btn
 		}
 
 		old_fine_adjust = fine_adjust;
@@ -4823,8 +4828,8 @@ void oneclick(void)
 
 
 			if (D2obj > 300) {
-				deltaPosition[3] = atan(deltaPosition[9] / deltaPosition[8]) / 3.1415 * 180 - currentPosition[3];
-				deltaPosition[4] = atan(deltaPosition[10] / sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
+				deltaPosition[3] = static_cast<float>(atan(deltaPosition[9] / deltaPosition[8]) / 3.1415 * 180 - currentPosition[3]);
+				deltaPosition[4] = static_cast<float>(atan(deltaPosition[10] / sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4]);
 			}//desire yaw pitch,make sure the gripper is keep looking the object
 
 			for (int i = 0; i < 6; i++) // desire speed setting
@@ -4832,7 +4837,7 @@ void oneclick(void)
 				if ((i < 3) && ((abs(deltaPosition[i]) > 10)))
 				{
 
-					suggspeed[i] = deltaPosition[i] / sqrt(pow(deltaPosition[0], 2) + pow(deltaPosition[1], 2) + pow(deltaPosition[2], 2)) * 40;
+					suggspeed[i] = static_cast<int>(deltaPosition[i] / sqrt(pow(deltaPosition[0], 2) + pow(deltaPosition[1], 2) + pow(deltaPosition[2], 2)) * 40 + 0.5); // 0.5 to round int
 
 				}
 				else if ((i < 3) && ((abs(deltaPosition[i]) < 10)))
@@ -4842,9 +4847,9 @@ void oneclick(void)
 
 				if ((i > 2) && (abs(deltaPosition[i]) > 2))
 				{
-					suggspeed[i] = deltaPosition[i] / 4;//deltaPosition0[i]/15
+					suggspeed[i] = static_cast<int>(deltaPosition[i] / 4 + 0.5); // 0.5 to round int //deltaPosition0[i]/15
 					if (suggspeed[i] == 0)
-						suggspeed[i] = sign(deltaPosition[i]) * 2;
+						suggspeed[i] = static_cast<int>(sign(deltaPosition[i]) * 2);
 				}
 				else if ((i > 2) && (abs(deltaPosition[i]) < 2))
 				{
@@ -4883,7 +4888,7 @@ void oneclick(void)
 					delta_temp = EE2W_m * adj_dire;
 					for (int k = 0; k < 3; k++)
 					{
-						requestedPosition[k] += delta_temp(k + 1, 1);
+						requestedPosition[k] += static_cast<float>(delta_temp(k + 1, 1));
 					}
 					cout << "buttom collision" << endl;
 				}
@@ -4958,7 +4963,7 @@ void oneclick(void)
 			case '1'://approaching to the object
 				oneclick_mode = 6;
 				for (int i = 0; i < 3; i++)
-					suggspeed[i] = wa(i + 1, 1) * 15;
+					suggspeed[i] = static_cast<int>(wa(i + 1, 1) * 15 + 0.5); // 0.5 to round int
 
 				if (grasp_side == 0)
 				{
@@ -4980,7 +4985,7 @@ void oneclick(void)
 					delta_temp = EE2W_m * adj_dire;
 					for (int k = 0; k < 3; k++)
 					{
-						temp_pos[k] += delta_temp(k + 1, 1);
+						temp_pos[k] += static_cast<float>(delta_temp(k + 1, 1));
 					}
 
 					if (btm_cls) {
@@ -5037,7 +5042,7 @@ void oneclick(void)
 						delta_temp = EE2W_m * adj_dire;//adjust desire gripper position in ee frame
 						for (int k = 0; k < 3; k++)
 						{
-							temp_pos[k] += delta_temp(k + 1, 1);
+							temp_pos[k] += static_cast<float>(delta_temp(k + 1, 1));
 						}
 
 					}
@@ -5061,7 +5066,7 @@ void oneclick(void)
 							delta_temp = EE2W_m * adj_dire;//adjust desire gripper position in ee frame
 							for (int k = 0; k < 3; k++)
 							{
-								temp_pos[k] = cls_pos[k] + delta_temp(k + 1, 1);
+								temp_pos[k] = static_cast<float>(cls_pos[k] + delta_temp(k + 1, 1));
 							}
 							fine_adjust = '2';
 						}
@@ -5073,13 +5078,17 @@ void oneclick(void)
 			case '2'://retreat from object after collision
 				oneclick_mode = 7;
 				int dist_cls;
-				dist_cls = sqrt(pow((pos[0] - cls_pos[0]), 2) +
+				dist_cls = static_cast<int>(
+					sqrt(pow((pos[0] - cls_pos[0]), 2) +
 					pow((pos[1] - cls_pos[1]), 2) +
-					pow((pos[2] - cls_pos[2]), 2));
+					pow((pos[2] - cls_pos[2]), 2))
+					+ 0.5); // 0.5 to round int
 				int dist_d;
-				dist_d = sqrt(pow((pos[0] - temp_pos[0]), 2) +
+				dist_d = static_cast<int>(
+					sqrt(pow((pos[0] - temp_pos[0]), 2) +
 					pow((pos[1] - temp_pos[1]), 2) +
-					pow((pos[2] - temp_pos[2]), 2));
+					pow((pos[2] - temp_pos[2]), 2))
+					+ 0.5); // 0.5 to round int
 
 
 				for (int i = 0; i < 6; i++)
@@ -5087,15 +5096,17 @@ void oneclick(void)
 				if (dist_cls < 20)//retreat first, just in case move along the collision position to desire position might move the object
 				{
 					for (int i = 0; i < 3; i++)
-						suggspeed[i] = -wa(i + 1, 1) * 30;
+						suggspeed[i] = static_cast<int>(-wa(i + 1, 1) * 30 + 0.5); // 0.5 to round int
 
 				}
 				else if (dist_d > 10)
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						suggspeed[i] = d_po[i] /
-							sqrt(pow(d_po[0], 2) + pow(d_po[1], 2) + pow(d_po[2], 2)) * 15;
+						suggspeed[i] = static_cast<int>(
+							d_po[i] / 
+							sqrt(pow(d_po[0], 2) + pow(d_po[1], 2) + pow(d_po[2], 2)) * 15
+							+ 0.5); // 0.5 to round int
 					}
 
 				}
@@ -5150,7 +5161,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
 	float temp_pos[6];
-	float dist_cam;
+	//float dist_cam;
 	bool cam_c = false;
 	for (int i = 0; i < 6; i++)
 	{
@@ -5172,7 +5183,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 		wa = C2W_transform2(pos) * ca;
 		for (int j = 0; j < 3; j++)
 		{
-			temp_pos[j] += wa(j + 1, 1);
+			temp_pos[j] += static_cast<float>(wa(j + 1, 1));
 		}
 	}
 	else
@@ -5370,7 +5381,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 		wa = C2W_transform2(pos) * ca;
 		for (int j = 0; j < 3; j++)
 		{
-			temp_pos[j] += wa(j + 1, 1);
+			temp_pos[j] += static_cast<float>(wa(j + 1, 1));
 		}
 	}
 	else
@@ -5425,7 +5436,7 @@ float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool rol
 		wa = C2W_transform2(pos) * ca;
 		for (int j = 0; j < 3; j++)
 		{
-			temp_pos[j] += wa(j + 1, 1);
+			temp_pos[j] += static_cast<float>(wa(j + 1, 1));
 		}
 	}
 	else
@@ -5509,7 +5520,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	int coe_e = 2;//global?
 	int axis = 6;
 	int sug_order = 9;
-	float cam_dist;
+	//float cam_dist;
 	bool cam_cls_flag = false;
 
 
@@ -5605,7 +5616,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 
 							return;// jump out of the function start the suggestion again
 						}
-						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);// if there is no collision in planned movement, set the threshould of the suggest movement.
+						moveL[axis] = static_cast<float>(deltaPosition[axis] * (1.0 - 1.0 / coe_e));// if there is no collision in planned movement, set the threshould of the suggest movement.
 						thres = moveL[axis];
 
 						if (axis < 3)// when the planned threshold is less than the general threshold, set it back to threshold

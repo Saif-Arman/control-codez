@@ -219,64 +219,65 @@ int main(int argc, char* argv[])
 		int spacemousearray[4] = {spaceMouseEnabled, spaceMouseMode, spaceButtonsToggle[1], int(grasp_flag!=0)};
 		
 		//ReadSugspeed();
-		switch ( mode )
-		{ 
-		case MANUAL_MODE:
-			//Brandon/Mat 12/15/16
-			spaceMouseEnabled_old = spaceMouseEnabled;
-			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
-			//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
-			spaceMouseMode_old = spaceMouseMode;
-
-			if( (spaceButtonsToggle[0] || spaceButtonsToggle[1]) 
-				&& spaceMouseEnabled 
-				&& !btn_gripper_ctl_flag) //once space mouse activated, spaceButtonsToggle[0,1] can only change mode, then set to 0.
+		switch (mode)
+		{
+			case MANUAL_MODE:
 			{
+				//Brandon/Mat 12/15/16
+				spaceMouseEnabled_old = spaceMouseEnabled;
+				spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
+				//Increments the mode per one button press and release for swapping between hand,arm, and both axis.
+				spaceMouseMode_old = spaceMouseMode;
 
-				if (spaceButtonsToggle[0])
+				if ((spaceButtonsToggle[0] || spaceButtonsToggle[1])
+					&& spaceMouseEnabled
+					&& !btn_gripper_ctl_flag) //once space mouse activated, spaceButtonsToggle[0,1] can only change mode, then set to 0.
 				{
-					spaceMouseMode <= 0 ? spaceMouseMode = spaceMouseMode_count : spaceMouseMode--;
-					spaceButtonsToggle[0] = false;
+
+					if (spaceButtonsToggle[0])
+					{
+						spaceMouseMode <= 0 ? spaceMouseMode = spaceMouseMode_count : spaceMouseMode--;
+						spaceButtonsToggle[0] = false;
+					}
+
+					if (spaceButtonsToggle[1])
+					{
+						//spaceMouseMode_old = spaceMouseMode;
+						spaceMouseMode >= spaceMouseMode_count ? spaceMouseMode = 0 : spaceMouseMode++;
+						spaceButtonsToggle[1] = false;
+					}
+					//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
+					//spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
 				}
 
-				if (spaceButtonsToggle[1])
+				gotoxy(1, 19);
+				printf("spaceButtons[0]  %d,   [1]  %d,  [2]  %d,ctl 0  %d ,1  %d ,toogle %d ", spaceButtons[0], spaceButtons[1], spaceButtons[2], btn_gripper_ctl[0], btn_gripper_ctl[1], btn_gripper_ctl_flag);
+				gotoxy(1, 20);
+				//spaceMouseEnabled?
+				//	printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
+				//	:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
+				if (spaceMouseEnabled)
 				{
-					//spaceMouseMode_old = spaceMouseMode;
-					spaceMouseMode >= spaceMouseMode_count ? spaceMouseMode = 0 : spaceMouseMode++;
-					spaceButtonsToggle[1] = false;
+					printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode, spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1]);
 				}
-				//spaceMouseMode >=3  ? spaceMouseMode=0:spaceMouseMode++;	// spaceMouseMode  0 arm mode, 1 wrist mode, 2 hybird mode.  3 gripper frame
-				//spaceButtonsToggle[0] = false;								//spaceButtonsToggle[1]  1 for gripper mode
-			}
-
-			gotoxy(1, 19);
-			printf("spaceButtons[0]  %d,   [1]  %d,  [2]  %d,ctl 0  %d ,1  %d ,toogle %d ", spaceButtons[0], spaceButtons[1], spaceButtons[2], btn_gripper_ctl[0], btn_gripper_ctl[1], btn_gripper_ctl_flag);
-			gotoxy( 1, 20);
-			//spaceMouseEnabled?
-			//	printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
-			//	:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
-			if (spaceMouseEnabled)
-			{
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode, spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1]);
-			}
-			else
-			{
-				printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
-			}
-
-			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
-			{
-				switch (init_action)
+				else
 				{
+					printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
+				}
+
+				if ((init_system) && (rcvMsg.ID == 0x37f))
+				{
+					switch (init_action)
+					{
 					case 3:
 						// Cartesian.
-						ManualControl( '1' );
+						ManualControl('1');
 						init_action--;
 						break;
 
 					case 2:
 						// Cartesian.
-						ManualControl( '1' );
+						ManualControl('1');
 						init_action--;
 						break;
 
@@ -285,363 +286,365 @@ int main(int argc, char* argv[])
 						break;
 
 					case 0:
-						if ( fabs( pos[5] ) < 30.0f )
+						if (fabs(pos[5]) < 30.0f)
 						{
 							// Reverse roll angle.
-							ManualControl( '9' );
+							ManualControl('9');
 						}
 
 						init_system = false;
 						break;
+					}
 				}
-			}
 
-			if ( ( !init_system ) && ( fabs(pos[5]) < 45.0f ) )
-			{
-				// Reverse roll angle.
-				ManualControl('9');
-			}
+				if ((!init_system) && (fabs(pos[5]) < 45.0f))
+				{
+					// Reverse roll angle.
+					ManualControl('9');
+				}
 
-			// Does this first if need to go after the next 2?
-			if (spaceMouseEnabled/*&&spaceMouseMode!=4*/)
-			{
-				ManualControl('#');// arm, wrist, hybrid, hybrid in gripper frame modes
-			}
-			else if (spaceMouseEnabled&& spaceMouseMode == 4)  // gripper mode 
-			{
-				if (spaceMouse[2] < -500)
+				// Does this first if need to go after the next 2?
+				if (spaceMouseEnabled/*&&spaceMouseMode!=4*/)
 				{
-					ManualControl('j');//close
-					spm_gripper = 1;
-					spacemouse_operation[2] = -1;
+					ManualControl('#');// arm, wrist, hybrid, hybrid in gripper frame modes
 				}
-				else if (spaceMouse[2] > 500)
+				else if (spaceMouseEnabled && spaceMouseMode == 4)  // gripper mode 
 				{
-					ManualControl('u');//open
-					spm_gripper = 2;
-					spacemouse_operation[2] = 1;
-				}
-				else if (spaceMouse[2] < 300 && spaceMouse[2]>-300)
-				{
-					ManualControl(' ');
-					spm_gripper = 0;
-					spacemouse_operation[2] = 0;
-				}
-			}
-			else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
-			{
-				if (spaceMouse[0] >1500)
-				{
-					ManualControl('S');//one click mode
-				}
-				else
-				{
-					ManualControl('#');
-				}
-			}
-			else
-			{
-				spm_gripper = 0;
-			}
-
-			if (!spaceMouseEnabled && spm_operation != 0)
-			{
-				spm_operation = 0;
-			}
-
-			// True if a key has been pressed.
-			if ( _kbhit() ) 
-			{
-				ch =_getch();
-				ManualControl( ch );
-				//gotoxy(1, 48);
-				//cout << TimeCheck() << endl;
-			}
-			
-			// Rafael - 01/07/08
-			if ( myRcv.key.tryReadLock() == -1 )
-			{
-				cout << "\n  Received data: Busy updating " << "        "<< std::endl << std::flush;
-			}    
-			else
-			{
-				if (myRcv.command == NULL)
-				{
-					myRcv.key.unlock();
-					//btn_cmd = '~';
-				}
-				else
-				{
-					ch = myRcv.command;
-					btn_cmd = ch;
-
-					ManualControl(ch);  //GUI button command
-					myRcv.key.unlock();
-					myRcv.key.writeLock();
-					myRcv.command = NULL;
-					myRcv.key.unlock();
-				}
-				gotoxy(1, 42);
-				cout << btn_cmd << endl;
-			}			
-
-			// Translate to eliminate the offset.
-			if ( ( auto_mode_start ) & ( rotation_start1 ) )
-			{				
-				rotation_start1 = false;
-				rotation_start2 = true;
-			}
-
-			// Angular motion.
-			if ( ( auto_mode_start ) & ( rotation_start2 ) )	// rotation	
-			{
-				for ( int i = 3; i < 6; i++ )
-				{
-					if ( i == 5 ) // roll -180 ~ 180 : linear scailing
+					if (spaceMouse[2] < -500)
 					{
-						tmp1 = ( 180.0f - pd[i] ) - ( 180.0f - pos[i] );
-						if (tmp1 >= 0.0f)
-						{
-							if (tmp1 <= 180.0f)
-								tmp2 = tmp1;
-							else
-								tmp2 = tmp1 - 360.0f;
-						}
-						else
-						{
-							if (tmp1 > -180.0f)
-								tmp2 = tmp1;
-							else
-								tmp2 = 360.0f + tmp1;
-						}
-						eprev1[i] = tmp2;
+						ManualControl('j');//close
+						spm_gripper = 1;
+						spacemouse_operation[2] = -1;
+					}
+					else if (spaceMouse[2] > 500)
+					{
+						ManualControl('u');//open
+						spm_gripper = 2;
+						spacemouse_operation[2] = 1;
+					}
+					else if (spaceMouse[2] < 300 && spaceMouse[2]>-300)
+					{
+						ManualControl(' ');
+						spm_gripper = 0;
+						spacemouse_operation[2] = 0;
+					}
+				}
+				else if (spaceMouseEnabled && spaceMouseMode == 5)// one click mode
+				{
+					if (spaceMouse[0] > 1500)
+					{
+						ManualControl('S');//one click mode
 					}
 					else
-						eprev1[i] = pd[i] - pos[i];
-
-					control_input = Kp[i] * eprev1[i];
-					float speed_limit = angular_speed_limit[speed_mode] * 1.0f;
-					speed[i+1] = ( fabs( control_input ) > speed_limit ) ? sign( control_input ) * speed_limit : control_input;
-				}
-
-				if ( ( fabs( eprev1[3] ) < R_ERR_BOUND ) & ( fabs( eprev1[4] )< R_ERR_BOUND ) )	// yaw & pitch rotation control
-				{
-					speed[4] = 0; speed[5] = 0;
-
-					if ( fabs( eprev1[5] ) < R_ERR_BOUND )	// roll rotation control
 					{
-						rotation_start2 = false;
-						speed[4] = 0; 
-						speed[5] = 0; 
-						speed[6] = 0;
+						ManualControl('#');
 					}
 				}
 				else
-					speed[6] = 0;
-				DisplaySpeed();
-			}
-
-			// Linear motion.
-			if ( ( auto_mode_start ) & ( !rotation_start2 ) & ( !rotation_start1 ) & (cbox == CARTESIAN)) // translation
-			{
-				// position control.
-				for ( int i = 0; i < 3; i++ )
-				{					
-					eprev1[i] = pd[i] - pos[i];
-
-					control_input = Kp[i] * eprev1[i];
-					float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
-					speed[i+1] = ( fabs( control_input ) > speed_limit ) ? sign( control_input ) * speed_limit : control_input;
-				}
-				if ( ( fabs( eprev1[0] ) < T_ERR_BOUND ) & ( fabs( eprev1[1] ) < T_ERR_BOUND ) & ( fabs( eprev1[2] ) < T_ERR_BOUND ) )
 				{
-					auto_mode_start = false;
-					speed[1] = speed[2] = speed[3] = 0;
+					spm_gripper = 0;
 				}
-				DisplaySpeed();
-			}
-			//Joint P control Brandon 10/28/16
-			if ( ( auto_mode_start ) & ( !rotation_start2 ) & ( !rotation_start1 ) & (cbox == JOINT )) // Joint control
-			{
-				int joint3 = 0;
-				int joint4 = 0;
-				Apos[0] = pos[0];
-				Apos[4] = pos[4];
-				Apos[5] = pos[5];
-				Apos[6] = pos[6];
 
-				// Correction for dependancy between joint 2 and 3
-				Apos[1] = (-1) * pos[1];
-				joint3 = pos[2];
-				joint3 = joint3 + 900 + Apos[1];
+				if (!spaceMouseEnabled && spm_operation != 0)
+				{
+					spm_operation = 0;
+				}
 
-				if( joint3 >= 0 )
-					Apos[2] = 1800 - joint3;
+				// True if a key has been pressed.
+				if (_kbhit())
+				{
+					ch = _getch();
+					ManualControl(ch);
+					//gotoxy(1, 48);
+					//cout << TimeCheck() << endl;
+				}
+
+				// Rafael - 01/07/08
+				if (myRcv.key.tryReadLock() == -1)
+				{
+					cout << "\n  Received data: Busy updating " << "        " << std::endl << std::flush;
+				}
 				else
-					Apos[2] = -1800 - joint3;
-
-				joint4 = pos[3] + 900;
-				Apos[3] = joint4;
-
-				// Bring back the angles between -180 to 180
-				for( int i = 0; i < 7; i++ )
 				{
-					while( Apos[i] > 1800 )
-						Apos[i] = ( Apos[i] - 3600 );
-					while( Apos[i] < -1800 )
-						Apos[i] = ( Apos[i] + 3600 );
+					if (myRcv.command == NULL)
+					{
+						myRcv.key.unlock();
+						//btn_cmd = '~';
+					}
+					else
+					{
+						ch = myRcv.command;
+						btn_cmd = ch;
+
+						ManualControl(ch);  //GUI button command
+						myRcv.key.unlock();
+						myRcv.key.writeLock();
+						myRcv.command = NULL;
+						myRcv.key.unlock();
+					}
+					gotoxy(1, 42);
+					cout << btn_cmd << endl;
 				}
 
-				for( int i = 0; i < 8; i++ )
-					Apos[i] = 0.1 * Apos[i];
-				float Kp[6] = {.5,.5,.5,.5,.5,.5};
-				// Joint control.
-				for ( int i = 0; i < 6; i++ )
-				{					
-					eprev1[i] = pd[i] - Apos[i+1];
-
-					control_input = Kp[i] * eprev1[i];
-					float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
-					speed[i+1] = ( fabs( control_input ) > speed_limit ) ? sign( control_input ) * speed_limit : control_input;
-				}
-				if ( ( fabs( eprev1[0] ) < T_ERR_BOUND ) & ( fabs( eprev1[1] ) < T_ERR_BOUND ) & ( fabs( eprev1[2] ) < T_ERR_BOUND ) )
+				// Translate to eliminate the offset.
+				if ((auto_mode_start) & (rotation_start1))
 				{
-					auto_mode_start = false;
-					speed[1] = speed[2] = speed[3] = 0;
+					rotation_start1 = false;
+					rotation_start2 = true;
 				}
-				DisplaySpeed();
-			}
 
-			//init_grasp2(); // sets pos_before_lifting and ready_to_lift
-			//regrasping_algorithm2();
-			init_grasp(); // sets pos_before_lifting and ready_to_lift //mushtaq
-			regrasping_algorithm();
-			//Robson Expt for lifting up objects after they have been grasped
-			//if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) <= 100) {
-			//	// pos[2] lift arm pos
-			//	speed[3] =linear_speed_limit[1];// lift up motion
-			//    new_status = true; 
-			//}
-			//else if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) > 100) {
-			//	speed[3] = 0; // stop lifting since the arm has reached to the desired position 
-			//	new_status = true;
-			//}
-			
-			//grasping_with_desired_force(3.81);
-
-			// Open the grabber.
-			if ( open_in_progress )
-			{
-				init_stop = 0; // regrasping flag set to 0 because gripper is opened by the user Robson 
-				if ( ( cbox == CARTESIAN ) && ( pos[6] > 14000.0f ) )
+				// Angular motion.
+				if ((auto_mode_start) & (rotation_start2))	// rotation	
 				{
-					//SleepMs( 500 );
-					SendCommand( CAN, FSR, FSR_RESET, EMPTY_MESSAGE );
-					open_in_progress = false;
-					ready_to_lift = false;
-					//Robson 
-					//Reset Grasping Algo parameters
-					F_d = 0;
-					F_d1 = 0;
-					F_d2 = 0;
-					last_b_hat = init_b_hat;
-					last_a_hat = init_a_hat;
-					a_hat = 0;
-					b_hat = 0;
-					angl_dis = 0;
-					lin_vel = 0;
-					ang_vel = 0;
+					for (int i = 3; i < 6; i++)
+					{
+						if (i == 5) // roll -180 ~ 180 : linear scailing
+						{
+							tmp1 = (180.0f - pd[i]) - (180.0f - pos[i]);
+							if (tmp1 >= 0.0f)
+							{
+								if (tmp1 <= 180.0f)
+									tmp2 = tmp1;
+								else
+									tmp2 = tmp1 - 360.0f;
+							}
+							else
+							{
+								if (tmp1 > -180.0f)
+									tmp2 = tmp1;
+								else
+									tmp2 = 360.0f + tmp1;
+							}
+							eprev1[i] = tmp2;
+						}
+						else
+							eprev1[i] = pd[i] - pos[i];
+
+						control_input = Kp[i] * eprev1[i];
+						float speed_limit = angular_speed_limit[speed_mode] * 1.0f;
+						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
+					}
+
+					if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
+					{
+						speed[4] = 0; speed[5] = 0;
+
+						if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
+						{
+							rotation_start2 = false;
+							speed[4] = 0;
+							speed[5] = 0;
+							speed[6] = 0;
+						}
+					}
+					else
+						speed[6] = 0;
+					DisplaySpeed();
 				}
-			}
 
-			// Read from MANUS.
-			rcvMsg.ID = 0x0;
-			m_objPCANBasic.Read( m_Handle, &rcvMsg, &CANTimeStamp );
-			Decode( rcvMsg, xmitMsg );				
-
-			tc = TimeCheck();
-			if ( ( new_status == true ) && ( rcvMsg.ID == 0x37f ) )
-			{
-				if ( ( ( rotation_start1 ) | ( rotation_start2 ) ) )
+				// Linear motion.
+				if ((auto_mode_start) & (!rotation_start2) & (!rotation_start1) & (cbox == CARTESIAN)) // translation
 				{
-					
-					stsResult = m_objPCANBasic.Write( m_Handle, &xmitMsg );
-					if ( stsResult != PCAN_ERROR_OK )
-						cout << "[Error!]: Fail to write to PCAN!" << endl; 
+					// position control.
+					for (int i = 0; i < 3; i++)
+					{
+						eprev1[i] = pd[i] - pos[i];
+
+						control_input = Kp[i] * eprev1[i];
+						float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
+						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
+					}
+					if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND))
+					{
+						auto_mode_start = false;
+						speed[1] = speed[2] = speed[3] = 0;
+					}
+					DisplaySpeed();
 				}
-				else if ( ( (!rotation_start2) & (!rotation_start1) ) )
+				//Joint P control Brandon 10/28/16
+				if ((auto_mode_start) & (!rotation_start2) & (!rotation_start1) & (cbox == JOINT)) // Joint control
 				{
-					
-					stsResult = m_objPCANBasic.Write( m_Handle, &xmitMsg );
-					if ( stsResult != PCAN_ERROR_OK )
-						cout << "[Error!]: Fail to write to PCAN!" << endl; 
+					int joint3 = 0;
+					int joint4 = 0;
+					Apos[0] = pos[0];
+					Apos[4] = pos[4];
+					Apos[5] = pos[5];
+					Apos[6] = pos[6];
+
+					// Correction for dependancy between joint 2 and 3
+					Apos[1] = (-1) * pos[1];
+					joint3 = pos[2];
+					joint3 = joint3 + 900 + Apos[1];
+
+					if (joint3 >= 0)
+						Apos[2] = 1800 - joint3;
+					else
+						Apos[2] = -1800 - joint3;
+
+					joint4 = pos[3] + 900;
+					Apos[3] = joint4;
+
+					// Bring back the angles between -180 to 180
+					for (int i = 0; i < 7; i++)
+					{
+						while (Apos[i] > 1800)
+							Apos[i] = (Apos[i] - 3600);
+						while (Apos[i] < -1800)
+							Apos[i] = (Apos[i] + 3600);
+					}
+
+					for (int i = 0; i < 8; i++)
+						Apos[i] = 0.1 * Apos[i];
+					float Kp[6] = { .5,.5,.5,.5,.5,.5 };
+					// Joint control.
+					for (int i = 0; i < 6; i++)
+					{
+						eprev1[i] = pd[i] - Apos[i + 1];
+
+						control_input = Kp[i] * eprev1[i];
+						float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
+						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
+					}
+					if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND))
+					{
+						auto_mode_start = false;
+						speed[1] = speed[2] = speed[3] = 0;
+					}
+					DisplaySpeed();
 				}
-				if (auto_mode_start == false)
+
+				//init_grasp2(); // sets pos_before_lifting and ready_to_lift
+				//regrasping_algorithm2();
+				init_grasp(); // sets pos_before_lifting and ready_to_lift //mushtaq
+				regrasping_algorithm();
+				//Robson Expt for lifting up objects after they have been grasped
+				//if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) <= 100) {
+				//	// pos[2] lift arm pos
+				//	speed[3] =linear_speed_limit[1];// lift up motion
+				//    new_status = true; 
+				//}
+				//else if (ready_to_lift && grasp_flag == INITIAL && abs(pos[2] - pos_before_lifting) > 100) {
+				//	speed[3] = 0; // stop lifting since the arm has reached to the desired position 
+				//	new_status = true;
+				//}
+
+				//grasping_with_desired_force(3.81);
+
+				// Open the grabber.
+				if (open_in_progress)
 				{
-					new_status = false;
-					
+					init_stop = 0; // regrasping flag set to 0 because gripper is opened by the user Robson 
+					if ((cbox == CARTESIAN) && (pos[6] > 14000.0f))
+					{
+						//SleepMs( 500 );
+						SendCommand(CAN, FSR, FSR_RESET, EMPTY_MESSAGE);
+						open_in_progress = false;
+						ready_to_lift = false;
+						//Robson 
+						//Reset Grasping Algo parameters
+						F_d = 0;
+						F_d1 = 0;
+						F_d2 = 0;
+						last_b_hat = init_b_hat;
+						last_a_hat = init_a_hat;
+						a_hat = 0;
+						b_hat = 0;
+						angl_dis = 0;
+						lin_vel = 0;
+						ang_vel = 0;
+					}
 				}
-				SleepMs( 5 );//zc was 30
-			}
 
-			fflush( stdin );
-			job_done = false;
-			break;
-
-		case AUTO_MODE:
-
-			for ( int i = 0 ; i < 8 ; i++ )                
-				speed[i] = 0;       
-			//cbox = CARTESIAN;
-			// Translation, approach, retreat.
-			if ( ( job_complete == true ) & ( job_complete2 == false ) )		
-				job_done = job_complete2;
-			// Rotation.	
-			else if ( ( job_complete == false ) & ( job_complete2 == true ) )		
-				job_done = job_complete;
-			//
-			else if ( home_pos_flag == true )
-				job_done = false;
-
-			SendCommand( CAN, GUI, UPDATE_IN_MOTION, 1 );
-
-			// KIM - open-loop & closed-loop
-			while ( !job_done )	
-			{                
-				//gotoxy(1, 50);
-				//cout << TimeCheck() << endl;
-				// Check if its time to read a new message.          
-				m_objPCANBasic.Read( m_Handle, &rcvMsg, &CANTimeStamp );
-				Decode( rcvMsg, xmitMsg );                
+				// Read from MANUS.
+				rcvMsg.ID = 0x0;
+				m_objPCANBasic.Read(m_Handle, &rcvMsg, &CANTimeStamp);
+				Decode(rcvMsg, xmitMsg);
 
 				tc = TimeCheck();
-
-				// Write a message.
-				if ( rcvMsg.ID == 0x37f )
+				if ((new_status == true) && (rcvMsg.ID == 0x37f))
 				{
-					stsResult = m_objPCANBasic.Write( m_Handle, &xmitMsg );
-					if ( stsResult != PCAN_ERROR_OK )
-						cout << "[Error!]: Fail to write to PCAN!" << endl; 
-					SleepMs( 30 );
+					if (((rotation_start1) | (rotation_start2)))
+					{
+
+						stsResult = m_objPCANBasic.Write(m_Handle, &xmitMsg);
+						if (stsResult != PCAN_ERROR_OK)
+							cout << "[Error!]: Fail to write to PCAN!" << endl;
+					}
+					else if (((!rotation_start2) & (!rotation_start1)))
+					{
+
+						stsResult = m_objPCANBasic.Write(m_Handle, &xmitMsg);
+						if (stsResult != PCAN_ERROR_OK)
+							cout << "[Error!]: Fail to write to PCAN!" << endl;
+					}
+					if (auto_mode_start == false)
+					{
+						new_status = false;
+
+					}
+					SleepMs(5);//zc was 30
 				}
 
-				if ( _kbhit() )
-				{
-					if ( _getch() == ' ' )
-						ResetAll();
-				}
-
-				fflush( stdin );
+				fflush(stdin);
+				job_done = false;
+				break;
 			}
 
-			SendCommand( CAN, GUI, UPDATE_IN_MOTION, 0 );
-			mode = MANUAL_MODE;			
-			for (int i = 0; i < 8; ++i)
-				speed[i] = 0;
+			case AUTO_MODE:
+			{
+				for (int i = 0; i < 8; i++)
+					speed[i] = 0;
+				//cbox = CARTESIAN;
+				// Translation, approach, retreat.
+				if ((job_complete == true) & (job_complete2 == false))
+					job_done = job_complete2;
+				// Rotation.	
+				else if ((job_complete == false) & (job_complete2 == true))
+					job_done = job_complete;
+				//
+				else if (home_pos_flag == true)
+					job_done = false;
 
-			ShowStatus( "STAT: Job Complete\n" );
-			btn_cmd = '*';
-			break;
+				SendCommand(CAN, GUI, UPDATE_IN_MOTION, 1);
+
+				// KIM - open-loop & closed-loop
+				while (!job_done)
+				{
+					//gotoxy(1, 50);
+					//cout << TimeCheck() << endl;
+					// Check if its time to read a new message.          
+					m_objPCANBasic.Read(m_Handle, &rcvMsg, &CANTimeStamp);
+					Decode(rcvMsg, xmitMsg);
+
+					tc = TimeCheck();
+
+					// Write a message.
+					if (rcvMsg.ID == 0x37f)
+					{
+						stsResult = m_objPCANBasic.Write(m_Handle, &xmitMsg);
+						if (stsResult != PCAN_ERROR_OK)
+							cout << "[Error!]: Fail to write to PCAN!" << endl;
+						SleepMs(30);
+					}
+
+					if (_kbhit())
+					{
+						if (_getch() == ' ')
+							ResetAll();
+					}
+
+					fflush(stdin);
+				}
+
+				SendCommand(CAN, GUI, UPDATE_IN_MOTION, 0);
+				mode = MANUAL_MODE;
+				for (int i = 0; i < 8; ++i)
+					speed[i] = 0;
+
+				ShowStatus("STAT: Job Complete\n");
+				btn_cmd = '*';
+				break;
+			}
 		}
 
 		end_time = TimeCheck();
