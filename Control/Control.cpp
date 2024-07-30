@@ -27,6 +27,7 @@ static char CvsId[]="(C) 1997-2015 3Dconnexion: $Id: 3DxTest32.cpp 13022 2016-05
 #include <string.h>
 #include <process.h>
 #include <math.h>
+#include <cmath>
 using namespace std;
 
 //=============================================================================
@@ -400,20 +401,23 @@ int main(int argc, char* argv[])
 					{
 						if (i == 5) // roll -180 ~ 180 : linear scailing
 						{
-							tmp1 = (180.0f - pd[i]) - (180.0f - pos[i]);
+							/*tmp1 = (180.0f - pd[i]) - (180.0f - pos[i]);*/ // why is this 180 here? Nick 2024
+							tmp1 = pos[i] - pd[i];
 							if (tmp1 >= 0.0f)
 							{
 								if (tmp1 <= 180.0f)
 									tmp2 = tmp1;
 								else
-									tmp2 = tmp1 - 360.0f;
+									tmp2 = std::fmodf(tmp1, 360.0f); // Nick 2024
+									/*tmp2 = tmp1 - 360.0f;*/ 
 							}
 							else
 							{
 								if (tmp1 > -180.0f)
 									tmp2 = tmp1;
 								else
-									tmp2 = 360.0f + tmp1;
+									tmp2 = std::fmodf(tmp1, 360.0f); // Nick 2024
+									//tmp2 = 360.0f + tmp1;
 							}
 							eprev1[i] = tmp2;
 						}
@@ -477,7 +481,7 @@ int main(int argc, char* argv[])
 					joint3 = joint3 + 900 + static_cast<int>(Apos[1] + 0.5); // +0.5 to round int
 
 					if (joint3 >= 0)
-						Apos[2] = static_cast < float>(1800 - joint3);
+						Apos[2] = static_cast<float>(1800 - joint3);
 					else
 						Apos[2] = static_cast<float>(-1800 - joint3);
 
@@ -487,15 +491,15 @@ int main(int argc, char* argv[])
 					// Bring back the angles between -180 to 180
 					for (int i = 0; i < 7; i++)
 					{
-						while (Apos[i] > 1800)
-							Apos[i] = (Apos[i] - 3600);
-						while (Apos[i] < -1800)
-							Apos[i] = (Apos[i] + 3600);
+						while (Apos[i] > 1800.0f)
+							Apos[i] = (Apos[i] - 3600.0f);
+						while (Apos[i] < -1800.0f)
+							Apos[i] = (Apos[i] + 3600.0f);
 					}
 
 					for (int i = 0; i < 8; i++)
 						Apos[i] = 0.1f * Apos[i];
-					float Kp[6] = { .5,.5,.5,.5,.5,.5 };
+					float Kp[6] = { .5f, .5f, .5f, .5f, .5f, .5f };
 					// Joint control.
 					for (int i = 0; i < 6; i++)
 					{

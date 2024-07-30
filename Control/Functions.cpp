@@ -1248,7 +1248,7 @@ void PrintStatus(void)
 			printf("WARNING: MAX_M1_ROTATION\t\t");
 			break;
 		default:
-			printf("WARNING: unknown warning          ");
+			printf("WARNING: unknown warning: %d\t\t", manus_message);
 			break;
 		}
 
@@ -1274,7 +1274,7 @@ void PrintStatus(void)
 		case 1:     printf("GENERAL_MESSAGE: MANUS unfolded\n"); break;
 		case 2:     printf("GENERAL_MESSAGE: gripper ready\n"); break;
 		case 3:     printf("GENERAL_MESSAGE: absolute measuring is ready"); break;
-		default:    printf("GENERAL_MESSAGE: unknown message"); break;
+		default:    printf("GENERAL_MESSAGE: unknown message: %d", manus_message); break;
 		}
 	}
 }
@@ -1409,10 +1409,10 @@ bool Read_350_360(void)
 					// Bring back the values between -180 and 180.
 					for (int i = 3; i < 6; i++)
 					{
-						while (pos[i] > 1800)
-							pos[i] = (pos[i] - 3600);
-						while (pos[i] < -1800)
-							pos[i] = (pos[i] + 3600);
+						while (pos[i] > 1800.0f)
+							pos[i] = (pos[i] - 3600.0f);
+						while (pos[i] < -1800.0f)
+							pos[i] = (pos[i] + 3600.0f);
 					}
 					// Yaw, pitch, roll in degrees.
 					for (int i = 3; i < 6; i++)
@@ -2364,22 +2364,24 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			// Bring back the values between -180 and 180.
 			for (int i = 3; i < 6; i++)
 			{
-				while (raw_pos[i] > 1800)
-					raw_pos[i] = (raw_pos[i] - 3600);
-				while (raw_pos[i] < -1800)
-					raw_pos[i] = (raw_pos[i] + 3600);
+				while (raw_pos[i] > 1800.0f)
+					raw_pos[i] = (raw_pos[i] - 3600.0f);
+				while (raw_pos[i] < -1800.0f)
+					raw_pos[i] = (raw_pos[i] + 3600.0f);
 			}
 			// Yaw, pitch, roll in degrees.
 			for (int i = 3; i < 6; i++)
-				pos[i] = 0.1 * raw_pos[i];
+				pos[i] = 0.1f * raw_pos[i];
 
 			//
 
 			pos[3] = pos[3];// +90;//-0*1.2,  mushtaq Jan 2022 for corecting yaw angle
 			pos[4] = pos[4] - 2.3;//-0*2.6, was -8.3  May 2 ,2019
 			pos[5] = pos[5] - 0.6;//zc -0*5.2, was -9 
-			if (pos[5] < -180.0)
-				pos[5] = 360 - abs(pos[5]);
+			if (pos[5] < -180.0f)
+				pos[5] = 360.0f - abs(pos[5]);
+			else if (pos[5] > 180.0f) // Added by Nick July 2024
+				pos[5] = -360.0f + abs(pos[5]);
 			if (reverse_flag)
 				pos[5] = (pos[5] > 0) ? pos[5] - 180.0f : pos[5] + 180.0f;
 
@@ -2419,29 +2421,29 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			Apos[6] = pos[6];
 
 			// Correction for dependancy between joint 2 and 3
-			Apos[1] = (-1) * pos[1];
-			joint3 = pos[2];
-			joint3 = joint3 + 900 + Apos[1];
+			Apos[1] = (-1.0f) * pos[1];
+			joint3 = static_cast<int>(pos[2]);
+			joint3 = joint3 + 900 + static_cast<int>(Apos[1]);
 
 			if (joint3 >= 0)
-				Apos[2] = 1800 - joint3;
+				Apos[2] = 1800.0f - static_cast<float>(joint3);
 			else
-				Apos[2] = -1800 - joint3;
+				Apos[2] = -1800.0f - static_cast<float>(joint3);
 
-			joint4 = pos[3] + 900;
-			Apos[3] = joint4;
+			joint4 = static_cast<int>(pos[3]) + 900;
+			Apos[3] = static_cast<float>(joint4);
 
 			// Bring back the angles between -180 to 180
 			for (int i = 0; i < 7; i++)
 			{
-				while (Apos[i] > 1800)
-					Apos[i] = (Apos[i] - 3600);
-				while (Apos[i] < -1800)
-					Apos[i] = (Apos[i] + 3600);
+				while (Apos[i] > 1800.0f)
+					Apos[i] = (Apos[i] - 3600.0f);
+				while (Apos[i] < -1800.0f)
+					Apos[i] = (Apos[i] + 3600.0f);
 			}
 
 			for (int i = 0; i < 8; i++)
-				Apos[i] = 0.1 * Apos[i];
+				Apos[i] = 0.1f * Apos[i];
 			gotoxy(1, 21);
 			/*printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n", pos[0], pos[1], pos[2], pos[3], pos[4], pos[5]);*/
 			//printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n",Apos[0], Apos[1], Apos[2], Apos[3], Apos[4], Apos[5]);
@@ -2543,7 +2545,7 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 							for (int i = 0; i < 6; ++i)
 							{
 								fscanf_s(fid2, "%f ", &pd_h[i]);
-								pd[i] = (pd_h[i] == -1) ? pos[i] : pd_h[i];
+								pd[i] = (pd_h[i] == -1.0f) ? pos[i] : pd_h[i];
 							}
 							fclose(fid2);
 						}

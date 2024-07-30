@@ -5,28 +5,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> 
+#include <vector>
+#include <iostream>
+#include <deque>
+
+#define PRINT_F_RAW 1, 32
+#define PRINT_T_RAW PRINT_F_RAW+1
+#define PRINT_F_CORR PRINT_T_RAW+1
+#define PRINT_T_CORR PRINT_F_CORR+1
+#define PRINT_F_EE PRINT_T_CORR+1
+#define PRINT_T_EE PRINT_F_EE+1
+#define PRINT_R PRINT_T_EE+1
 
 ForceTorqueManager::ForceTorqueManager()
 {
-	for (auto i=0; i<FT_SIZE; i++)
-		_cur_FT[i] = 0;
-};
-
-void ForceTorqueManager::updateForce(std::array<double, FT_SIZE> ft_vec)
-{
-	for (auto i = 0; i < FT_SIZE; i++)
-		_cur_FT[i] = ft_vec[i];
+	std::fill(std::begin(_raw_FT), std::end(_raw_FT), 0);
 }
 
-std::array<double, 6> ForceTorqueManager::get_cur_FT()
+void ForceTorqueManager::updateFT(std::array<double, FT_SIZE> new_FT)
 {
-	return _cur_FT;
+	_raw_FT = new_FT;
+}
+
+std::array<double, FT_SIZE> ForceTorqueManager::get_raw_FT()
+{
+	return _raw_FT;
 }
 
 void ForceTorqueManager::ReadForceTorque()
 {
 	char read_pos_str[256];
-	int i;
+	std::array<double, 3> r_vec = { 0 };
 
 	for (auto i=0; i < FT_SIZE; i++)
 	{
@@ -34,10 +43,30 @@ void ForceTorqueManager::ReadForceTorque()
 		FT_sensor[i].Lock();
 		FT_sensor[i]->Read((unsigned char*)read_pos_str, 10 * sizeof(BYTE), 0);
 		FT_sensor[i].Unlock();
-		_cur_FT[i] = static_cast<double>(atof(static_cast<const char*>(read_pos_str)));
+		_raw_FT[i] = static_cast<double>(atof(static_cast<const char*>(read_pos_str)));
 	}
 
+	estimate_r(_raw_FT, r_vec);
 
+	std::array<double, FT_SIZE> compensated_FT = { 0 };
+	compensate_hand_FT(compensated_FT, r_vec);
+
+	gotoxy(PRINT_F_RAW);
+	printf(" Force_raw:    Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _raw_FT[0], _raw_FT[1], _raw_FT[2]);
+	gotoxy(PRINT_T_RAW);
+	printf(" Torque_raw:   Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _raw_FT[3], _raw_FT[4], _raw_FT[5]);
+	gotoxy(PRINT_F_CORR);
+	printf(" Force_corrected:  Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", compensated_FT[0], compensated_FT[1], compensated_FT[2]);
+	gotoxy(PRINT_T_CORR);
+	printf(" Torque_corrected: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", compensated_FT[3], compensated_FT[4], compensated_FT[5]);
+	gotoxy(PRINT_F_EE);
+	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", F_ee[0], F_ee[1], F_ee[2]);
+	gotoxy(PRINT_T_EE);
+	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", T_ee[0], T_ee[1], T_ee[2]);
+}
+
+void ForceTorqueManager::compensate_hand_FT(std::array<double, FT_SIZE> &compensated_FT, std::array<double, 3> &r_vec)
+{
 	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
 	ColumnVector<3> Mg_w, F_offset, T_offset, F_unb, T_unb, r_vect, F_bias, F_temp, T_temp, F_ee_temp, T_ee_temp;
 	Matrix<3, 3> Rw2e;
@@ -57,7 +86,8 @@ void ForceTorqueManager::ReadForceTorque()
 	T_offset = (-0.3636 + 0.057331), (0.5146 - 0.04665), (0.1977 - 0.0063);*/
 	F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
 	T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
-	r_vect = 0.0021, -0.0038, 0.0781;
+	//r_vect = 0.0021, -0.0038, 0.0781; // Nick 2024
+	r_vect = r_vec[0], r_vec[1], r_vec[2]; // Nick 2024
 
 	//crossProduct
 
@@ -67,38 +97,85 @@ void ForceTorqueManager::ReadForceTorque()
 	F_bias = Rw2FT_s * Mg_w;
 	T_unb = crossProduct(r_vect, F_bias) + T_offset;
 
-	double cur_FT_unbias[6] = {0};
-
-	for (i = 0; i < 3; i++)
+	for (auto i = 0; i < 3; i++)
 	{
-		cur_FT_unbias[i] = _cur_FT[i] - F_unb(i + 1);
-		cur_FT_unbias[i + 3] = _cur_FT[i + 3] - T_unb(i + 1);
+		compensated_FT[i] = _raw_FT[i] - F_unb(i + 1);
+		compensated_FT[i + 3] = _raw_FT[i + 3] - T_unb(i + 1);
 	}
 
-	F_temp = cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2];
-	T_temp = cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5];
+	F_temp = compensated_FT[0], compensated_FT[1], compensated_FT[2];
+	T_temp = compensated_FT[3], compensated_FT[4], compensated_FT[5];
 	F_ee_temp = transpose(Rh2FT_s) * F_temp;
 	T_ee_temp = transpose(Rh2FT_s) * T_temp;
 
-	for (i = 0; i < 3; i++)
+	for (auto i = 0; i < 3; i++)
 	{
 		F_ee[i] = F_ee_temp(i + 1);
 		T_ee[i] = T_ee_temp(i + 1);
 	}
-
-	gotoxy(1, 32);
-	printf(" Force_raw:    Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _cur_FT[0], _cur_FT[1], _cur_FT[2]);
-	gotoxy(1, 33);
-	printf(" Torque_raw:   Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _cur_FT[3], _cur_FT[4], _cur_FT[5]);
-	gotoxy(1, 34);
-	printf(" Force_corrected:  Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", cur_FT_unbias[0], cur_FT_unbias[1], cur_FT_unbias[2]);
-	gotoxy(1, 35);
-	printf(" Torque_corrected: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", cur_FT_unbias[3], cur_FT_unbias[4], cur_FT_unbias[5]);
-	gotoxy(1, 36);
-	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", F_ee[0], F_ee[1], F_ee[2]);
-	gotoxy(1, 37);
-	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", T_ee[0], T_ee[1], T_ee[2]);
 }
+
+void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::array<double, 3> &r_vec)
+{
+	double fx = new_ft[0];
+	double fy = new_ft[1];
+	double fz = new_ft[2];
+	double tx = new_ft[3];
+	double ty = new_ft[4];
+	double tz = new_ft[5];
+
+	double A[3][3] = {
+		{ -fz, fy, -1 },  // r_x
+		{ -fx, -fz, -1 }, // r_y
+		{ fy, fx, -1 }    // r_z
+	};
+
+	double T[3] = { tx, ty, tz };
+
+	double detA = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1])
+				- A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0])
+				+ A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+
+	if (detA == 0) 
+	{
+		gotoxy(PRINT_R);
+		std::cout << "\t\tError: Determinant is zero" << std::endl;
+		return;
+	}
+
+	// Det for R using Cramer's rule
+	double detRx =	T[0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1])
+					- A[0][1] * (T[1] * A[2][2] - T[2] * A[1][2])
+					+ A[0][2] * (T[1] * A[2][1] - T[2] * A[1][1]);
+
+	double detRy =	 A[0][0] * (T[1] * A[2][2] - T[2] * A[1][2])
+					- T[0] * (A[1][0] * A[2][2] - A[2][0] * A[1][2])
+					+ A[0][2] * (A[1][0] * T[2] - A[2][0] * T[1]);
+
+	double detRz =	A[0][0] * (A[1][1] * T[2] - A[1][2] * T[1])
+					- A[0][1] * (A[1][0] * T[2] - A[2][0] * T[1])
+					+ T[0] * (A[1][0] * A[2][1] - A[2][0] * A[1][1]);
+
+	r_vec[0] = detRx / detA;
+	r_vec[1] = detRy / detA;
+	r_vec[2] = detRz / detA;
+
+	gotoxy(PRINT_R);
+	std::cout << "\t\tr_x: " << r_vec[0] << ", r_y: " << r_vec[1] << ", r_z: " << r_vec[2] << std::endl;
+}
+
+// pseudocode
+/*
+get T matrix from kinematics of MANUS
+
+get R matrix from top left 3,3 of Tmat
+
+get position of arm from transformation matrix
+
+apply assumed forces onto mass of gripper (gravity vector, -9.81*mass Z)
+
+
+*/
 
 //......Mushtaq, Feb 2022 :reading from ati-ia F/T  sensor
 void ForceTorqueManager::interac_perc() 
