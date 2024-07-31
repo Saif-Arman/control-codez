@@ -99,6 +99,7 @@ bool Read_D4( void );								// Read first 0x0D4 and 0x4D4
 bool Read_350_360( void );							// Read first 0x350 and 0x360.
 bool Read_37F( void );								// Read first 0x37F.
 bool Open_Grabber( void );							// Open the grabber.
+void stopArm();										// Stop all arm movement.
 void ManualControl( char ch );						// Set the variable speed that later will be used to set message data.
 void Decode( TPCANMsg& rcvMsg, TPCANMsg& xmitMsg ); // Decode the information in the packages sent by the Manus.
 void SetTransmitMessage( TPCANMsg& xmitMsg );		// Set the message to be transmitted into the buffer.
@@ -118,7 +119,7 @@ char reliable(int num,char val);					//function meant to make the robot less rel
 void ReadForce(float cur_for);						//function to read force data from shared memory
 //void ReadForceTorque(double cur_ft[6]);				//function to read from FT sensor and remove the bias // Mushtaq
 void ReadForceTorque(double (&cur_ft)[6]);				//function to read from FT sensor and remove the bias // Nick 2024
-//void interac_perc(void);						    // function for interactive perception// Feb 2022 // Mushtaq
+//void interact_perceive(void);						    // function for interactive perception// Feb 2022 // Mushtaq
 void ReadLPS(int *LPS_value);						//function to read LPS data from shared memory
 //void ReadSlip(double cur_vel);						//function to read slip sensor velocity data from shared memory
 void ReadPosit();						//function to read slip sensor position data from shared memory

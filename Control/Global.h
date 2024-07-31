@@ -411,7 +411,6 @@ extern float feeling_fx;
 extern int ini_time_inte_perc;
 extern int flag_touch;
 extern int flag_count;
-extern int flag_start1;
 extern int flag_start2;
 extern float elapsed_time1;
 extern float elapsed_time_y;

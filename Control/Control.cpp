@@ -667,10 +667,9 @@ int main(int argc, char* argv[])
 			force_t = TimeCheck();
 		}
 
-		if (FTMgr.get_move_flag_x() == 1)
-			FTMgr.interac_perc();
-		
+		FTMgr.interact_perceive();
 		FTMgr.ReadForceTorque();
+		FTMgr.check_force(); // Only checks if interact_perceive_state is true
 		ReadPosit();
 		ReadPosit2();
 		ReadVel();

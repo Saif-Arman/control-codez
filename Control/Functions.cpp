@@ -1503,6 +1503,18 @@ bool Open_Grabber(void)
 	return open_grabber;
 }
 
+// Reset the arm variables so that it stops moving.
+void stopArm()
+{
+	grasp_test = 0;
+	grasp_inipos = 0;
+	grasp_flag = 0;
+	//update_sug = 1;// zc for testing button suggestion
+	//suggestedButtonSwitch = 'Z';
+	//block_camcls_move();// for test 
+	ResetAll();
+}
+
 // In manual control the movement data is set according to the key presssed. This function 
 // takes that input and sets the Speed variable to the corresponding movement associated with 
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
@@ -1578,6 +1590,8 @@ void ManualControl(char ch)
 		cin >> contact_force_min;
 		cout << "Enter MAX_CART_GRIP_close value: ";
 		cin >> MAX_CART_GRIP_close;*/
+
+		/*
 		gotoxy(1, 45);
 		cout << "\r                                                                             \r";
 		cout << "Enter vdx value: ";
@@ -1595,11 +1609,18 @@ void ManualControl(char ch)
 		cout << "Enter move flag move ";
 		bool newstate;
 		cin >> newstate;
-		FTMgr.set_move_flag_x(newstate);
+		*/ // Comented by Nick 2024, using defaults and M is interact_perceive toggle
+		
+		vdx = 2;
+		vdy = 2;
+		fdx = 1;
+		FTMgr.set_interact_perceive_state(!FTMgr.get_interact_perceive_state());
+		if (false == FTMgr.get_interact_perceive_state())
+			stopArm();
 
 		gotoxy(1, 45);
 		cout << "\r                                   \r";
-		cout << "vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx << ", move flag: " << FTMgr.get_move_flag_x();
+		cout << "move flag: " << FTMgr.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
 
@@ -1704,15 +1725,7 @@ void ManualControl(char ch)
 		break;
 	case ' ':
 	{
-		grasp_test = 0;
-		grasp_inipos = 0;
-		grasp_flag = 0;
-		//update_sug = 1;// zc for testing button suggestion
-		//suggestedButtonSwitch = 'Z';
-		//block_camcls_move();// for test 
-
-
-		ResetAll();
+		stopArm();
 	}
 	break;
 	case EXIT:

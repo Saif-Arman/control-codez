@@ -384,7 +384,6 @@ int swx = 0;
 int swy = 0;
 int ini_time_inte_perc = 0;
 int flag_touch = 0;
-int flag_start1 = 0;
 int flag_start2 = 0;
 float elapsed_time1 = 0;
 float elapsed_time_y = 0;

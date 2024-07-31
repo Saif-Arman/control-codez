@@ -14,17 +14,24 @@ public:
 
 	std::array<double, FT_SIZE> get_raw_FT();
 
-	void interac_perc();
+	void interact_perceive();
 
-	inline bool get_move_flag_x() { return _move_flag_x; };
+	inline bool get_interact_perceive_state() { return _interact_perceive_state; };
 
-	inline void set_move_flag_x(bool state) { _move_flag_x = state; };
+	void set_interact_perceive_state(bool state);
 
-	void compensate_hand_FT(std::array<double, FT_SIZE>& compensated_FT, std::array<double, 3>& r_vec);
+	void compensate_hand_FT(std::array<double, 3>& R);
 
-	void estimate_r(std::array<double, FT_SIZE> new_ft, std::array<double, 3>& r_vec);
+	void estimate_r(std::array<double, FT_SIZE> new_ft, std::array<double, 3>& R);
+
+	void check_force();
+	
+	inline void set_check_force(bool newval) { _check_force = newval; };
 
 private:
 	std::array<double, FT_SIZE> _raw_FT;
-	bool _move_flag_x;
+	std::array<double, FT_SIZE> _compensated_FT;
+	std::array<double, FT_SIZE> _starting_FT;
+	bool _interact_perceive_state;
+	bool _check_force;
 };
