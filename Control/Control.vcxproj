@@ -166,6 +166,7 @@
     <ClInclude Include="Functions.h" />
     <ClInclude Include="GenericException.hpp" />
     <ClInclude Include="Global.h" />
+    <ClInclude Include="InteractPerceive.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="MathException.hpp" />
     <ClInclude Include="Matrix.hpp" />
@@ -189,6 +190,7 @@
     <ClCompile Include="Functions.cpp" />
     <ClCompile Include="GenericException.cpp" />
     <ClCompile Include="Global.cpp" />
+    <ClCompile Include="InteractPerceive.cpp" />
     <ClCompile Include="PCANBasicClass.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Transform.cpp" />

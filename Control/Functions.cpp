@@ -1515,6 +1515,20 @@ void stopArm()
 	ResetAll();
 }
 
+void do_approach(Matrix<3, 1> &ca, Matrix<3, 1> &wa)
+{
+	ca = 0, 0, 1;
+	wa = C2W_transform(pos) * ca;
+	if (cbox == CARTESIAN)
+	{
+		for (int i = 0; i < 3; i++)
+			speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+		new_status = true;
+	}
+	else 
+		cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+}
+
 // In manual control the movement data is set according to the key presssed. This function 
 // takes that input and sets the Speed variable to the corresponding movement associated with 
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
@@ -1614,13 +1628,13 @@ void ManualControl(char ch)
 		vdx = 2;
 		vdy = 2;
 		fdx = 1;
-		FTMgr.set_interact_perceive_state(!FTMgr.get_interact_perceive_state());
-		if (false == FTMgr.get_interact_perceive_state())
+
+		if (false == IntPerc.toggle_interact_perceive_state())
 			stopArm();
 
 		gotoxy(1, 45);
 		cout << "\r                                   \r";
-		cout << "move flag: " << FTMgr.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
+		cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
 
@@ -1764,15 +1778,16 @@ void ManualControl(char ch)
 		break;
 	case 'n':
 		ShowCommand("COM: Approach\n");
-		ca = 0, 0, 1;
-		wa = C2W_transform(pos) * ca;
-		if (cbox == CARTESIAN)
-		{
-			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
-			new_status = true;
-		}
-		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+		//ca = 0, 0, 1;
+		//wa = C2W_transform(pos) * ca;
+		//if (cbox == CARTESIAN)
+		//{
+		//	for (int i = 0; i < 3; i++)
+		//		speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+		//	new_status = true;
+		//}
+		//else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+		do_approach(ca, wa);
 		break;
 	case 'm':
 		ShowCommand("COM: Retreat\n");

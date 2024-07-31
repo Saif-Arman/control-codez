@@ -35,6 +35,7 @@
 #include <crtdbg.h>
 #include <stdio.h>
 #include "ForceTorqueManager.h"
+#include "InteractPerceive.h"
 
 
 
@@ -403,6 +404,7 @@ extern LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
 // Interactive Perception // mushtaq Feb 2022
 extern ForceTorqueManager FTMgr;
+extern InteractPerceive IntPerc;
 extern int switch_contact ;
 extern int swx ;
 extern int swy ;
