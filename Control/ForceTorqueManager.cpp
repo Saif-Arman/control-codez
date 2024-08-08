@@ -20,10 +20,14 @@
 #define Y 1
 #define Z 2
 
-ForceTorqueManager::ForceTorqueManager() 
+ForceTorqueManager::ForceTorqueManager()
+	: _ft_weight(0)
 {
 	std::fill(std::begin(_raw_FT), std::end(_raw_FT), 0);
 	std::fill(std::begin(_compensated_FT), std::end(_compensated_FT), 0);
+	std::fill(std::begin(_FT_ee), std::end(_FT_ee), 0);
+	std::fill(std::begin(_F_ee), std::end(_F_ee), 0);
+	std::fill(std::begin(_T_ee), std::end(_T_ee), 0);
 }
 
 void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)
@@ -41,7 +45,7 @@ void ForceTorqueManager::ReadForceTorque()
 	char read_pos_str[256];
 	std::array<double, 3> R = { 0 };
 
-	for (auto i=0; i < FT_SIZE; i++)
+	for (int i=0; i < FT_SIZE; i++)
 	{
 		FT_sensor[i]->SetReadPos(0);
 		FT_sensor[i].Lock();
@@ -63,12 +67,66 @@ void ForceTorqueManager::ReadForceTorque()
 	gotoxy(PRINT_T_CORR);
 	printf(" Torque_corrected: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _compensated_FT[3], _compensated_FT[4], _compensated_FT[5]);
 	gotoxy(PRINT_F_EE);
-	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", F_ee[0], F_ee[1], F_ee[2]);
+	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _F_ee[0], _F_ee[1], _F_ee[2]);
 	gotoxy(PRINT_T_EE);
-	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", T_ee[0], T_ee[1], T_ee[2]);
+	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
 }
 
-void ForceTorqueManager::compensate_hand_FT(std::array<double, 3> &R)
+void ForceTorqueManager::compensate_hand_FT(std::array<double, 3>& R)
+{
+	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
+	ColumnVector<3> Mg_w, F_offset, T_offset, F_grav, T_grav, r_vect, F_cal, F_temp, T_temp, F_ee_temp, T_ee_temp;
+	Matrix<3, 3> Rw2e;
+	Rw2e = transpose(EE2w_transform3(pos));
+	//Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
+	//			-0.080, -0.0414, -0.9959, 
+	//			0.9968, -0.0098, -0.0796; // Mushtaq rotation
+	
+	// Nick rotation
+	Rh2FT_s = 0, 1, 0,
+			  0, 0, -1,
+			  -1, 0, 0;
+
+	if ( 0 == _ft_weight )
+		Mg_w = 0, 0, -5.832; // Mushtaq weight
+	else
+		Mg_w = 0, 0, _ft_weight;
+	//F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
+	//T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
+	r_vect = 0.0021, -0.0038, 0.0781; // Mushtaq
+	//r_vect = R[0], R[1], R[2]; // Nick 2024 estimating realtime
+	//r_vect = 0.678129, 0.088761, -0.161235; // Nick 2024 avg'd value
+	F_offset = 0, 0, 0;
+	T_offset = 0, 0, 0;
+
+	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
+	Rw2FT_s = Rh2FT_s * Rw2e;
+
+	//F_cal = Rw2FT_s * Mg_w;
+	F_grav = Rw2FT_s * Mg_w;
+	T_grav = crossProduct(r_vect, F_grav);
+
+	for (int i = 0; i < 3; i++)
+	{
+		_compensated_FT[i] = _raw_FT[i] - F_grav(i + 1) + F_offset(i + 1);
+		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_grav(i + 1) + T_offset(i + 1);
+	}
+
+	F_temp = _compensated_FT[X], _compensated_FT[Y], _compensated_FT[Z];
+	T_temp = _compensated_FT[X + 3], _compensated_FT[Y + 3], _compensated_FT[Z + 3];
+	F_ee_temp = transpose(Rh2FT_s) * F_temp;
+	T_ee_temp = transpose(Rh2FT_s) * T_temp;
+
+	for (int i = 0; i < 3; i++)
+	{
+		_F_ee[i] = F_ee_temp(i + 1);
+		_T_ee[i] = T_ee_temp(i + 1);
+		_FT_ee[i] = _F_ee[i];
+		_FT_ee[i + 3] = _T_ee[i];
+	}
+}
+
+void ForceTorqueManager::compensate_hand_FT_orig(std::array<double, 3> &R)
 {
 	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
 	ColumnVector<3> Mg_w, F_offset, T_offset, F_unb, T_unb, r_vect, F_bias, F_temp, T_temp, F_ee_temp, T_ee_temp;
@@ -117,8 +175,8 @@ void ForceTorqueManager::compensate_hand_FT(std::array<double, 3> &R)
 
 	for (auto i = 0; i < 3; i++)
 	{
-		F_ee[i] = F_ee_temp(i + 1);
-		T_ee[i] = T_ee_temp(i + 1);
+		_F_ee[i] = F_ee_temp(i + 1);
+		_T_ee[i] = T_ee_temp(i + 1);
 	}
 }
 
@@ -133,13 +191,19 @@ void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::arr
 	// R[0] = x, R[1] = y, R[2] = z
 	std::array<double, 3> F = { new_ft[X], new_ft[Y], new_ft[Z] };
 	std::array<double, 3> T = { new_ft[X+3], new_ft[Y+3], new_ft[Z+3] };
-	R[X] = ( (F[Z] * T[Z] - T[Y] * F[Y] + T[X] * F[X]) / (F[Z] * (F[X] - F[Y]) ) * F[X] - T[Y]) 
-			/ F[Z];
+	//R[X] = ( (F[Z] * T[Z] - T[Y] * F[Y] + T[X] * F[X]) / (F[Z] * (F[X] - F[Y]) ) * F[X] - T[Y]) 
+	//		/ F[Z];
 
-	R[Y] = (T[X] + ( ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] )/( F[Z] * ( F[X] - F[Y]) ) ) * F[Y] ) 
-			/ F[Z];
+	//R[Y] = (T[X] + ( ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] )/( F[Z] * ( F[X] - F[Y]) ) ) * F[Y] ) 
+	//		/ F[Z];
 
-	R[Z] = ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] ) / ( F[Z] * ( F[X] - F[Y] ) );
+	//R[Z] = ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] ) / ( F[Z] * ( F[X] - F[Y] ) );
+
+	R[X] = T[Z] / F[Y] + T[Y] / F[Y] + T[Y] / (F[X] - F[Z]) + (F[Z] / F[Y]) * ((T[X] + T[Z]) / (F[X] - F[Z]));
+
+	R[Y] = T[X] / F[Z] + (T[Y] * F[Y]) / (F[Z] * (F[X] - F[Z])) + (T[X] + T[Z]) / (F[X] - F[Z]);
+
+	R[Z] = ((T[Y] * F[Y]) + (T[Z] * F[Z]) + (T[X] * F[Z])) / (F[Y] * (F[X] - F[Z]));
 
 	gotoxy(PRINT_R);
 

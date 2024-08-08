@@ -118,9 +118,6 @@ Matrix<3, 3> EE2C_transform(float* position)
 	Rr = 1, 0, 0, 0, cos(c_r), sin(c_r), 0, -sin(c_r), cos(c_r);
 	Rc2w = Ry * Rp * Rr;
 
-
-
-
 	ColumnVector<3> Rm;
 	Rm = sqrt(Rc2w(1, 1) * Rc2w(1, 1) + Rc2w(2, 1) * Rc2w(2, 1) + Rc2w(3, 1) * Rc2w(3, 1)),
 		sqrt(Rc2w(1, 2) * Rc2w(1, 2) + Rc2w(2, 2) * Rc2w(2, 2) + Rc2w(3, 2) * Rc2w(3, 2)),
@@ -406,9 +403,7 @@ float DistanceBetween_Camera_Link3(float* position)
 		collision = 0;
 	}
 
-
 	return dist;
-
 }
 
 //=============================================================================
@@ -976,6 +971,7 @@ void gotoxy(int x, int y)
 //Display a menu with all key functions.
 void Help(void)
 {
+	printf("Fair warning: this is kind of outdated.\n");
 	printf("type '?' for help\n");
 	printf("type 'o' for quit or exit program\n");
 	printf("type 'p' for printing of the positions\n");
@@ -1013,6 +1009,7 @@ void UpdatePos(const float* pos)
 	robot_pos->Write((unsigned char*)pos_str, 50 * sizeof(BYTE), 0);
 	robot_pos.Unlock();
 };
+
 //Robson also updates speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode via GUI
 void UpdateSpaceMouse(const int* spacemouse)
 {
@@ -1053,13 +1050,6 @@ void UpdateSpaceMouse(const int* spacemouse)
 	block_direction2.Lock();
 	block_direction2->Write((unsigned char*)pos_str3, 20 * sizeof(BYTE), 0);
 	block_direction2.Unlock();
-
-
-
-
-
-
-
 };
 
 // Display speed information.
@@ -1310,6 +1300,7 @@ void ResetAll(void)
 		set_points_control = false;
 		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
 	}
+	IntPerc.end_interact_perceive_grasp();
 }
 
 //-----------------------------------------------------------------------------------
@@ -1343,6 +1334,7 @@ void ResetAll2(void) /// mushtaq
 		set_points_control = false;
 		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
 	}
+	IntPerc.end_interact_perceive_grasp();
 }
 
 // Read first 0x0D4 and 0x4D4
@@ -1504,7 +1496,7 @@ bool Open_Grabber(void)
 }
 
 // Reset the arm variables so that it stops moving.
-void stopArm()
+void stop_arm()
 {
 	grasp_test = 0;
 	grasp_inipos = 0;
@@ -1515,18 +1507,72 @@ void stopArm()
 	ResetAll();
 }
 
-void do_approach(Matrix<3, 1> &ca, Matrix<3, 1> &wa)
+// Move arm forward/approach in Z direction
+void go_forward()
 {
+	Matrix<3, 1> ca;
 	ca = 0, 0, 1;
-	wa = C2W_transform(pos) * ca;
-	if (cbox == CARTESIAN)
+
+	Matrix<3, 1> wa;
+	wa = C2W_transform(pos)* ca;
+
+	for (int i = 0; i < 3; i++)
+		speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+}
+
+// Start grabbing and stop if something is detected between fingers
+void do_grab_object()
+{
+	if (cbox == CARTESIAN) 
 	{
-		for (int i = 0; i < 3; i++)
-			speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
-		new_status = true;
+		speed[7] = static_cast<float>(-MAX_CART_GRIP_close); 
+		new_status = true; 
+		grasp_test = 1; 
+		grasp_inipos = pos[6]; 
+	}
+	else if (cbox == JOINT) 
+	{ 
+		speed[7] = -MAX_JOINT_GRIP; 
+		new_status = true; 
 	}
 	else 
 		cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+	if (!init_system)
+	{
+		grab_in_progress = true;
+		SendCommand(CAN, FSR, GRAB, ' ');
+	}
+}
+
+void do_open_grippers()
+{
+	if (cbox == CARTESIAN) 
+	{ 
+		speed[7] = 14; 
+		new_status = true; 
+		grasp_test = 2; 
+		grasp_inipos = 0; 
+	}
+	else if (cbox == JOINT) 
+	{ 
+		speed[7] = MAX_JOINT_GRIP; 
+		new_status = true; 
+	}
+	else 
+		cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
+
+	open_in_progress = true;
+	init_force = 0;
+}
+
+void go_interact_perceive_home()
+{
+	mode = AUTO_MODE;
+	home_pos_flag = true;
+	job_complete = false;
+	job_complete2 = true;
+	pos_index = 99;
+	ShowCommand("COM: Interact Perceive Home \n");
 }
 
 // In manual control the movement data is set according to the key presssed. This function 
@@ -1630,7 +1676,7 @@ void ManualControl(char ch)
 		fdx = 1;
 
 		if (false == IntPerc.toggle_interact_perceive_state())
-			stopArm();
+			stop_arm();
 
 		gotoxy(1, 45);
 		cout << "\r                                   \r";
@@ -1638,6 +1684,13 @@ void ManualControl(char ch)
 		
 		break;
 
+	case 'G': //change grav
+		gotoxy(1, 46);
+		std::cout << "\r                                                                \r";
+		std::cout << "Current Weight: " << FTMgr.get_weight() << ". Enter new weight: ";
+		double newgrav;
+		cin >> newgrav;
+		FTMgr.set_weight(newgrav);
 
 	case '-':	// Decrease Speed.
 		speed_mode--;
@@ -1721,25 +1774,14 @@ void ManualControl(char ch)
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'u':	// Open gripper.
-		if (cbox == CARTESIAN) { speed[7] = 14; new_status = true; grasp_test = 2; grasp_inipos = 0; }
-		else if (cbox == JOINT) { speed[7] = MAX_JOINT_GRIP; new_status = true; }
-		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
-		open_in_progress = true;
-		init_force = 0;
+		do_open_grippers();
 		break;
 	case 'j':	// Close gripper.
-		if (cbox == CARTESIAN) { speed[7] = static_cast<float>(-MAX_CART_GRIP_close); new_status = true; grasp_test = 1; grasp_inipos = pos[6]; }
-		else if (cbox == JOINT) { speed[7] = -MAX_JOINT_GRIP; new_status = true; }
-		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
-		if (!init_system)
-		{
-			grab_in_progress = true;
-			SendCommand(CAN, FSR, GRAB, ' ');
-		}
+		do_grab_object();
 		break;
 	case ' ':
 	{
-		stopArm();
+		stop_arm();
 	}
 	break;
 	case EXIT:
@@ -1778,16 +1820,13 @@ void ManualControl(char ch)
 		break;
 	case 'n':
 		ShowCommand("COM: Approach\n");
-		//ca = 0, 0, 1;
-		//wa = C2W_transform(pos) * ca;
-		//if (cbox == CARTESIAN)
-		//{
-		//	for (int i = 0; i < 3; i++)
-		//		speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
-		//	new_status = true;
-		//}
-		//else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
-		do_approach(ca, wa);
+		if (cbox == CARTESIAN)
+		{
+			go_forward();
+			new_status = true;
+		}
+		else 
+			cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
 		break;
 	case 'm':
 		ShowCommand("COM: Retreat\n");
@@ -1846,12 +1885,9 @@ void ManualControl(char ch)
 		break;
 	case '<':
 		ShowCommand("COM: Relative Forward\n");
-		ca = 0, 0, 1;
-		wa = C2W_transform2(pos) * ca;
 		if (cbox == CARTESIAN)
 		{
-			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+			go_forward();
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2067,12 +2103,7 @@ void ManualControl(char ch)
 					case(0)://0 : along forward / backward
 						if (command_max > 0)//approach 
 						{
-							ca = 0, 0, 1;
-							wa = C2W_transform(pos) * ca;
-							for (int i = 0; i < 3; i++)
-							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
-							}
+							go_forward();
 						}
 						else if (command_max < 0)//retreat
 						{

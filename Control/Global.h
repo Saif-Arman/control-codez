@@ -135,8 +135,8 @@ extern float PrevTime[6];
 
 //Grasping Control
 extern float cur_force;
-extern double F_ee[3] ;
-extern double T_ee[3] ;
+//extern double F_ee[3] ;
+//extern double T_ee[3] ;
 
 extern float raw_velocity;
 extern float init_force;

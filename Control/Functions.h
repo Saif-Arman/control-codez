@@ -99,8 +99,11 @@ bool Read_D4( void );								// Read first 0x0D4 and 0x4D4
 bool Read_350_360( void );							// Read first 0x350 and 0x360.
 bool Read_37F( void );								// Read first 0x37F.
 bool Open_Grabber( void );							// Open the grabber.
-void stopArm();										// Stop all arm movement.
-void do_approach(Matrix<3, 1>& ca, Matrix<3, 1>& wa);	// Moves end effector forward
+void stop_arm();									// Stop all arm movement.
+void go_forward();									// Moves end effector forward in Z direction
+void do_grab_object();								// Starts grabbing, stops if something is detected between fingers
+void do_open_grippers();							// Opens grippers all the way
+void go_interact_perceive_home();					// Go to interact perceive home, C:\MANUS\CommonSpace\Setting\home_pos99.txt
 void ManualControl( char ch );						// Set the variable speed that later will be used to set message data.
 void Decode( TPCANMsg& rcvMsg, TPCANMsg& xmitMsg ); // Decode the information in the packages sent by the Manus.
 void SetTransmitMessage( TPCANMsg& xmitMsg );		// Set the message to be transmitted into the buffer.

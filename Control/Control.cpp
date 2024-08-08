@@ -684,8 +684,22 @@ int main(int argc, char* argv[])
 		{
 			oneclick();
 		}
+		std::array<double, 3>F_ee = FTMgr.get_F_ee();
+		std::array<double, 3>T_ee = FTMgr.get_T_ee();
 		
-		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " << cur_position << ", " << cur_pos_nf << ", " << cur_force << ", " << lift_in_progress << ", " << grasp_end << ", " << speed[7] << ", " << pos[6] << ", " << pos_before_lifting << ", " << grasp_flag << ", " << e_force << ", " << lin_vel << ", " << F_d << ", " << F_d1 << ", " << F_d2 << ", " << pos[2] << ", " << speed[3] << ", " << dt0 << ", " << u_hat_dot << ", " << P_d << ", " << P_int << "," << cur_velocity_f2 << "," << cur_velocity2 << "," << cur_position2 << "," << cur_pos_nf << "," << a_hat << "," << b_hat << "," << ang_vel << "," << angl_dis << "," <<speed_mode<< "," << k1 << "," << k2 << "," << k3 << "," << gamma_1 << "," << gamma_2 <<","<< lin_dist1<< "," << lin_dist2 <<"," << F_ee[0]<<"," << F_ee[1] <<"," << F_ee[2]<<","<< T_ee[0]<<"," <<T_ee[1]<<","<< T_ee[2]<<","<<elapsed_time1<<","<<Vx_ee<<","<<Vy_ee <<","<< Vz_ee<<","<< counter << "\n"; //u_hat_dot
+		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " 
+				 << cur_position << ", " << cur_pos_nf << ", " << cur_force << ", "
+				 << lift_in_progress << ", " << grasp_end << ", " << speed[7] << ", " 
+				 << pos[6] << ", " << pos_before_lifting << ", " << grasp_flag << ", " 
+				 << e_force << ", " << lin_vel << ", " << F_d << ", " << F_d1 << ", " 
+				 << F_d2 << ", " << pos[2] << ", " << speed[3] << ", " << dt0 << ", " 
+				 << u_hat_dot << ", " << P_d << ", " << P_int << "," << cur_velocity_f2 << "," 
+				 << cur_velocity2 << "," << cur_position2 << "," << cur_pos_nf << "," 
+				 << a_hat << "," << b_hat << "," << ang_vel << "," << angl_dis << "," 
+				 <<speed_mode<< "," << k1 << "," << k2 << "," << k3 << "," << gamma_1 << "," 
+				 << gamma_2 <<","<< lin_dist1<< "," << lin_dist2 <<"," << F_ee[0]<<"," 
+				 << F_ee[1] <<"," << F_ee[2]<<","<< T_ee[0]<<"," << T_ee[1]<<","<< T_ee[2]<<","
+				 <<elapsed_time1<<","<<Vx_ee<<","<<Vy_ee <<","<< Vz_ee<<","<< counter << "\n"; //u_hat_dot
 		
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);

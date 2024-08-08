@@ -93,8 +93,8 @@ float PrevTime[6] = {0};
 //Grasping Control
 float cur_force_takk = 0; /// 
 float cur_force = 0;
-double F_ee[3]= { 0, 0 ,0 };
-double T_ee[3] = { 0 ,0 ,0 };
+//double F_ee[3]= { 0, 0 ,0 };
+//double T_ee[3] = { 0 ,0 ,0 };
 float e_force = 0;
 float raw_velocity;
 float init_force = 0;
