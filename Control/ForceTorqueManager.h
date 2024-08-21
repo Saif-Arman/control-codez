@@ -16,8 +16,6 @@ public:
 	inline std::array<double, FT_SIZE> get_FT_ee() { return _FT_ee; };
 	inline std::array<double, FT_SIZE / 2> get_F_ee() { return _F_ee; };
 	inline std::array<double, FT_SIZE / 2> get_T_ee() { return _T_ee; };
-	inline void set_weight(double new_weight) { _ft_weight = new_weight; };
-	inline double get_weight() { return _ft_weight; };
 
 private:
 
@@ -33,5 +31,4 @@ private:
 	std::array<double, FT_SIZE> _FT_ee;
 	std::array<double, FT_SIZE / 2> _F_ee;
 	std::array<double, FT_SIZE / 2> _T_ee;
-	double _ft_weight;
 };

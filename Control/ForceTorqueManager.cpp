@@ -21,7 +21,6 @@
 #define Z 2
 
 ForceTorqueManager::ForceTorqueManager()
-	: _ft_weight(0)
 {
 	std::fill(std::begin(_raw_FT), std::end(_raw_FT), 0);
 	std::fill(std::begin(_compensated_FT), std::end(_compensated_FT), 0);
@@ -74,42 +73,47 @@ void ForceTorqueManager::ReadForceTorque()
 
 void ForceTorqueManager::compensate_hand_FT(std::array<double, 3>& R)
 {
-	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
-	ColumnVector<3> Mg_w, F_offset, T_offset, F_grav, T_grav, r_vect, F_cal, F_temp, T_temp, F_ee_temp, T_ee_temp;
-	Matrix<3, 3> Rw2e;
+	Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
+	Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
+	Matrix<3, 3> Rw2e;			// Rotation world to end effector (hand)
+	ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
+	ColumnVector<3> F_offset;	// Calibrated Force offset of FT sensor when nothing is attached
+	ColumnVector<3> T_offset;	// Calibrated Torque offset of FT sensor when nothing is attached
+	ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> T_grav;		// Torque in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> r_vect;		// Center of mass of hand weight in FT sensor frame
+	ColumnVector<3> F_temp;		// Placeholder to convert forces compesated for offset & weight to vector
+	ColumnVector<3> T_temp;		// Placeholder to convert torques compesated for offset & weight to vector
+	ColumnVector<3> F_ee_temp;	// Placeholder to convert forces compesated for offset & weight back to array
+	ColumnVector<3> T_ee_temp;	// Placeholder to convert torques compesated for offset & weight back to array
 	Rw2e = transpose(EE2w_transform3(pos));
-	//Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
-	//			-0.080, -0.0414, -0.9959, 
-	//			0.9968, -0.0098, -0.0796; // Mushtaq rotation
+	Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
+				-0.080, -0.0414, -0.9959, 
+				0.9968, -0.0098, -0.0796; // Mushtaq rotation
 	
 	// Nick rotation
-	Rh2FT_s = 0, 1, 0,
-			  0, 0, -1,
-			  -1, 0, 0;
+	//Rh2FT_s = 0, 1, 0,
+	//		  0, 0, -1,
+	//		  -1, 0, 0;
 
-	if ( 0 == _ft_weight )
-		Mg_w = 0, 0, -5.832; // Mushtaq weight
-	else
-		Mg_w = 0, 0, _ft_weight;
-	//F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
-	//T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
-	r_vect = 0.0021, -0.0038, 0.0781; // Mushtaq
+
+	/* Offsets and mass below recalibrated by Nick, 8/20/2024 */
+	Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
+	F_offset = -14.334, -16.188, 10.868;		// Force offset, avg when nothing attached to ATI sensor
+	T_offset = -0.398, 0.392, 0.174;			// Torque offset, avg when nothing attached to ATI sensor
+	r_vect = 0.0021, -0.0038, 0.0781;			// Mushtaq
 	//r_vect = R[0], R[1], R[2]; // Nick 2024 estimating realtime
-	//r_vect = 0.678129, 0.088761, -0.161235; // Nick 2024 avg'd value
-	F_offset = 0, 0, 0;
-	T_offset = 0, 0, 0;
 
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
 	Rw2FT_s = Rh2FT_s * Rw2e;
 
-	//F_cal = Rw2FT_s * Mg_w;
 	F_grav = Rw2FT_s * Mg_w;
 	T_grav = crossProduct(r_vect, F_grav);
 
 	for (int i = 0; i < 3; i++)
 	{
-		_compensated_FT[i] = _raw_FT[i] - F_grav(i + 1) + F_offset(i + 1);
-		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_grav(i + 1) + T_offset(i + 1);
+		_compensated_FT[i] = _raw_FT[i] - F_grav(i + 1) - F_offset(i + 1);
+		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_grav(i + 1) - T_offset(i + 1);
 	}
 
 	F_temp = _compensated_FT[X], _compensated_FT[Y], _compensated_FT[Z];
@@ -187,17 +191,15 @@ void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::arr
 	// t_x = r_y*f_z − r_z*f_y
 	// t_y = -r_x*f_z + r_z*f_x
 	// t_z = r_x*f_y − r_y*f_z
+
+	// Adjust w/ naked offsets
+	ColumnVector<3> F_offset, T_offset;
+	F_offset = -14.334, -16.188, 10.868; // Force offset, avg when nothing attached to ATI sensor
+	T_offset = -0.398, 0.392, 0.174; // Torque offset, avg when nothing attached to ATI sensor
 	
 	// R[0] = x, R[1] = y, R[2] = z
-	std::array<double, 3> F = { new_ft[X], new_ft[Y], new_ft[Z] };
-	std::array<double, 3> T = { new_ft[X+3], new_ft[Y+3], new_ft[Z+3] };
-	//R[X] = ( (F[Z] * T[Z] - T[Y] * F[Y] + T[X] * F[X]) / (F[Z] * (F[X] - F[Y]) ) * F[X] - T[Y]) 
-	//		/ F[Z];
-
-	//R[Y] = (T[X] + ( ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] )/( F[Z] * ( F[X] - F[Y]) ) ) * F[Y] ) 
-	//		/ F[Z];
-
-	//R[Z] = ( F[Z] * T[Z] + T[Y] * F[Y] + T[X] * F[X] ) / ( F[Z] * ( F[X] - F[Y] ) );
+	std::array<double, 3> F = { new_ft[X] - F_offset(X + 1), new_ft[Y] - F_offset(Y + 1), new_ft[Z] - F_offset(Z + 1) };
+	std::array<double, 3> T = { new_ft[X+3] - T_offset(X + 1), new_ft[Y+3] - T_offset(Y + 1), new_ft[Z+3] - T_offset(Z + 1) };
 
 	R[X] = T[Z] / F[Y] + T[Y] / F[Y] + T[Y] / (F[X] - F[Z]) + (F[Z] / F[Y]) * ((T[X] + T[Z]) / (F[X] - F[Z]));
 
@@ -209,16 +211,3 @@ void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::arr
 
 	std::cout << "\t\tr_x: " << R[X] << ", r_y: " << R[Y] << ", r_z: " << R[Z] << std::endl;
 }
-
-// pseudocode
-/*
-get T matrix from kinematics of MANUS
-
-get R matrix from top left 3,3 of Tmat
-
-get position of arm from transformation matrix
-
-apply assumed forces onto mass of gripper (gravity vector, -9.81*mass Z)
-
-
-*/

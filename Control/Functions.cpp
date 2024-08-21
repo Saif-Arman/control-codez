@@ -1684,14 +1684,6 @@ void ManualControl(char ch)
 		
 		break;
 
-	case 'G': //change grav
-		gotoxy(1, 46);
-		std::cout << "\r                                                                \r";
-		std::cout << "Current Weight: " << FTMgr.get_weight() << ". Enter new weight: ";
-		double newgrav;
-		cin >> newgrav;
-		FTMgr.set_weight(newgrav);
-
 	case '-':	// Decrease Speed.
 		speed_mode--;
 		speed_mode = (speed_mode < 0) ? 0 : speed_mode;
