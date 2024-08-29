@@ -139,7 +139,7 @@ void InteractPerceive::do_interact_perceive()
 		ini_time_inte_perc = TimeCheck();
 	}
 
-	std::array<double, 3> threshold = { 0.35, 0.35, 0.35 };
+	std::array<double, 3> threshold = { 0.3, 0.3, 0.3 };
 	Matrix<3, 3> Re2w = EE2w_transform3(pos);
 	Matrix<3, 3> Rw2e = transpose(EE2w_transform3(pos));
 
@@ -159,7 +159,7 @@ void InteractPerceive::do_interact_perceive()
 	{
 		_opened_grippers_flag = true;
 		_initial_approach_flag = true;
-		Sleep(500); // Sleep to let the arm settle
+		Sleep(1500); // Sleep to let the arm settle
 		_starting_FT = FTMgr.get_FT_ee();
 		print_ip_info("Grippers have been opened!");
 	}
@@ -167,23 +167,31 @@ void InteractPerceive::do_interact_perceive()
 	else if (_initial_approach_flag)
 	{
 		std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
+		static int cooldowncntr = 100;
 		for (int i = X; i < Z; i++)
 		{
-			if (abs(current_FT[i] - _starting_FT[i]) < threshold[i])
+			if (cooldowncntr == 0)
 			{
-				go_forward();
-				print_ip_status("Approaching object in Z direction");
+				if (abs(current_FT[i] - _starting_FT[i]) < threshold[i])
+				{
+					go_forward_slowly();
+					print_ip_status("Approaching object in Z direction");
+				}
+				else
+				{
+					stop_arm();
+					_initial_approach_flag = false;
+					_grasp_flag = true;
+					cooldowncntr = 200;
+					std::stringstream info;
+					info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
+					print_ip_info(info.str());
+					break;
+				}
 			}
 			else
-			{
-				stop_arm();
-				_initial_approach_flag = false;
-				_grasp_flag = true;
-				std::stringstream info;
-				info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
-				print_ip_info(info.str());
-				break;
-			}
+				cooldowncntr--;
+
 		}
 	}
 	// Attempt to grasp object after touching

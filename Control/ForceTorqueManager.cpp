@@ -27,6 +27,26 @@ ForceTorqueManager::ForceTorqueManager()
 	std::fill(std::begin(_FT_ee), std::end(_FT_ee), 0);
 	std::fill(std::begin(_F_ee), std::end(_F_ee), 0);
 	std::fill(std::begin(_T_ee), std::end(_T_ee), 0);
+	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
+	_Mg_w[0] = 0;
+	_Mg_w[1] = 0;
+	_Mg_w[2] = 0.578 * -9.807;
+	_R[0] = 0.0021;
+	_R[1] = -0.0026;
+	_R[2] = 0.0781;
+	//_F_offset[0] = -14.334;  // Force offset, avg when nothing attached to ATI sensor
+	//_F_offset[1] = -16.188;
+	//_F_offset[2] = 10.868;
+	//_F_offset[0] = -13.338;  // Force offset, avg when nothing attached to ATI sensor, round 2
+	//_F_offset[1] = -11.408;
+	//_F_offset[2] = 0.241;
+	_F_offset[0] = -14.334;  // Force offset, avg when nothing attached to ATI sensor, experimental
+	_F_offset[1] = -12.3;
+	_F_offset[2] = -0.7;
+
+	_T_offset[0] = -0.398;   // Torque offset, avg when nothing attached to ATI sensor
+	_T_offset[1] = 0.392;
+	_T_offset[2] = 0.174;
 }
 
 void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)
@@ -42,8 +62,6 @@ std::array<double, FT_SIZE> ForceTorqueManager::get_raw_FT()
 void ForceTorqueManager::ReadForceTorque()
 {
 	char read_pos_str[256];
-	std::array<double, 3> R = { 0 };
-
 	for (int i=0; i < FT_SIZE; i++)
 	{
 		FT_sensor[i]->SetReadPos(0);
@@ -52,33 +70,32 @@ void ForceTorqueManager::ReadForceTorque()
 		FT_sensor[i].Unlock();
 		_raw_FT[i] = static_cast<double>(atof(static_cast<const char*>(read_pos_str)));
 	}
+	
+	//std::array<double, 3> R = { 0 };
+	//estimate_r(_raw_FT, R);
 
-	estimate_r(_raw_FT, R);
-
-	compensate_hand_FT(R);
+	compensate_hand_FT();
 
 	gotoxy(PRINT_F_RAW);
-	printf(" Force_raw:    Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _raw_FT[0], _raw_FT[1], _raw_FT[2]);
+	printf(" F_raw:       Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", _raw_FT[0], _raw_FT[1], _raw_FT[2]);
 	gotoxy(PRINT_T_RAW);
-	printf(" Torque_raw:   Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _raw_FT[3], _raw_FT[4], _raw_FT[5]);
+	printf(" T_raw:       Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _raw_FT[3], _raw_FT[4], _raw_FT[5]);
 	gotoxy(PRINT_F_CORR);
-	printf(" Force_corrected:  Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _compensated_FT[0], _compensated_FT[1], _compensated_FT[2]);
+	printf(" F - Offset:  Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", _compensated_FT[0], _compensated_FT[1], _compensated_FT[2]);
 	gotoxy(PRINT_T_CORR);
-	printf(" Torque_corrected: Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _compensated_FT[3], _compensated_FT[4], _compensated_FT[5]);
+	printf(" T - Offset:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _compensated_FT[3], _compensated_FT[4], _compensated_FT[5]);
 	gotoxy(PRINT_F_EE);
-	printf(" Force_ee:        Fx: %07.3f, Fy: %07.3f, Fz: %07.3f ", _F_ee[0], _F_ee[1], _F_ee[2]);
+	printf(" F EE Frame:  Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", _F_ee[0], _F_ee[1], _F_ee[2]);
 	gotoxy(PRINT_T_EE);
-	printf(" Torque_ee:       Tx: %07.3f, Ty: %07.3f, Tz: %07.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
+	printf(" T EE Frame:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
 }
 
-void ForceTorqueManager::compensate_hand_FT(std::array<double, 3>& R)
+void ForceTorqueManager::compensate_hand_FT()
 {
 	Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
 	Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
 	Matrix<3, 3> Rw2e;			// Rotation world to end effector (hand)
 	ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
-	ColumnVector<3> F_offset;	// Calibrated Force offset of FT sensor when nothing is attached
-	ColumnVector<3> T_offset;	// Calibrated Torque offset of FT sensor when nothing is attached
 	ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
 	ColumnVector<3> T_grav;		// Torque in the FT sensor frame due to weight of hand & attachments
 	ColumnVector<3> r_vect;		// Center of mass of hand weight in FT sensor frame
@@ -90,30 +107,28 @@ void ForceTorqueManager::compensate_hand_FT(std::array<double, 3>& R)
 	Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
 				-0.080, -0.0414, -0.9959, 
 				0.9968, -0.0098, -0.0796; // Mushtaq rotation
-	
-	// Nick rotation
-	//Rh2FT_s = 0, 1, 0,
-	//		  0, 0, -1,
-	//		  -1, 0, 0;
-
 
 	/* Offsets and mass below recalibrated by Nick, 8/20/2024 */
-	Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
-	F_offset = -14.334, -16.188, 10.868;		// Force offset, avg when nothing attached to ATI sensor
-	T_offset = -0.398, 0.392, 0.174;			// Torque offset, avg when nothing attached to ATI sensor
-	r_vect = 0.0021, -0.0038, 0.0781;			// Mushtaq
-	//r_vect = R[0], R[1], R[2]; // Nick 2024 estimating realtime
+	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
+	Mg_w = 0, 0, _Mg_w[Z];
+	//F_offset = -14.334, -16.188, 10.868;		// Force offset, avg when nothing attached to ATI sensor
+	//F_offset = -13.338, -11.408, 1.214;		// Force offset, avg when nothing attached to ATI sensor, round 2
+	//T_offset = -0.398, 0.392, 0.174;			// Torque offset, avg when nothing attached to ATI sensor
+
+	//r_vect = 0.0021, -0.0038, 0.0781;			// Mushtaq
+	r_vect = _R[0], _R[1], _R[2];
 
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
-	Rw2FT_s = Rh2FT_s * Rw2e;
+	//Rw2FT_s = Rh2FT_s * Rw2e;
+	Rw2FT_s = Rw2e * Rh2FT_s;
 
 	F_grav = Rw2FT_s * Mg_w;
 	T_grav = crossProduct(r_vect, F_grav);
 
 	for (int i = 0; i < 3; i++)
 	{
-		_compensated_FT[i] = _raw_FT[i] - F_grav(i + 1) - F_offset(i + 1);
-		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_grav(i + 1) - T_offset(i + 1);
+		_compensated_FT[i] = _raw_FT[i] - _F_offset[i] - F_grav(i + 1);
+		_compensated_FT[i + 3] = _raw_FT[i + 3] - _T_offset[i] - T_grav(i + 1);
 	}
 
 	F_temp = _compensated_FT[X], _compensated_FT[Y], _compensated_FT[Z];
@@ -130,7 +145,7 @@ void ForceTorqueManager::compensate_hand_FT(std::array<double, 3>& R)
 	}
 }
 
-void ForceTorqueManager::compensate_hand_FT_orig(std::array<double, 3> &R)
+void ForceTorqueManager::compensate_hand_FT_orig()
 {
 	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
 	ColumnVector<3> Mg_w, F_offset, T_offset, F_unb, T_unb, r_vect, F_bias, F_temp, T_temp, F_ee_temp, T_ee_temp;
@@ -185,7 +200,7 @@ void ForceTorqueManager::compensate_hand_FT_orig(std::array<double, 3> &R)
 }
 
 // R is the r vector of the center of mass of the hand/gripper
-void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::array<double, 3> &R)
+void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, std::array<double, 3> &R)
 {
 	// Solving system of linear equations from Masoud's dissertation
 	// t_x = r_y*f_z − r_z*f_y
@@ -193,21 +208,31 @@ void ForceTorqueManager::estimate_r(std::array<double, FT_SIZE> new_ft, std::arr
 	// t_z = r_x*f_y − r_y*f_z
 
 	// Adjust w/ naked offsets
-	ColumnVector<3> F_offset, T_offset;
-	F_offset = -14.334, -16.188, 10.868; // Force offset, avg when nothing attached to ATI sensor
-	T_offset = -0.398, 0.392, 0.174; // Torque offset, avg when nothing attached to ATI sensor
+	//ColumnVector<3> F_offset, T_offset;
+	//F_offset = -14.334, -16.188, 10.868; // Force offset, avg when nothing attached to ATI sensor
+	//T_offset = -0.398, 0.392, 0.174; // Torque offset, avg when nothing attached to ATI sensor
 	
 	// R[0] = x, R[1] = y, R[2] = z
-	std::array<double, 3> F = { new_ft[X] - F_offset(X + 1), new_ft[Y] - F_offset(Y + 1), new_ft[Z] - F_offset(Z + 1) };
-	std::array<double, 3> T = { new_ft[X+3] - T_offset(X + 1), new_ft[Y+3] - T_offset(Y + 1), new_ft[Z+3] - T_offset(Z + 1) };
+	//std::array<double, 3> F = { new_ft[X] - F_offset(X + 1), 
+	//							new_ft[Y] - F_offset(Y + 1), 
+	//							new_ft[Z] - F_offset(Z + 1) };
+	//std::array<double, 3> T = { new_ft[X+3] - T_offset(X + 1), 
+	//							new_ft[Y+3] - T_offset(Y + 1), 
+	//							new_ft[Z+3] - T_offset(Z + 1) };
+
+	std::array<double, 3> F = { new_ft[X] - _F_offset[X],
+								new_ft[Y] - _F_offset[Y],
+								new_ft[Z] - _F_offset[Z] };
+	std::array<double, 3> T = { new_ft[X + 3] - _T_offset[X],
+								new_ft[Y + 3] - _T_offset[Y],
+								new_ft[Z + 3] - _T_offset[Z] };
 
 	R[X] = T[Z] / F[Y] + T[Y] / F[Y] + T[Y] / (F[X] - F[Z]) + (F[Z] / F[Y]) * ((T[X] + T[Z]) / (F[X] - F[Z]));
 
-	R[Y] = T[X] / F[Z] + (T[Y] * F[Y]) / (F[Z] * (F[X] - F[Z])) + (T[X] + T[Z]) / (F[X] - F[Z]);
+	R[Y] = (T[X] / F[Z]) + (T[Y] * F[Y]) / (F[Z] * (F[X] - F[Z])) + (T[X] + T[Z]) / (F[X] - F[Z]);
 
 	R[Z] = ((T[Y] * F[Y]) + (T[Z] * F[Z]) + (T[X] * F[Z])) / (F[Y] * (F[X] - F[Z]));
 
 	gotoxy(PRINT_R);
-
-	std::cout << "\t\tr_x: " << R[X] << ", r_y: " << R[Y] << ", r_z: " << R[Z] << std::endl;
+	printf("              Rx: %7.3f, Ry: %7.3f, Rz: %7.3f ", R[X], R[Y], R[Z]);
 }

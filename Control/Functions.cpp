@@ -1520,6 +1520,20 @@ void go_forward()
 		speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
 }
 
+// Move arm forward/approach in Z direction
+void go_forward_slowly()
+{
+	Matrix<3, 1> ca;
+	ca = 0, 0, 1;
+
+	Matrix<3, 1> wa;
+	wa = C2W_transform(pos) * ca;
+
+	for (int i = 0; i < 3; i++)
+		speed[i + 1] = wa(i + 1, 1) * 2.5f;
+}
+
+
 // Start grabbing and stop if something is detected between fingers
 void do_grab_object()
 {
@@ -1683,6 +1697,128 @@ void ManualControl(char ch)
 		cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
+
+	case 'A': //ADJUST OFFSETS
+		gotoxy(1, 46);
+		std::cout << "\r                                                                \r";
+		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight: ";
+		char type;
+		cin >> type;
+		if ('F' == type)
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::array<double, 3> offsets = FTMgr.get_f_offsets();
+			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
+			char newdir;
+			cin >> newdir;
+			if ('X' == newdir)
+				newdir = 0;
+			else if ('Y' == newdir)
+				newdir = 1;
+			else if ('Z' == newdir)
+				newdir = 2;
+			else
+			{
+				printf("BAD AXIS SELECTED.");
+				break;
+			}
+			
+			std::cout << "\r                                                                \r";
+			std::cout << " Select new offset: ";
+			double newoffset;
+			cin >> newoffset;
+			FTMgr.set_f_offset(newdir, newoffset);
+
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			offsets = FTMgr.get_f_offsets();
+			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
+		}
+		else if ('T' == type)
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::array<double, 3> offsets = FTMgr.get_t_offsets();
+			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
+			char newdir;
+			cin >> newdir;
+			if ('X' == newdir)
+				newdir = 0;
+			else if ('Y' == newdir)
+				newdir = 1;
+			else if ('Z' == newdir)
+				newdir = 2;
+			else
+			{
+				printf("BAD AXIS SELECTED.");
+				break;
+			}
+
+			std::cout << "\r                                                                \r";
+			std::cout << " Select new offset: ";
+			double newoffset;
+			cin >> newoffset;
+			FTMgr.set_t_offset(newdir, newoffset);
+			
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			offsets = FTMgr.get_t_offsets();
+			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
+		}
+		else if ('R' == type)
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::array<double, 3> r = FTMgr.get_r();
+			std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2] << ". Select X, Y, OR Z: ";
+			char newdir;
+			cin >> newdir;
+			if ('X' == newdir)
+				newdir = 0;
+			else if ('Y' == newdir)
+				newdir = 1;
+			else if ('Z' == newdir)
+				newdir = 2;
+			else
+			{
+				printf("BAD AXIS SELECTED.");
+				break;
+			}
+
+			std::cout << "\r                                                                \r";
+			std::cout << " Select new offset: ";
+			double newoffset;
+			cin >> newoffset;
+			FTMgr.set_r(newdir, newoffset);
+
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			r = FTMgr.get_r();
+			std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2];
+		}
+		else if ('W' == type)
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::cout << "Current weight: " << FTMgr.get_weight() << ". Input new weight: ";
+			double newoffset;
+			cin >> newoffset;
+			FTMgr.set_weight(newoffset);
+
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::cout << "Current weight: " << FTMgr.get_weight();
+		}
+		else
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			printf("Invalid selection.");
+			break;
+		}
+
+
 
 	case '-':	// Decrease Speed.
 		speed_mode--;
