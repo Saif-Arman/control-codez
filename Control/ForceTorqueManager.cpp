@@ -30,23 +30,23 @@ ForceTorqueManager::ForceTorqueManager()
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
 	_Mg_w[1] = 0;
-	_Mg_w[2] = 0.578 * -9.807;
+	//_Mg_w[2] = 0.541 * -9.807;
+	_Mg_w[2] = 0.541 * 9.807; // For some reason, this needs to be positive??? need to investigate.
 	_R[0] = 0.0021;
 	_R[1] = -0.0026;
 	_R[2] = 0.0781;
-	//_F_offset[0] = -14.334;  // Force offset, avg when nothing attached to ATI sensor
-	//_F_offset[1] = -16.188;
-	//_F_offset[2] = 10.868;
-	//_F_offset[0] = -13.338;  // Force offset, avg when nothing attached to ATI sensor, round 2
-	//_F_offset[1] = -11.408;
-	//_F_offset[2] = 0.241;
-	_F_offset[0] = -14.334;  // Force offset, avg when nothing attached to ATI sensor, experimental
-	_F_offset[1] = -12.3;
-	_F_offset[2] = -0.7;
 
-	_T_offset[0] = -0.398;   // Torque offset, avg when nothing attached to ATI sensor
-	_T_offset[1] = 0.392;
-	_T_offset[2] = 0.174;
+	_F_offset[0] = 5.709;  // Force offset, after recalibration & pointed left // was 6.329
+	_F_offset[1] = 4.93; // was 5.564;
+	_F_offset[2] = -3.8; // Was 3.350 prior to attaching hand. Adding hand causes some additional Z force due to attaching mechanism;
+
+	_T_offset[0] = 0.426;   // Torque offset, after recalibration & pointed left
+	_T_offset[1] = -0.345;
+	_T_offset[2] = 0.218;
+
+	// Mushtaq #s
+	//F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
+	//T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
 }
 
 void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)

@@ -1782,7 +1782,7 @@ void ManualControl(char ch)
 				newdir = 2;
 			else
 			{
-				printf("BAD AXIS SELECTED.");
+				printf("ERROR: INVALID AXIS SELECTED.");
 				break;
 			}
 
@@ -1804,7 +1804,10 @@ void ManualControl(char ch)
 			std::cout << "Current weight: " << FTMgr.get_weight() << ". Input new weight: ";
 			double newoffset;
 			cin >> newoffset;
-			FTMgr.set_weight(newoffset);
+			if (-100 < newoffset < 100)
+				FTMgr.set_weight(newoffset);
+			else
+				printf("Invalid weight.");
 
 			gotoxy(1, 46);
 			std::cout << "\r                                                                \r";
