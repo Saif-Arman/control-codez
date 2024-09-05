@@ -431,7 +431,8 @@ int main(int argc, char* argv[])
 
 					if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
 					{
-						speed[4] = 0; speed[5] = 0;
+						speed[4] = 0; 
+						speed[5] = 0;
 
 						if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
 						{
@@ -443,6 +444,7 @@ int main(int argc, char* argv[])
 					}
 					else
 						speed[6] = 0;
+
 					DisplaySpeed();
 				}
 

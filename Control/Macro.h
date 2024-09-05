@@ -19,6 +19,7 @@
 #define	T_ERR_BOUND				(1.0f)
 #define J_ERR_BOUND             (0.25f)
 #define	R_ERR_BOUND				(2.0f)
+//#define	R_ERR_BOUND				(0.8f) // Nick 2024
 #define MAX_CART_T				(5.0f)
 #define R_V_ERR_YAW				(0.05f)
 #define R_V_ERR_PITCH			(0.05f)

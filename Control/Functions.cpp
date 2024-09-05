@@ -3101,6 +3101,7 @@ int pd_control2(void)
 	gotoxy(1, 23);
 	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
 	gotoxy(1, 25);
+	printf("\r                                                                  \r");
 	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 
 	////    enable camera collision check on auto motion
@@ -3431,6 +3432,7 @@ int pd_controlJoint(void)
 	gotoxy(1, 23);
 	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
 	gotoxy(1, 25);
+	printf("\r                                                                  \r");
 	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 
 	//Prints requested position, current position, and speed to text file

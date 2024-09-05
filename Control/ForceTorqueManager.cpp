@@ -30,23 +30,95 @@ ForceTorqueManager::ForceTorqueManager()
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
 	_Mg_w[1] = 0;
-	//_Mg_w[2] = 0.541 * -9.807;
-	_Mg_w[2] = 0.541 * 9.807; // For some reason, this needs to be positive??? need to investigate.
-	_R[0] = 0.0021;
-	_R[1] = -0.0026;
-	_R[2] = 0.0781;
+	_Mg_w[2] = 0.541 * -9.807; // 0.541kg measured without metal sensor head
+	//_Mg_w[2] = 0.571 * -9.807;
+	_R[0] = 0.005;
+	_R[1] = 0.0012;
+	_R[2] = 0.0848;
 
-	_F_offset[0] = 5.709;  // Force offset, after recalibration & pointed left // was 6.329
-	_F_offset[1] = 4.93; // was 5.564;
-	_F_offset[2] = -3.8; // Was 3.350 prior to attaching hand. Adding hand causes some additional Z force due to attaching mechanism;
+	// With nothing attached
+	//_F_offset[0] = 5.387;
+	//_F_offset[1] = 3.948;
+	//_F_offset[2] = 3.731;
+	//_T_offset[0] = 0.340;
+	//_T_offset[1] = -0.279;
+	//_T_offset[2] = 0.216;
 
-	_T_offset[0] = 0.426;   // Torque offset, after recalibration & pointed left
-	_T_offset[1] = -0.345;
-	_T_offset[2] = 0.218;
+	// With hand hanging (not screwed)
+	//_F_offset[0] = 5.379;
+	//_F_offset[1] = 3.941;
+	//_F_offset[2] = 3.781;
+	//_T_offset[0] = 0.339;
+	//_T_offset[1] = -0.278;
+	//_T_offset[2] = 0.216;
 
-	// Mushtaq #s
-	//F_offset = (-15.586 - 0.22602), (-14.022 - 0.1735), (14.212 + 4.528);
-	//T_offset = (-0.3636 + 0.081052), (0.5146 - 0.02319), (0.1977 - 0.00585);
+	// No hand, hand screws screwed in
+	//_F_offset[0] = 3.729;
+	//_F_offset[1] = 4.619;
+	//_F_offset[2] = 5.491;
+	//_T_offset[0] = 0.334;
+	//_T_offset[1] = -0.282;
+	//_T_offset[2] = 0.217;
+
+	// Hand attached and screwed, no middle pin connector
+	//_F_offset[0] = 3.682;
+	//_F_offset[1] = 8.183;
+	//_F_offset[2] = 6.142;
+	//_T_offset[0] = -0.174;
+	//_T_offset[1] = 0.085;
+	//_T_offset[2] = 0.219;
+
+	// Hand fully attached
+	//_F_offset[0] = 2.871;
+	//_F_offset[1] = 8.001;
+	//_F_offset[2] = -5.091;
+	//_T_offset[0] = -0.166;
+	//_T_offset[1] = 0.030;
+	//_T_offset[2] = 0.207;
+
+	// idk something else
+	/*_F_offset[0] = 3.397;
+	_F_offset[1] = 2.811;
+	_F_offset[2] = -6.831;
+	_T_offset[0] = -0.19;
+	_T_offset[1] = 0.063;
+	_T_offset[2] = 0.231;*/
+
+	// Start with offset from nothing attached, only screws in place pushing on sensor
+	// No hand, hand screws screwed in
+	_F_offset[X] = 3.729;
+	_F_offset[Y] = 4.619;
+	_F_offset[Z] = 5.491;
+	_T_offset[X] = 0.334;
+	_T_offset[Y] = -0.282;
+	_T_offset[Z] = 0.217;
+
+	double ft_offset_pin[6];
+	// Next, adjust for tension provided by rod & middle pin: diff hand with pin vs hand no pin
+	// Hand attached and screwed, no middle pin connector
+	ft_offset_pin[X] = 3.682;
+	ft_offset_pin[Y] = 8.183;
+	ft_offset_pin[Z] = 6.142;
+	ft_offset_pin[X + 3] = -0.174;
+	ft_offset_pin[Y + 3] = 0.085;
+	ft_offset_pin[Z + 3] = 0.219;
+
+	// Hand fully attached
+	ft_offset_pin[X] -= 2.871;
+	ft_offset_pin[Y] -= 8.001;
+	ft_offset_pin[Z] -= -5.091;
+	ft_offset_pin[X + 3] -= -0.166;
+	ft_offset_pin[Y + 3] -= 0.030;
+	ft_offset_pin[Z + 3] -= 0.207;
+	
+	// Finally, combine the two
+	_F_offset[X] -= ft_offset_pin[X];
+	_F_offset[Y] -= ft_offset_pin[Y];
+	_F_offset[Z] -= ft_offset_pin[Z];
+	_T_offset[X] -= ft_offset_pin[X + 3];
+	_T_offset[Y] -= ft_offset_pin[Y + 3];
+	_T_offset[Z] -= ft_offset_pin[Z + 3];
+
 }
 
 void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)
@@ -103,27 +175,56 @@ void ForceTorqueManager::compensate_hand_FT()
 	ColumnVector<3> T_temp;		// Placeholder to convert torques compesated for offset & weight to vector
 	ColumnVector<3> F_ee_temp;	// Placeholder to convert forces compesated for offset & weight back to array
 	ColumnVector<3> T_ee_temp;	// Placeholder to convert torques compesated for offset & weight back to array
+	ColumnVector<6> w_grav;		// Weight + torque of hand due to gravity = mass * g = Newtons
+	ColumnVector<6> FT_grav;	// Weight + torque of hand due to gravity = mass * g = Newtons
+	Matrix<3, 3> r_s;			// Skew symmetric r, center of mass of hand
+	Matrix<6, 6> ft_w_adjoint;	// Adjoint matrix convert weight to sensor frame
+	Matrix<3, 3> zeroes;
+	zeroes = 0, 0, 0,
+			 0, 0, 0,
+			 0, 0, 0;
+
 	Rw2e = transpose(EE2w_transform3(pos));
 	Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
 				-0.080, -0.0414, -0.9959, 
 				0.9968, -0.0098, -0.0796; // Mushtaq rotation
 
-	/* Offsets and mass below recalibrated by Nick, 8/20/2024 */
-	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	Mg_w = 0, 0, _Mg_w[Z];
-	//F_offset = -14.334, -16.188, 10.868;		// Force offset, avg when nothing attached to ATI sensor
-	//F_offset = -13.338, -11.408, 1.214;		// Force offset, avg when nothing attached to ATI sensor, round 2
-	//T_offset = -0.398, 0.392, 0.174;			// Torque offset, avg when nothing attached to ATI sensor
-
-	//r_vect = 0.0021, -0.0038, 0.0781;			// Mushtaq
+	w_grav = 0, 0, _Mg_w[Z], 0, 0, 0;
 	r_vect = _R[0], _R[1], _R[2];
+	r_s = 0, r_vect(Z + 1), -r_vect(Y + 1),
+		-r_vect(Z + 1), 0, r_vect(X + 1),
+		-r_vect(Y + 1), -r_vect(X + 1), 0;
 
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
-	//Rw2FT_s = Rh2FT_s * Rw2e;
 	Rw2FT_s = Rw2e * Rh2FT_s;
+	ft_w_adjoint.setSubMatrix(1, 1, Rw2FT_s);
+	ft_w_adjoint.setSubMatrix(1, 4, zeroes);
+	ft_w_adjoint.setSubMatrix(4, 1, ((-1.0 * Rw2FT_s) * r_s));
+	ft_w_adjoint.setSubMatrix(4, 4, Rw2FT_s);
+	//ft_w_adjoint = Rw2FT_s, zeroes,
+	//			   ((-1.0 * Rw2FT_s) * r_s), Rw2FT_s;
+	FT_grav = ft_w_adjoint * w_grav;
+	F_grav(1) = FT_grav(1);
+	F_grav(2) = FT_grav(2);
+	F_grav(3) = FT_grav(3);
+	T_grav(1) = FT_grav(4);
+	T_grav(2) = FT_grav(5);
+	T_grav(3) = FT_grav(6);
 
-	F_grav = Rw2FT_s * Mg_w;
-	T_grav = crossProduct(r_vect, F_grav);
+	//F_grav = Rw2FT_s * Mg_w;
+	//T_grav = crossProduct(r_vect, F_grav);
+
+	gotoxy(1, 49);
+	printf(" F grav:  Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", F_grav(1), F_grav(2), F_grav(3));
+	gotoxy(1, 50);
+	printf(" T grav:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", T_grav(1), T_grav(2), T_grav(3));
+	gotoxy(1, 51);
+	printf(" Rw2FT_s: %7.3f, %7.3f, %7.3f,", Rw2FT_s(1, 1), Rw2FT_s(1, 2), Rw2FT_s(1, 3));
+	gotoxy(1, 52);
+	printf("          %7.3f, %7.3f, %7.3f,", Rw2FT_s(2, 1), Rw2FT_s(2, 2), Rw2FT_s(2, 3));
+	gotoxy(1, 53);
+	printf("          %7.3f, %7.3f, %7.3f,", Rw2FT_s(3, 1), Rw2FT_s(3, 2), Rw2FT_s(3, 3));
 
 	for (int i = 0; i < 3; i++)
 	{
