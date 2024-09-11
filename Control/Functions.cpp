@@ -6,6 +6,7 @@
 #include <math.h> 
 #include <string>
 #include "ForceTorqueManager.h"
+#include "InteractPerceive.h"
 //#include "SpaceMouse.h"
 //grasping algorithm flags
 #define OPEN_LOOP_GRASPING 3
@@ -1521,7 +1522,7 @@ void go_forward()
 }
 
 // Move arm forward/approach in Z direction
-void go_forward_slowly()
+void go_forward_slowly(float move_speed)
 {
 	Matrix<3, 1> ca;
 	ca = 0, 0, 1;
@@ -1530,7 +1531,7 @@ void go_forward_slowly()
 	wa = C2W_transform(pos) * ca;
 
 	for (int i = 0; i < 3; i++)
-		speed[i + 1] = wa(i + 1, 1) * 2.5f;
+		speed[i + 1] = wa(i + 1, 1) * move_speed;
 }
 
 
@@ -1689,7 +1690,7 @@ void ManualControl(char ch)
 		vdy = 2;
 		fdx = 1;
 
-		if (false == IntPerc.toggle_interact_perceive_state())
+		if (InteractPerceive::STOPPED == IntPerc.toggle_interact_perceive_state())
 			stop_arm();
 
 		gotoxy(1, 45);
@@ -1701,7 +1702,7 @@ void ManualControl(char ch)
 	case 'A': //ADJUST OFFSETS
 		gotoxy(1, 46);
 		std::cout << "\r                                                                \r";
-		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight: ";
+		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed: ";
 		char type;
 		cin >> type;
 		if ('F' == type)
@@ -1812,6 +1813,22 @@ void ManualControl(char ch)
 			gotoxy(1, 46);
 			std::cout << "\r                                                                \r";
 			std::cout << "Current weight: " << FTMgr.get_weight();
+		}
+		else if ('S' == type)
+		{
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::cout << "Current speed: " << IntPerc.get_move_speed() << ". Input new speed: ";
+			float newspeed;
+			cin >> newspeed;
+			if (-25 < newspeed < 25)
+				IntPerc.set_move_speed(newspeed);
+			else
+				printf("Invalid speed.");
+
+			gotoxy(1, 46);
+			std::cout << "\r                                                                \r";
+			std::cout << "Current speed: " << IntPerc.get_move_speed();
 		}
 		else
 		{
@@ -2654,8 +2671,16 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 
 			Matrix<3, 3> Rc2ee;
 			Rc2ee = 1, 0, 0, 0, 1, 0, 0, 0, 1;
-			cout << "[ee2w] " << endl;
-			cout << EE2w_transform3(pos);
+			//cout << "[ee2w] " << endl;
+			//cout << EE2w_transform3(pos);
+
+			Matrix<3, 3> Re2w = EE2w_transform3(pos);
+			gotoxy(1, 39);
+			printf(" Re2w:    %7.3f, %7.3f, %7.3f,", Re2w(1, 1), Re2w(1, 2), Re2w(1, 3));
+			gotoxy(1, 40);
+			printf("          %7.3f, %7.3f, %7.3f,", Re2w(2, 1), Re2w(2, 2), Re2w(2, 3));
+			gotoxy(1, 41);
+			printf("          %7.3f, %7.3f, %7.3f,", Re2w(3, 1), Re2w(3, 2), Re2w(3, 3));
 
 			//float pd_c[6];
 			//if ( write_init_pos )

@@ -7,6 +7,18 @@ class InteractPerceive
 public:
 	InteractPerceive();
 
+	enum IntPercState
+	{
+		STOPPED = 0,
+		STARTING,
+		OPENING_GRIPPERS,
+		GRIPPERS_OPENED,
+		INITIAL_APPROACH,
+		START_GRASP,
+		GRASPING_OBJECT,
+		GRASP_DONE
+	};
+
 	// Main interact perceive loop
 	void do_interact_perceive();
 	void do_interact_perceive_orig(); // Mushtaq's original function
@@ -15,15 +27,15 @@ public:
 	void check_force();
 
 	// Start/stop the interact_perceive routine
-	inline void start_interact_perceive() { set_interact_perceive_state(true); };
-	inline void stop_interact_perceive() { set_interact_perceive_state(false); };
-	// Returns state after toggling
-	inline bool toggle_interact_perceive_state() { return set_interact_perceive_state(!_interact_perceive_state); };
+	inline void start_interact_perceive() { set_interact_perceive_state(STARTING); };
+	inline void stop_interact_perceive() { set_interact_perceive_state(STOPPED); };
+	IntPercState toggle_interact_perceive_state();
 
-	inline void end_interact_perceive_grasp() { _grasp_flag = false; };
+	inline void end_interact_perceive_grasp() { if (GRASPING_OBJECT == _interact_perceive_state) _interact_perceive_state = GRASP_DONE; };
+	inline IntPercState get_interact_perceive_state() { return _interact_perceive_state; };
 
-	// Returns state
-	inline bool get_interact_perceive_state() { return _interact_perceive_state; };
+	inline float get_move_speed() { return _move_speed; };
+	inline void set_move_speed(float speed) { _move_speed = speed; };
 
 private:
 
@@ -34,10 +46,9 @@ private:
 	void print_ip_error(std::string error);
 	void clear_ip_error();
 
-	// If true, saves current compensated FT
-	// If false, stops arm movement
-	// Returns state after setting
-	bool set_interact_perceive_state(bool state);
+	// If STOPPED, will stop interact perceive
+	// Anything else will cause the state to go to that point.
+	IntPercState set_interact_perceive_state(IntPercState state);
 
 	// Resets all interact perceive flags
 	void reset_interact_perceive_flags();
@@ -46,12 +57,8 @@ private:
 	std::string get_dir_string(int dir);
 
 	std::array<double, FT_SIZE> _starting_FT; // FT observed at start of interact perceive routine
-	bool _interact_perceive_state; // Is interact perceive running or not
-	bool _start_interact_perceive_flag; // Initializes interact perceive
-	bool _initial_approach_flag; // Initializes interact perceive approach
-	bool _grasp_flag; // Initializes & continues interact perceive grasp
-	bool _opened_grippers_flag; // Flag to see if grippers have been opened by interact perceive yet
-	bool _do_open_grippers_flag; // Flag to open the gripers at the start of interact perceive
+	IntPercState _interact_perceive_state; // Is interact perceive running or not
+	float _move_speed;
 	int _open_grippers_cntr;
 };
 

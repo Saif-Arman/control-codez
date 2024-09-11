@@ -32,9 +32,9 @@ ForceTorqueManager::ForceTorqueManager()
 	_Mg_w[1] = 0;
 	_Mg_w[2] = 0.541 * -9.807; // 0.541kg measured without metal sensor head
 	//_Mg_w[2] = 0.571 * -9.807;
-	_R[0] = 0.005;
-	_R[1] = 0.0012;
-	_R[2] = 0.0848;
+	_R[0] = -0.0006;
+	_R[1] = 0.0024;
+	_R[2] = 0.0778;
 
 	// With nothing attached
 	//_F_offset[0] = 5.387;
@@ -112,12 +112,20 @@ ForceTorqueManager::ForceTorqueManager()
 	ft_offset_pin[Z + 3] -= 0.207;
 	
 	// Finally, combine the two
-	_F_offset[X] -= ft_offset_pin[X];
-	_F_offset[Y] -= ft_offset_pin[Y];
-	_F_offset[Z] -= ft_offset_pin[Z];
-	_T_offset[X] -= ft_offset_pin[X + 3];
-	_T_offset[Y] -= ft_offset_pin[Y + 3];
-	_T_offset[Z] -= ft_offset_pin[Z + 3];
+	//_F_offset[X] -= ft_offset_pin[X];
+	//_F_offset[Y] -= ft_offset_pin[Y];
+	//_F_offset[Z] -= ft_offset_pin[Z];
+	//_T_offset[X] -= ft_offset_pin[X + 3];
+	//_T_offset[Y] -= ft_offset_pin[Y + 3];
+	//_T_offset[Z] -= ft_offset_pin[Z + 3];
+	
+	// More offsets for left facing position :/
+	_F_offset[X] = 4.165;
+	_F_offset[Y] = 2.67;
+	_F_offset[Z] = -4.342;
+	_T_offset[X] = -0.213;
+	_T_offset[Y] = 0.042;
+	_T_offset[Z] = 0.046;
 
 }
 
@@ -191,13 +199,13 @@ void ForceTorqueManager::compensate_hand_FT()
 
 	Mg_w = 0, 0, _Mg_w[Z];
 	w_grav = 0, 0, _Mg_w[Z], 0, 0, 0;
-	r_vect = _R[0], _R[1], _R[2];
+	r_vect = _R[X], _R[Y], _R[Z];
 	r_s = 0, r_vect(Z + 1), -r_vect(Y + 1),
 		-r_vect(Z + 1), 0, r_vect(X + 1),
 		-r_vect(Y + 1), -r_vect(X + 1), 0;
 
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
-	Rw2FT_s = Rw2e * Rh2FT_s;
+	Rw2FT_s = Rh2FT_s * Rw2e;
 	ft_w_adjoint.setSubMatrix(1, 1, Rw2FT_s);
 	ft_w_adjoint.setSubMatrix(1, 4, zeroes);
 	ft_w_adjoint.setSubMatrix(4, 1, ((-1.0 * Rw2FT_s) * r_s));

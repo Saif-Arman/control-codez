@@ -9,30 +9,22 @@
 #define Z 2
 
 InteractPerceive::InteractPerceive()
-	: _interact_perceive_state(false)
-	, _start_interact_perceive_flag(false)
-	, _initial_approach_flag(false)
-	, _grasp_flag(false)
-	, _opened_grippers_flag(false)
-	, _do_open_grippers_flag(false)
+	: _interact_perceive_state(STOPPED)
 	, _open_grippers_cntr(0)
+	, _move_speed(2.5f)
 {
 	std::fill(std::begin(_starting_FT), std::end(_starting_FT), 0);
 }
 
 void InteractPerceive::reset_interact_perceive_flags()
 {
-	_start_interact_perceive_flag = false;
-	_initial_approach_flag = false;
-	_grasp_flag = false;
-	_do_open_grippers_flag = false;
-	_opened_grippers_flag = false;
+	_interact_perceive_state = STOPPED;
 }
 
-bool InteractPerceive::set_interact_perceive_state(bool state)
+InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(IntPercState state)
 {
 	_interact_perceive_state = state;
-	if (state)
+	if (STOPPED != state)
 	{
 		gotoxy(1, 45);
 		std::cout << "move flag: " << _interact_perceive_state;
@@ -48,8 +40,20 @@ bool InteractPerceive::set_interact_perceive_state(bool state)
 		std::cout << "move flag: " << _interact_perceive_state;
 	}
 
-	return state;
+	return _interact_perceive_state;
 }
+
+InteractPerceive::IntPercState InteractPerceive::toggle_interact_perceive_state()
+{ 
+	if (STOPPED == _interact_perceive_state)
+	{
+		return set_interact_perceive_state(STARTING);
+	}
+	else
+	{
+		return set_interact_perceive_state(STOPPED);
+	}
+};
 
 void InteractPerceive::print_ip_status(std::string status)
 {
@@ -82,7 +86,8 @@ void InteractPerceive::clear_ip_error()
 
 void InteractPerceive::check_force()
 {
-	if (!_interact_perceive_state || _grasp_flag || !_opened_grippers_flag)
+	IntPercState state = _interact_perceive_state;
+	if (STOPPED == state || OPENING_GRIPPERS == state || GRASPING_OBJECT == state)
 		return;
 
 	std::array<double, 3> threshold = { 2, 2, 2 };
@@ -130,86 +135,94 @@ void InteractPerceive::do_interact_perceive()
 		print_ip_status("Press \"M\" to start interact_perceive!");
 	}
 		
-	if (!_interact_perceive_state)
+	if (STOPPED == _interact_perceive_state)
 		return;
-
-	if (!_start_interact_perceive_flag)
-	{
-		_start_interact_perceive_flag = true;
-		ini_time_inte_perc = TimeCheck();
-	}
 
 	std::array<double, 3> threshold = { 0.3, 0.3, 0.3 };
 	Matrix<3, 3> Re2w = EE2w_transform3(pos);
 	Matrix<3, 3> Rw2e = transpose(EE2w_transform3(pos));
 
-	elapsed_time1 = ((float)TimeCheck() - (float)ini_time_inte_perc) / 1000; // in sec
-
-	// Start by opening grippers if they are closed
-	if (!_do_open_grippers_flag)
+	switch (_interact_perceive_state)
 	{
-		_do_open_grippers_flag = true;
-		do_open_grippers();
-	}
-	else if (!_opened_grippers_flag && open_in_progress)
-	{
-		print_ip_status("Opening grippers ...");
-	}
-	else if (!_opened_grippers_flag && !open_in_progress)
-	{
-		_opened_grippers_flag = true;
-		_initial_approach_flag = true;
-		Sleep(1500); // Sleep to let the arm settle
-		_starting_FT = FTMgr.get_FT_ee();
-		print_ip_info("Grippers have been opened!");
-	}
-	// Go forward until hand touches an object
-	else if (_initial_approach_flag)
-	{
-		std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
-		static int cooldowncntr = 100;
-		for (int i = X; i < Z; i++)
+		case STARTING:
 		{
-			if (cooldowncntr == 0)
+			ini_time_inte_perc = TimeCheck();
+			do_open_grippers();
+			_interact_perceive_state = OPENING_GRIPPERS;
+			break;
+		}
+		case OPENING_GRIPPERS:
+		{
+			if (open_in_progress)
 			{
-				if (abs(current_FT[i] - _starting_FT[i]) < threshold[i])
+				print_ip_status("Opening grippers ...");
+				break;
+			}
+
+			_interact_perceive_state = GRIPPERS_OPENED;
+			break;
+		}
+		case GRIPPERS_OPENED:
+		{
+			Sleep(1500); // Sleep to let the arm settle
+			_starting_FT = FTMgr.get_FT_ee();
+			print_ip_info("Grippers have been opened!");
+			_interact_perceive_state = INITIAL_APPROACH;
+			break;
+		}
+		case INITIAL_APPROACH:
+		{
+			std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
+			static int cooldowncntr = 100;
+			for (int i = X; i < Z; i++)
+			{
+				if (cooldowncntr == 0)
 				{
-					go_forward_slowly();
-					print_ip_status("Approaching object in Z direction");
+					if (abs(current_FT[i] - _starting_FT[i]) < threshold[i])
+					{
+						go_forward_slowly(_move_speed);
+						print_ip_status("Approaching object in Z direction");
+					}
+					else
+					{
+						stop_arm();
+						_interact_perceive_state = START_GRASP;
+						cooldowncntr = 100;
+						std::stringstream info;
+						info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
+						print_ip_info(info.str());
+						break;
+					}
 				}
 				else
-				{
-					stop_arm();
-					_initial_approach_flag = false;
-					_grasp_flag = true;
-					cooldowncntr = 200;
-					std::stringstream info;
-					info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
-					print_ip_info(info.str());
-					break;
-				}
+					cooldowncntr--;
 			}
-			else
-				cooldowncntr--;
-
+			break;
+		}
+		case START_GRASP:
+		{
+			do_grab_object();
+			print_ip_status("Starting grasp ...");
+			_interact_perceive_state = GRASPING_OBJECT;
+		}
+		case GRASPING_OBJECT:
+		{
+			if (grab_in_progress)
+			{
+				print_ip_status("Grasping object ...");
+				break;
+			}
+				
+			_interact_perceive_state = GRASP_DONE;
+			break;
+		}
+		case GRASP_DONE:
+		{
+			stop_interact_perceive();
 		}
 	}
-	// Attempt to grasp object after touching
-	else if (_grasp_flag && !grab_in_progress)
-	{
-		do_grab_object();
-		print_ip_status("Starting grasp ...");
-	}
-	else if (_grasp_flag)
-	{
-		print_ip_status("Grasping object ...");
-	}
-	// Finish interact perceive
-	else
-	{
-		stop_interact_perceive();
-		//print_ip_status("Grasping complete!");
-	}
+
+	elapsed_time1 = ((float)TimeCheck() - (float)ini_time_inte_perc) / 1000; // in sec
 	
 	if (elapsed_time1 > 30)
 	{

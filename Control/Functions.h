@@ -101,7 +101,7 @@ bool Read_37F( void );								// Read first 0x37F.
 bool Open_Grabber( void );							// Open the grabber.
 void stop_arm();									// Stop all arm movement.
 void go_forward();									// Moves end effector forward in Z direction
-void go_forward_slowly();
+void go_forward_slowly(float move_speed=2.5f);
 void do_grab_object();								// Starts grabbing, stops if something is detected between fingers
 void do_open_grippers();							// Opens grippers all the way
 void go_interact_perceive_home();					// Go to interact perceive home, C:\MANUS\CommonSpace\Setting\home_pos99.txt
