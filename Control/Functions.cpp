@@ -1138,7 +1138,7 @@ void ShowFrequency(int time)
 // the status of the manus. This is clarified in page 23 of Transparent mode manual.
 void PrintStatus(void)
 {
-	gotoxy(1, 26);
+	gotoxy(1, 27);
 	actual_cbox = manus_status & 0x07;//get the cbox mode
 	ofstream errors;
 	errors.open("C:\\MANUS\\CommonSpace\\movement_files\\error.txt", ios::app);
@@ -1694,151 +1694,215 @@ void ManualControl(char ch)
 			stop_arm();
 
 		gotoxy(1, 45);
-		cout << "\r                                   \r";
-		cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
+		std::cout << "\r                                   \r";
+		std::cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
 
-	case 'A': //ADJUST OFFSETS
+	case 'A': // ADJUST IntPerc & F/T OFFSETS
+
+		// Ask user what they want to change, clear lines before printing
 		gotoxy(1, 46);
-		std::cout << "\r                                                                \r";
-		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed: ";
+		std::cout << "\r                                                                                                     \r";
+		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed" << std::endl;
+		gotoxy(1, 47);
+		std::cout << "\r                                                                                                     \r";
+		std::cout << "C=Zero Offsets, Y=Tension. Choice: ";
 		char type;
-		cin >> type;
-		if ('F' == type)
+		std::cin >> type;
+		// Clear what we just sent to the screen
+		gotoxy(1, 47);
+		std::cout << "\r                                                                                                     \r";
+		gotoxy(1, 46);
+		std::cout << "\r                                                                                                     \r";
+
+		switch (type)
 		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::array<double, 3> offsets = FTMgr.get_f_offsets();
-			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
-			char newdir;
-			cin >> newdir;
-			if ('X' == newdir)
-				newdir = 0;
-			else if ('Y' == newdir)
-				newdir = 1;
-			else if ('Z' == newdir)
-				newdir = 2;
-			else
+			case 'C': // Zero offsets with current readings
 			{
-				printf("BAD AXIS SELECTED.");
+				FTMgr.zero_offsets();
+				printf("Set F/T offsets to current values.");
 				break;
 			}
-			
-			std::cout << "\r                                                                \r";
-			std::cout << " Select new offset: ";
-			double newoffset;
-			cin >> newoffset;
-			FTMgr.set_f_offset(newdir, newoffset);
-
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			offsets = FTMgr.get_f_offsets();
-			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
-		}
-		else if ('T' == type)
-		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::array<double, 3> offsets = FTMgr.get_t_offsets();
-			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
-			char newdir;
-			cin >> newdir;
-			if ('X' == newdir)
-				newdir = 0;
-			else if ('Y' == newdir)
-				newdir = 1;
-			else if ('Z' == newdir)
-				newdir = 2;
-			else
+			case 'F': // FT sensor Force offsets
 			{
-				printf("BAD AXIS SELECTED.");
+				std::array<double, 3> offsets = FTMgr.get_f_offsets();
+				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
+				char newdir;
+				std::cin >> newdir;
+				if ('X' == newdir)
+					newdir = 0;
+				else if ('Y' == newdir)
+					newdir = 1;
+				else if ('Z' == newdir)
+					newdir = 2;
+				else
+				{
+					printf("BAD AXIS SELECTED.");
+					break;
+				}
+
+				std::cout << "\r                                                                \r";
+				std::cout << " Select new offset: ";
+				double newoffset;
+				std::cin >> newoffset;
+				FTMgr.set_f_offset(newdir, newoffset);
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                \r";
+				offsets = FTMgr.get_f_offsets();
+				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
 				break;
 			}
-
-			std::cout << "\r                                                                \r";
-			std::cout << " Select new offset: ";
-			double newoffset;
-			cin >> newoffset;
-			FTMgr.set_t_offset(newdir, newoffset);
-			
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			offsets = FTMgr.get_t_offsets();
-			std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
-		}
-		else if ('R' == type)
-		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::array<double, 3> r = FTMgr.get_r();
-			std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2] << ". Select X, Y, OR Z: ";
-			char newdir;
-			cin >> newdir;
-			if ('X' == newdir)
-				newdir = 0;
-			else if ('Y' == newdir)
-				newdir = 1;
-			else if ('Z' == newdir)
-				newdir = 2;
-			else
+			case 'T': // FT sensor Torque offsets
 			{
-				printf("ERROR: INVALID AXIS SELECTED.");
+				std::array<double, 3> offsets = FTMgr.get_t_offsets();
+				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2] << ". Select X, Y, OR Z: ";
+				char newdir;
+				std::cin >> newdir;
+				if ('X' == newdir)
+					newdir = 0;
+				else if ('Y' == newdir)
+					newdir = 1;
+				else if ('Z' == newdir)
+					newdir = 2;
+				else
+				{
+					printf("BAD AXIS SELECTED.");
+					break;
+				}
+
+				std::cout << "\r                                                                \r";
+				std::cout << " Select new offset: ";
+				double newoffset;
+				std::cin >> newoffset;
+				FTMgr.set_t_offset(newdir, newoffset);
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                \r";
+				offsets = FTMgr.get_t_offsets();
+				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
 				break;
 			}
+			case 'R': // r (center of mass of hand)
+			{
+				std::array<double, 3> r = FTMgr.get_r();
+				std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2] << ". Select X, Y, OR Z: ";
+				char newdir;
+				std::cin >> newdir;
+				if ('X' == newdir)
+					newdir = 0;
+				else if ('Y' == newdir)
+					newdir = 1;
+				else if ('Z' == newdir)
+					newdir = 2;
+				else
+				{
+					printf("ERROR: INVALID AXIS SELECTED.");
+					break;
+				}
 
-			std::cout << "\r                                                                \r";
-			std::cout << " Select new offset: ";
-			double newoffset;
-			cin >> newoffset;
-			FTMgr.set_r(newdir, newoffset);
+				std::cout << "\r                                                                \r";
+				std::cout << " Select new offset: ";
+				double newoffset;
+				std::cin >> newoffset;
+				FTMgr.set_r(newdir, newoffset);
 
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			r = FTMgr.get_r();
-			std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2];
+				gotoxy(1, 46);
+				std::cout << "\r                                                                \r";
+				r = FTMgr.get_r();
+				std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2];
+				break;
+			}
+			case 'W': // Weight
+			{
+				std::cout << "Current weight: " << FTMgr.get_weight() << ". Input new weight: ";
+				double newoffset;
+				std::cin >> newoffset;
+				if (-100 < newoffset < 100)
+					FTMgr.set_weight(newoffset);
+				else
+					printf("Invalid weight.");
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                \r";
+				std::cout << "Current weight: " << FTMgr.get_weight();
+				break;
+			}
+			case 'S': // Speed
+			{
+				std::cout << "Current speed: " << IntPerc.get_move_speed() << ". Input new speed: ";
+				float newspeed;
+				std::cin >> newspeed;
+				if (-25 < newspeed < 25)
+					IntPerc.set_move_speed(newspeed);
+				else
+					printf("Invalid speed.");
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                \r";
+				std::cout << "Current speed: " << IntPerc.get_move_speed();
+				break;
+			}
+			case 'Y': // Tension
+			{
+				std::cout << "Tension values, angle: " << FTMgr.get_tension_angle() << ", constant: " << FTMgr.get_tension_const() << ". Select A=Angle or C=Const: ";
+				char newvar;
+				std::cin >> newvar;
+				switch (newvar)
+				{
+					case('A'): // Adjust tension angle
+					{
+						gotoxy(1, 47);
+						std::cout << "\r                                                                                                     \r";
+						std::cout << "Select new angle (-360 < angle < 360): ";
+						double newangle;
+						std::cin >> newangle;
+						if (-360 < newangle && newangle < 360)
+						{
+							FTMgr.set_tension_angle(newangle);
+						}
+						else
+						{
+							printf("Invalid angle selected!");
+						}
+						break;
+					}
+					case('C'): // Adjust tension constant
+					{
+						gotoxy(1, 47);
+						std::cout << "\r                                                                                                     \r";
+						std::cout << "Select new value (-1000 < const < 1000): ";
+						double newconst;
+						std::cin >> newconst;
+						if (-1000 < newconst && newconst < 1000)
+						{
+							FTMgr.set_tension_const(newconst);
+						}
+						else
+						{
+							printf("Invalid value selected!");
+						}
+						break;
+					}
+					default:
+					{
+						printf("Invalid selection!");
+						break;
+					}
+				} // end tension inner switch()
+
+				gotoxy(1, 47);
+				std::cout << "\r                                                                                                     \r";
+				std::cout << "New tension values, angle: " << FTMgr.get_tension_angle() << ", constant: " << FTMgr.get_tension_const() << std::endl;
+				break;
+			} // end (Y) tension switch
+			default:
+			{
+				printf("Invalid selection.");
+				break;
+			}
 		}
-		else if ('W' == type)
-		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::cout << "Current weight: " << FTMgr.get_weight() << ". Input new weight: ";
-			double newoffset;
-			cin >> newoffset;
-			if (-100 < newoffset < 100)
-				FTMgr.set_weight(newoffset);
-			else
-				printf("Invalid weight.");
-
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::cout << "Current weight: " << FTMgr.get_weight();
-		}
-		else if ('S' == type)
-		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::cout << "Current speed: " << IntPerc.get_move_speed() << ". Input new speed: ";
-			float newspeed;
-			cin >> newspeed;
-			if (-25 < newspeed < 25)
-				IntPerc.set_move_speed(newspeed);
-			else
-				printf("Invalid speed.");
-
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			std::cout << "Current speed: " << IntPerc.get_move_speed();
-		}
-		else
-		{
-			gotoxy(1, 46);
-			std::cout << "\r                                                                \r";
-			printf("Invalid selection.");
-			break;
-		}
-
-
 
 	case '-':	// Decrease Speed.
 		speed_mode--;
@@ -2916,31 +2980,58 @@ int pd_control2(void)
 		float tmp1, tmp2;
 		for (int i = 0; i < 6; ++i)
 		{
-			if (i == 5) // roll -180 ~ 180 : linear scailing
-			{
-				tmp1 = (180.0f - pd[i]) - (180.0f - pprev1[i]);
-				if (tmp1 >= 0.0f)
-					if (tmp1 <= 180.0f)
-						tmp2 = tmp1;
-					else
-						tmp2 = tmp1 - 360.0f;
-				else
-					if (tmp1 > -180.0f)
-						tmp2 = tmp1;
-					else
-						tmp2 = 360.0f + tmp1;
+			//if (i == 5) // roll -180 ~ 180 : linear scailing
+			//{
+			//	tmp1 = (180.0f - pd[i]) - (180.0f - pprev1[i]);
+			//	if (tmp1 >= 0.0f)
+			//		if (tmp1 <= 180.0f)
+			//			tmp2 = tmp1;
+			//		else
+			//			tmp2 = tmp1 - 360.0f;
+			//	else
+			//		if (tmp1 > -180.0f)
+			//			tmp2 = tmp1;
+			//		else
+			//			tmp2 = 360.0f + tmp1;
 
-				eprev1[i] = tmp2;
-			}
-			else
-				eprev1[i] = pd[i] - pprev1[i];
+			//	eprev1[i] = tmp2;
+			//}
+			//else
+			eprev1[i] = pd[i] - pprev1[i];
 
 			float control_input = Kp[i] * eprev1[i];
 
+			gotoxy(1, 47);
+			std::cout << "\r                                                     \r";
+
 			if (i < 3)
-				speed[i + 1] = (fabs(control_input) > linear_speed_limit[speed_mode]) ? sign(control_input) * linear_speed_limit[speed_mode] : control_input;
+			{
+				//speed[i + 1] = (fabs(control_input) > linear_speed_limit[speed_mode]) ? sign(control_input) * linear_speed_limit[speed_mode] : control_input;
+				if (fabs(control_input) > linear_speed_limit[speed_mode])
+				{
+					speed[i + 1] = sign(control_input) * linear_speed_limit[speed_mode];
+					std::cout << "Ax: " << i << ", Lim; ";
+				}
+				else
+				{
+					speed[i + 1] = control_input;
+					std::cout << "Ax: " << i << ", Ctl; ";
+				}
+			}
 			else
-				speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
+			{
+				//speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
+				if (fabs(control_input) > angular_speed_limit[speed_mode])
+				{
+					speed[i + 1] = sign(control_input) * angular_speed_limit[speed_mode];
+					std::cout << "Ax: " << i << ", Lim; ";
+				}
+				else
+				{
+					speed[i + 1] = control_input;
+					std::cout << "Ax: " << i << ", Ctl; ";
+				}
+			}
 		}
 	}
 	else if (adjust_pos == true)
@@ -3125,7 +3216,7 @@ int pd_control2(void)
 	printf("[S] %.0f %.0f %.0f %.0f %.0f %.0f %.0f %.0f \n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
 	gotoxy(1, 23);
 	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
-	gotoxy(1, 25);
+	gotoxy(1, 26);
 	printf("\r                                                                  \r");
 	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 
@@ -3149,23 +3240,36 @@ int pd_control2(void)
 	/* [S] CONTROL OBJECTIVE */
 	if (home_pos_flag == true)	// set to home position
 	{
-		if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
+		gotoxy(1, 46);
+		std::cout << "\r                                                     \r";
+		if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
 		{
-			if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
+			std::cout << "Going to ROTATION home position flag ...";
+			//if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
+			//{
+			//	if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
+			//	{
+			//		job_done = true;
+			//		auto_mode_start = false;
+			//		home_pos_flag = false;
+			//		block_all_motions = false;
+			//	}
+			//}
+			//else
+			//	speed[6] = 0;	// set roll motion to 0
+			if ((fabs(eprev1[3]) < R_ERR_BOUND) && (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))	// yaw & pitch rotation control
 			{
-				if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
-				{
 					job_done = true;
 					auto_mode_start = false;
 					home_pos_flag = false;
 					block_all_motions = false;
-				}
+					std::cout << "\r                                                     \r";
+					std::cout << "Done going home.";
 			}
-			else
-				speed[6] = 0;	// set roll motion to 0
 		}
 		else
 		{
+			std::cout << "Going to XYZ home position flag ...";
 			for (int i = 3; i < 6; i++)	// set all the rotation motion to 0
 				speed[i + 1] = 0;
 		}

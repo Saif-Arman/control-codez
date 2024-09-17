@@ -36,6 +36,9 @@ ForceTorqueManager::ForceTorqueManager()
 	_R[1] = 0.0024;
 	_R[2] = 0.0778;
 
+	_tension_angle = 0;
+	_tension_const = 0;
+
 	// With nothing attached
 	//_F_offset[0] = 5.387;
 	//_F_offset[1] = 3.948;
@@ -112,20 +115,20 @@ ForceTorqueManager::ForceTorqueManager()
 	ft_offset_pin[Z + 3] -= 0.207;
 	
 	// Finally, combine the two
-	//_F_offset[X] -= ft_offset_pin[X];
-	//_F_offset[Y] -= ft_offset_pin[Y];
-	//_F_offset[Z] -= ft_offset_pin[Z];
-	//_T_offset[X] -= ft_offset_pin[X + 3];
-	//_T_offset[Y] -= ft_offset_pin[Y + 3];
-	//_T_offset[Z] -= ft_offset_pin[Z + 3];
+	_F_offset[X] -= ft_offset_pin[X];
+	_F_offset[Y] -= ft_offset_pin[Y];
+	_F_offset[Z] -= ft_offset_pin[Z];
+	_T_offset[X] -= ft_offset_pin[X + 3];
+	_T_offset[Y] -= ft_offset_pin[Y + 3];
+	_T_offset[Z] -= ft_offset_pin[Z + 3];
 	
 	// More offsets for left facing position :/
-	_F_offset[X] = 4.165;
-	_F_offset[Y] = 2.67;
-	_F_offset[Z] = -4.342;
-	_T_offset[X] = -0.213;
-	_T_offset[Y] = 0.042;
-	_T_offset[Z] = 0.046;
+	//_F_offset[X] = 4.165;
+	//_F_offset[Y] = 2.67;
+	//_F_offset[Z] = -4.342;
+	//_T_offset[X] = -0.213;
+	//_T_offset[Y] = 0.042;
+	//_T_offset[Z] = 0.046;
 
 }
 
@@ -137,6 +140,16 @@ void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)
 std::array<double, FT_SIZE> ForceTorqueManager::get_raw_FT()
 {
 	return _raw_FT;
+}
+
+void ForceTorqueManager::zero_offsets()
+{
+	_F_offset[X] = _F_offset[X] + _compensated_FT[X];
+	_F_offset[Y] = _F_offset[Y] + _compensated_FT[Y];
+	_F_offset[Z] = _F_offset[Z] + _compensated_FT[Z];
+	_T_offset[X] = _T_offset[X] + _compensated_FT[X+3];
+	_T_offset[Y] = _T_offset[Y] + _compensated_FT[Y+3];
+	_T_offset[Z] = _T_offset[Z] + _compensated_FT[Z+3];
 }
 
 void ForceTorqueManager::ReadForceTorque()
@@ -177,51 +190,39 @@ void ForceTorqueManager::compensate_hand_FT()
 	Matrix<3, 3> Rw2e;			// Rotation world to end effector (hand)
 	ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
 	ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> F_tension;	// Force in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> F_bias;		// Force in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> F_offset;		// Force in the FT sensor frame due to weight of hand & attachments
 	ColumnVector<3> T_grav;		// Torque in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> T_bias;		// Torque in the FT sensor frame due to weight of hand & attachments
+	ColumnVector<3> T_offset;		// Torque in the FT sensor frame due to weight of hand & attachments
 	ColumnVector<3> r_vect;		// Center of mass of hand weight in FT sensor frame
 	ColumnVector<3> F_temp;		// Placeholder to convert forces compesated for offset & weight to vector
 	ColumnVector<3> T_temp;		// Placeholder to convert torques compesated for offset & weight to vector
 	ColumnVector<3> F_ee_temp;	// Placeholder to convert forces compesated for offset & weight back to array
 	ColumnVector<3> T_ee_temp;	// Placeholder to convert torques compesated for offset & weight back to array
-	ColumnVector<6> w_grav;		// Weight + torque of hand due to gravity = mass * g = Newtons
-	ColumnVector<6> FT_grav;	// Weight + torque of hand due to gravity = mass * g = Newtons
-	Matrix<3, 3> r_s;			// Skew symmetric r, center of mass of hand
-	Matrix<6, 6> ft_w_adjoint;	// Adjoint matrix convert weight to sensor frame
-	Matrix<3, 3> zeroes;
-	zeroes = 0, 0, 0,
-			 0, 0, 0,
-			 0, 0, 0;
 
 	Rw2e = transpose(EE2w_transform3(pos));
 	Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
 				-0.080, -0.0414, -0.9959, 
 				0.9968, -0.0098, -0.0796; // Mushtaq rotation
-
-	Mg_w = 0, 0, _Mg_w[Z];
-	w_grav = 0, 0, _Mg_w[Z], 0, 0, 0;
-	r_vect = _R[X], _R[Y], _R[Z];
-	r_s = 0, r_vect(Z + 1), -r_vect(Y + 1),
-		-r_vect(Z + 1), 0, r_vect(X + 1),
-		-r_vect(Y + 1), -r_vect(X + 1), 0;
-
+	
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
 	Rw2FT_s = Rh2FT_s * Rw2e;
-	ft_w_adjoint.setSubMatrix(1, 1, Rw2FT_s);
-	ft_w_adjoint.setSubMatrix(1, 4, zeroes);
-	ft_w_adjoint.setSubMatrix(4, 1, ((-1.0 * Rw2FT_s) * r_s));
-	ft_w_adjoint.setSubMatrix(4, 4, Rw2FT_s);
-	//ft_w_adjoint = Rw2FT_s, zeroes,
-	//			   ((-1.0 * Rw2FT_s) * r_s), Rw2FT_s;
-	FT_grav = ft_w_adjoint * w_grav;
-	F_grav(1) = FT_grav(1);
-	F_grav(2) = FT_grav(2);
-	F_grav(3) = FT_grav(3);
-	T_grav(1) = FT_grav(4);
-	T_grav(2) = FT_grav(5);
-	T_grav(3) = FT_grav(6);
 
-	//F_grav = Rw2FT_s * Mg_w;
-	//T_grav = crossProduct(r_vect, F_grav);
+	//Mg_w = 0, 0, _Mg_w[Z];
+	Mg_w = -0.7792, 1.0664, -3.6563;
+	r_vect = _R[X], _R[Y], _R[Z];
+	
+	F_offset = _F_offset[X], _F_offset[Y], _F_offset[Z];
+	T_offset = _T_offset[X], _T_offset[Y], _T_offset[Z];
+
+	F_tension = _tension_const * _tension_angle;
+	F_grav = Rw2FT_s * Mg_w;
+	F_bias = Rw2FT_s * Mg_w + F_offset;
+
+	T_grav = crossProduct(r_vect, F_grav);
+	T_bias = T_grav + T_offset;
 
 	gotoxy(1, 49);
 	printf(" F grav:  Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", F_grav(1), F_grav(2), F_grav(3));
@@ -236,8 +237,8 @@ void ForceTorqueManager::compensate_hand_FT()
 
 	for (int i = 0; i < 3; i++)
 	{
-		_compensated_FT[i] = _raw_FT[i] - _F_offset[i] - F_grav(i + 1);
-		_compensated_FT[i + 3] = _raw_FT[i + 3] - _T_offset[i] - T_grav(i + 1);
+		_compensated_FT[i] = _raw_FT[i] - F_bias(i + 1);
+		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_bias(i + 1);
 	}
 
 	F_temp = _compensated_FT[X], _compensated_FT[Y], _compensated_FT[Z];
@@ -315,20 +316,8 @@ void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, st
 	// t_x = r_y*f_z − r_z*f_y
 	// t_y = -r_x*f_z + r_z*f_x
 	// t_z = r_x*f_y − r_y*f_z
-
-	// Adjust w/ naked offsets
-	//ColumnVector<3> F_offset, T_offset;
-	//F_offset = -14.334, -16.188, 10.868; // Force offset, avg when nothing attached to ATI sensor
-	//T_offset = -0.398, 0.392, 0.174; // Torque offset, avg when nothing attached to ATI sensor
 	
 	// R[0] = x, R[1] = y, R[2] = z
-	//std::array<double, 3> F = { new_ft[X] - F_offset(X + 1), 
-	//							new_ft[Y] - F_offset(Y + 1), 
-	//							new_ft[Z] - F_offset(Z + 1) };
-	//std::array<double, 3> T = { new_ft[X+3] - T_offset(X + 1), 
-	//							new_ft[Y+3] - T_offset(Y + 1), 
-	//							new_ft[Z+3] - T_offset(Z + 1) };
-
 	std::array<double, 3> F = { new_ft[X] - _F_offset[X],
 								new_ft[Y] - _F_offset[Y],
 								new_ft[Z] - _F_offset[Z] };

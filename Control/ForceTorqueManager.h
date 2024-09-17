@@ -30,6 +30,14 @@ public:
 	inline std::array<double, FT_SIZE / 2> get_r() { return _R; };
 	inline void set_r(unsigned int axis, double offset) { axis < 3 ? _R[axis] = offset : printf("ERROR: Invalid axis selected!"); };
 
+	void zero_offsets();
+
+	inline double get_tension_angle() { return _tension_angle; };
+	inline void set_tension_angle(double angle) { _tension_angle = angle; };
+
+	inline double get_tension_const() { return _tension_const; };
+	inline void set_tension_const(double newval) { _tension_const = newval; };
+
 private:
 
 	std::array<double, FT_SIZE> get_raw_FT();
@@ -48,4 +56,8 @@ private:
 	std::array<double, FT_SIZE / 2> _T_offset;
 	std::array<double, FT_SIZE / 2> _Mg_w;
 	std::array<double, FT_SIZE / 2> _R;
+
+	double _tension_angle;
+	double _tension_const;
+
 };
