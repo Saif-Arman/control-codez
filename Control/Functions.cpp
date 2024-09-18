@@ -290,48 +290,56 @@ float dist3D_Segment_to_Segment(ColumnVector<3> P1, ColumnVector<3> P2, ColumnVe
 	float    sc, sN, sD = D;       // sc = sN / sD, default sD = D >= 0
 	float    tc, tN, tD = D;       // tc = tN / tD, default tD = D >= 0
 
-								   // compute the line parameters of the two closest points
-	if (D < SMALL_NUM) { // the lines are almost parallel
-		sN = 0.0;         // force using point P0 on segment S1
-		sD = 1.0;         // to prevent possible division by 0.0 later
+							// compute the line parameters of the two closest points
+	if (D < SMALL_NUM)		// the lines are almost parallel
+	{						// force using point P0 on segment S1
+		sN = 0.0;			// to prevent possible division by 0.0 later
+		sD = 1.0;         
 		tN = e;
 		tD = c;
 	}
-	else {                 // get the closest points on the infinite lines
+	else                   // get the closest points on the infinite lines
+	{
 		sN = (b * e - c * d);
 		tN = (a * e - b * d);
-		if (sN < 0.0) {        // sc < 0 => the s=0 edge is visible
+		if (sN < 0.0)          // sc < 0 => the s=0 edge is visible
+		{
 			sN = 0.0;
 			tN = e;
 			tD = c;
 		}
-		else if (sN > sD) {  // sc > 1  => the s=1 edge is visible
+		else if (sN > sD)   // sc > 1  => the s=1 edge is visible
+		{
 			sN = sD;
 			tN = e + b;
 			tD = c;
 		}
 	}
 
-	if (tN < 0.0) {            // tc < 0 => the t=0 edge is visible
+	if (tN < 0.0)            // tc < 0 => the t=0 edge is visible
+	{
 		tN = 0.0;
 		// recompute sc for this edge
 		if (-d < 0.0)
 			sN = 0.0;
 		else if (-d > a)
 			sN = sD;
-		else {
+		else 
+		{
 			sN = -d;
 			sD = a;
 		}
 	}
-	else if (tN > tD) {      // tc > 1  => the t=1 edge is visible
+	else if (tN > tD)        // tc > 1  => the t=1 edge is visible
+	{
 		tN = tD;
 		// recompute sc for this edge
 		if ((-d + b) < 0.0)
 			sN = 0;
 		else if ((-d + b) > a)
 			sN = sD;
-		else {
+		else 
+		{
 			sN = (-d + b);
 			sD = a;
 		}
@@ -396,11 +404,12 @@ float DistanceBetween_Camera_Link3(float* position)
 	p4 = R06 * p4_c + p2;
 
 	dist = dist3D_Segment_to_Segment(p1, p2, p3, p4);
-	if ((dist < r) || (dist == r)) {
+	if (dist <= r)
+	{
 		collision = 1;
 	}
-
-	else {
+	else 
+	{
 		collision = 0;
 	}
 
@@ -1704,10 +1713,12 @@ void ManualControl(char ch)
 		// Ask user what they want to change, clear lines before printing
 		gotoxy(1, 46);
 		std::cout << "\r                                                                                                     \r";
-		std::cout << "F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed" << std::endl;
+		gotoxy(1, 46);
+		std::cout << "Select F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed" << std::endl;
 		gotoxy(1, 47);
 		std::cout << "\r                                                                                                     \r";
-		std::cout << "C=Zero Offsets, Y=Tension. Choice: ";
+		gotoxy(1, 47);
+		std::cout << "C=Zero Offsets, Y=Tension:  ";
 		char type;
 		std::cin >> type;
 		// Clear what we just sent to the screen
@@ -1715,6 +1726,7 @@ void ManualControl(char ch)
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 46);
 		std::cout << "\r                                                                                                     \r";
+		gotoxy(1, 46);
 
 		switch (type)
 		{
@@ -1846,60 +1858,27 @@ void ManualControl(char ch)
 			}
 			case 'Y': // Tension
 			{
-				std::cout << "Tension values, angle: " << FTMgr.get_tension_angle() << ", constant: " << FTMgr.get_tension_const() << ". Select A=Angle or C=Const: ";
-				char newvar;
-				std::cin >> newvar;
-				switch (newvar)
+				std::cout << "Tension constant: " << FTMgr.get_tension_const() << ". Select new value (-100 < val < 100): ";
+				double newconst;
+				std::cin >> newconst;
+				if (-100 < newconst && newconst < 100)
 				{
-					case('A'): // Adjust tension angle
-					{
-						gotoxy(1, 47);
-						std::cout << "\r                                                                                                     \r";
-						std::cout << "Select new angle (-360 < angle < 360): ";
-						double newangle;
-						std::cin >> newangle;
-						if (-360 < newangle && newangle < 360)
-						{
-							FTMgr.set_tension_angle(newangle);
-						}
-						else
-						{
-							printf("Invalid angle selected!");
-						}
-						break;
-					}
-					case('C'): // Adjust tension constant
-					{
-						gotoxy(1, 47);
-						std::cout << "\r                                                                                                     \r";
-						std::cout << "Select new value (-1000 < const < 1000): ";
-						double newconst;
-						std::cin >> newconst;
-						if (-1000 < newconst && newconst < 1000)
-						{
-							FTMgr.set_tension_const(newconst);
-						}
-						else
-						{
-							printf("Invalid value selected!");
-						}
-						break;
-					}
-					default:
-					{
-						printf("Invalid selection!");
-						break;
-					}
-				} // end tension inner switch()
+					FTMgr.set_tension_const(newconst);
+				}
+				else
+				{
+					std::cout << "Invalid value selected!";
+				}
 
-				gotoxy(1, 47);
+				gotoxy(1, 46);
 				std::cout << "\r                                                                                                     \r";
-				std::cout << "New tension values, angle: " << FTMgr.get_tension_angle() << ", constant: " << FTMgr.get_tension_const() << std::endl;
+				gotoxy(1, 46);
+				std::cout << "New tension constant: " << FTMgr.get_tension_const();
 				break;
 			} // end (Y) tension switch
 			default:
 			{
-				printf("Invalid selection.");
+				std::cout << "Invalid selection.";
 				break;
 			}
 		}

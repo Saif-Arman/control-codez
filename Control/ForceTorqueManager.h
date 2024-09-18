@@ -8,7 +8,7 @@ class ForceTorqueManager
 public:
 	ForceTorqueManager();
 
-	void ReadForceTorque();
+	void ReadForceTorque(double wrist_angle);
 
 	void update_FT(std::array<double, FT_SIZE> new_FT);
 		
@@ -32,9 +32,6 @@ public:
 
 	void zero_offsets();
 
-	inline double get_tension_angle() { return _tension_angle; };
-	inline void set_tension_angle(double angle) { _tension_angle = angle; };
-
 	inline double get_tension_const() { return _tension_const; };
 	inline void set_tension_const(double newval) { _tension_const = newval; };
 
@@ -42,7 +39,7 @@ private:
 
 	std::array<double, FT_SIZE> get_raw_FT();
 
-	void compensate_hand_FT();
+	void compensate_hand_FT(double wrist_angle);
 	void compensate_hand_FT_orig();
 
 	void estimate_r(const std::array<double, FT_SIZE> new_ft, std::array<double, 3>& R);
@@ -57,7 +54,6 @@ private:
 	std::array<double, FT_SIZE / 2> _Mg_w;
 	std::array<double, FT_SIZE / 2> _R;
 
-	double _tension_angle;
 	double _tension_const;
 
 };

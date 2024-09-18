@@ -36,7 +36,6 @@ ForceTorqueManager::ForceTorqueManager()
 	_R[1] = 0.0024;
 	_R[2] = 0.0778;
 
-	_tension_angle = 0;
 	_tension_const = 0;
 
 	// With nothing attached
@@ -79,13 +78,23 @@ ForceTorqueManager::ForceTorqueManager()
 	//_T_offset[1] = 0.030;
 	//_T_offset[2] = 0.207;
 
-	// idk something else
-	/*_F_offset[0] = 3.397;
-	_F_offset[1] = 2.811;
-	_F_offset[2] = -6.831;
-	_T_offset[0] = -0.19;
-	_T_offset[1] = 0.063;
-	_T_offset[2] = 0.231;*/
+	// Different pose
+	// Hand attached and screwed, no middle pin connector, hand flat with arm (pitch ~ 0) (weird pose thats why numbers are off)
+	//_F_offset[0] = -0.525;
+	//_F_offset[1] = 6.115;
+	//_F_offset[2] = 7.748;
+	//_T_offset[0] = -0.080;
+	//_T_offset[1] = -0.225;
+	//_T_offset[2] = 0.204;
+
+	// Hand fully attached, hand flat out with arm (pitch ~ 0)
+	//_F_offset[0] = -0.141;
+	//_F_offset[1] = 6.691;
+	//_F_offset[2] = -4.578;
+	//_T_offset[0] = -0.087;
+	//_T_offset[1] = -0.244;
+	//_T_offset[2] = 0.203;
+
 
 	// Start with offset from nothing attached, only screws in place pushing on sensor
 	// No hand, hand screws screwed in
@@ -98,21 +107,21 @@ ForceTorqueManager::ForceTorqueManager()
 
 	double ft_offset_pin[6];
 	// Next, adjust for tension provided by rod & middle pin: diff hand with pin vs hand no pin
-	// Hand attached and screwed, no middle pin connector
-	ft_offset_pin[X] = 3.682;
-	ft_offset_pin[Y] = 8.183;
-	ft_offset_pin[Z] = 6.142;
-	ft_offset_pin[X + 3] = -0.174;
-	ft_offset_pin[Y + 3] = 0.085;
-	ft_offset_pin[Z + 3] = 0.219;
+	// Hand attached and screwed, no middle pin connector and flat out (pitch ~ 0)
+	ft_offset_pin[X] = -0.525;
+	ft_offset_pin[Y] = 6.115;
+	ft_offset_pin[Z] = 7.748;
+	ft_offset_pin[X + 3] = -0.080;
+	ft_offset_pin[Y + 3] = -0.225;
+	ft_offset_pin[Z + 3] = 0.204;
 
-	// Hand fully attached
-	ft_offset_pin[X] -= 2.871;
-	ft_offset_pin[Y] -= 8.001;
-	ft_offset_pin[Z] -= -5.091;
-	ft_offset_pin[X + 3] -= -0.166;
-	ft_offset_pin[Y + 3] -= 0.030;
-	ft_offset_pin[Z + 3] -= 0.207;
+	// Hand fully attached (pitch ~ 0)
+	ft_offset_pin[X] -= -0.141;
+	ft_offset_pin[Y] -= 6.691;
+	ft_offset_pin[Z] -= -4.578;
+	ft_offset_pin[X + 3] -= -0.087;
+	ft_offset_pin[Y + 3] -= -0.244;
+	ft_offset_pin[Z + 3] -= 0.203;
 	
 	// Finally, combine the two
 	_F_offset[X] -= ft_offset_pin[X];
@@ -152,7 +161,7 @@ void ForceTorqueManager::zero_offsets()
 	_T_offset[Z] = _T_offset[Z] + _compensated_FT[Z+3];
 }
 
-void ForceTorqueManager::ReadForceTorque()
+void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 {
 	char read_pos_str[256];
 	for (int i=0; i < FT_SIZE; i++)
@@ -167,7 +176,7 @@ void ForceTorqueManager::ReadForceTorque()
 	//std::array<double, 3> R = { 0 };
 	//estimate_r(_raw_FT, R);
 
-	compensate_hand_FT();
+	compensate_hand_FT(wrist_angle);
 
 	gotoxy(PRINT_F_RAW);
 	printf(" F_raw:       Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", _raw_FT[0], _raw_FT[1], _raw_FT[2]);
@@ -183,7 +192,7 @@ void ForceTorqueManager::ReadForceTorque()
 	printf(" T EE Frame:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
 }
 
-void ForceTorqueManager::compensate_hand_FT()
+void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 {
 	Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
 	Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
@@ -211,15 +220,16 @@ void ForceTorqueManager::compensate_hand_FT()
 	Rw2FT_s = Rh2FT_s * Rw2e;
 
 	//Mg_w = 0, 0, _Mg_w[Z];
-	Mg_w = -0.7792, 1.0664, -3.6563;
+	//Mg_w = -0.7792, 1.0664, -3.6563;
+	Mg_w = -0.7792, 1.0664, _Mg_w[Z];
 	r_vect = _R[X], _R[Y], _R[Z];
 	
 	F_offset = _F_offset[X], _F_offset[Y], _F_offset[Z];
 	T_offset = _T_offset[X], _T_offset[Y], _T_offset[Z];
 
-	F_tension = _tension_const * _tension_angle;
+	F_tension = 0, 0, _tension_const * abs(wrist_angle + 14.3);
 	F_grav = Rw2FT_s * Mg_w;
-	F_bias = Rw2FT_s * Mg_w + F_offset;
+	F_bias = Rw2FT_s * Mg_w + F_offset + F_tension;
 
 	T_grav = crossProduct(r_vect, F_grav);
 	T_bias = T_grav + T_offset;

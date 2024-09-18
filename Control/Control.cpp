@@ -670,7 +670,8 @@ int main(int argc, char* argv[])
 		}
 
 		IntPerc.do_interact_perceive(); // Only runs if interact_perceive_state is true
-		FTMgr.ReadForceTorque();
+		// Read force torque
+		FTMgr.ReadForceTorque(pos[4]);
 		IntPerc.check_force(); // Only checks if interact_perceive_state is true
 		ReadPosit();
 		ReadPosit2();
