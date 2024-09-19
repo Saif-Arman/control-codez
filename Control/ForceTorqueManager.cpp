@@ -27,6 +27,7 @@ ForceTorqueManager::ForceTorqueManager()
 	std::fill(std::begin(_FT_ee), std::end(_FT_ee), 0);
 	std::fill(std::begin(_F_ee), std::end(_F_ee), 0);
 	std::fill(std::begin(_T_ee), std::end(_T_ee), 0);
+	_calibration_status = STOPPED;
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
 	_Mg_w[1] = 0;
@@ -37,6 +38,8 @@ ForceTorqueManager::ForceTorqueManager()
 	_R[2] = 0.0778;
 
 	_tension_const = 0;
+
+	_wrist_offset = 14.3;
 
 	// With nothing attached
 	//_F_offset[0] = 5.387;
@@ -178,6 +181,9 @@ void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 
 	compensate_hand_FT(wrist_angle);
 
+	if (STOPPED != _calibration_status)
+		update_calibration();
+
 	gotoxy(PRINT_F_RAW);
 	printf(" F_raw:       Fx: %7.3f, Fy: %7.3f, Fz: %7.3f ", _raw_FT[0], _raw_FT[1], _raw_FT[2]);
 	gotoxy(PRINT_T_RAW);
@@ -221,13 +227,13 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 
 	//Mg_w = 0, 0, _Mg_w[Z];
 	//Mg_w = -0.7792, 1.0664, -3.6563;
-	Mg_w = -0.7792, 1.0664, _Mg_w[Z];
+	Mg_w = _Mg_w[X], _Mg_w[Y], _Mg_w[Z];
 	r_vect = _R[X], _R[Y], _R[Z];
 	
 	F_offset = _F_offset[X], _F_offset[Y], _F_offset[Z];
 	T_offset = _T_offset[X], _T_offset[Y], _T_offset[Z];
 
-	F_tension = 0, 0, _tension_const * abs(wrist_angle + 14.3);
+	F_tension = 0, 0, _tension_const * pow(abs(wrist_angle + _wrist_offset), 2);
 	F_grav = Rw2FT_s * Mg_w;
 	F_bias = Rw2FT_s * Mg_w + F_offset + F_tension;
 
@@ -343,4 +349,129 @@ void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, st
 
 	gotoxy(PRINT_R);
 	printf("              Rx: %7.3f, Ry: %7.3f, Rz: %7.3f ", R[X], R[Y], R[Z]);
+}
+
+void ForceTorqueManager::build_calibration_cloud()
+{
+	if (STOPPED == _calibration_status)
+		_calibration_status = STARTING;
+}
+
+void ForceTorqueManager::cancel_calibration()
+{
+	_calibration_status = STOPPED;
+}
+
+void ForceTorqueManager::write_to_cal_file()
+{
+	std::ofstream calibration_file;
+	calibration_file.open("C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud.csv", std::ios_base::app);
+	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << "," << pos[6] << ",";
+	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << "," << _raw_FT[6] << "\n";
+	calibration_file.close();
+}
+
+void ForceTorqueManager::update_calibration()
+{
+	static float home_x = 0;
+	static float home_y = 0;
+	static float home_z = 0;
+	static float home_roll = 0;
+	static float home_pitch = 0;
+	static float home_yaw = 0;
+
+	static float min_yaw = 0;
+	static float max_yaw = 0;
+
+	static float min_pitch = 0;
+	static float max_pitch = 0;
+
+	static float min_roll = 0;
+	static float max_roll = 0;
+
+	static int i = 0;
+	static int j = 0;
+	static int k = 0;
+
+	switch (_calibration_status)
+	{
+		case(STARTING):
+		{
+			float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
+			go_to_position(new_pos);
+
+			gotoxy(1, 46);
+			std::cout << "\r                                                     \r";
+			std::cout << "Going to home position ...";
+			
+			_calibration_status = FIRST_HOME;
+			break;
+		} // STARTING
+		case(FIRST_HOME):
+		{
+			if (job_complete)
+			{
+				home_x = pos[0];
+				home_y = pos[1];
+				home_z = pos[2];
+				home_yaw = pos[3];
+				home_pitch = pos[4];
+				home_roll = pos[5];
+
+				min_yaw = home_yaw - 10;
+				max_yaw = home_yaw + 10;
+
+				min_pitch = home_pitch - 10;
+				max_pitch = home_pitch + 10;
+
+				min_roll = home_roll - 10;
+				max_roll = home_roll + 10;
+
+				i = 1;
+				j = 1;
+				k = 1;
+
+				_calibration_status = START_CLOUD;
+			}
+			else
+			{
+				gotoxy(1, 46);
+				std::cout << "\r                                                     \r";
+				std::cout << "Going to next position ...";
+			}
+			break;
+		} // FIRST_HOME
+		case(START_CLOUD):
+		{
+			if (job_complete)
+			{
+				if (i <= 10)
+				{
+					write_to_cal_file();
+					float next_yaw = min_yaw + static_cast<float>(i) * 2.0f;
+					float new_pos[6] = { -450, 100, -45, next_yaw, min_pitch, min_roll };
+					i++;
+					go_to_position(new_pos);
+				}
+				else
+				{
+					float home_pos[6] = { -450, 100, -45, 180, 5, 180 };
+					go_to_position(home_pos);
+					_calibration_status = STOPPED;
+
+					gotoxy(1, 46);
+					std::cout << "\r                                                     \r";
+					std::cout << "Calibration complete!";
+				}
+			}
+			else
+			{
+				gotoxy(1, 46);
+				std::cout << "\r                                                     \r";
+				std::cout << "Going to next position ...";
+			}
+
+			break;
+		} // START_CLOUD
+	} // end switch
 }

@@ -17,10 +17,10 @@
 #define MAX_CART_YPR			6
 
 //#define	T_ERR_BOUND				(1.0f)
-#define	T_ERR_BOUND				(0.5f)// Nick 2024
+#define	T_ERR_BOUND				(0.3f)// Nick 2024
 #define J_ERR_BOUND             (0.25f)
 //#define	R_ERR_BOUND				(2.0f)
-#define	R_ERR_BOUND				(0.5f) // Nick 2024
+#define	R_ERR_BOUND				(0.3f) // Nick 2024
 #define MAX_CART_T				(5.0f)
 #define R_V_ERR_YAW				(0.05f)
 #define R_V_ERR_PITCH			(0.05f)

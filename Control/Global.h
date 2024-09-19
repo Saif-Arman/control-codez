@@ -371,6 +371,7 @@ extern bool store_time_info;
 extern bool firstAccess;
 extern bool auto_mode_start;
 extern bool home_pos_flag;
+extern bool new_position_flag;
 extern bool test_x_flag;
 extern bool job_complete2;
 extern bool job_done;
@@ -425,5 +426,6 @@ extern float Vy_ee;
 extern float Vz_ee;
 extern float time_y_ini;
 extern int counter;
+extern float new_position[6];
 
 #endif

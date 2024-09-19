@@ -1311,6 +1311,7 @@ void ResetAll(void)
 		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
 	}
 	IntPerc.end_interact_perceive_grasp();
+	FTMgr.cancel_calibration();
 }
 
 //-----------------------------------------------------------------------------------
@@ -1718,7 +1719,7 @@ void ManualControl(char ch)
 		gotoxy(1, 47);
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 47);
-		std::cout << "C=Zero Offsets, Y=Tension:  ";
+		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, C=Make Calibration Cloud:  ";
 		char type;
 		std::cin >> type;
 		// Clear what we just sent to the screen
@@ -1730,10 +1731,16 @@ void ManualControl(char ch)
 
 		switch (type)
 		{
-			case 'C': // Zero offsets with current readings
+			case 'Z': // Zero offsets with current readings
 			{
 				FTMgr.zero_offsets();
 				printf("Set F/T offsets to current values.");
+				break;
+			}
+			case 'C': // Build calibration cloud around home pos
+			{
+				FTMgr.build_calibration_cloud();
+				printf("Calibration cloud built.");
 				break;
 			}
 			case 'F': // FT sensor Force offsets
@@ -1828,17 +1835,35 @@ void ManualControl(char ch)
 			}
 			case 'W': // Weight
 			{
-				std::cout << "Current weight: " << FTMgr.get_weight() << ". Input new weight: ";
-				double newoffset;
-				std::cin >> newoffset;
-				if (-100 < newoffset < 100)
-					FTMgr.set_weight(newoffset);
+
+				std::array<double, 3> weight = FTMgr.get_weight();
+				std::cout << "Current weight (XYZ): " << weight[0] << ", " << weight[1] << ", " << weight[2] << ". Select X, Y, OR Z: ";
+				char newdir;
+				std::cin >> newdir;
+				if ('X' == newdir)
+					newdir = 0;
+				else if ('Y' == newdir)
+					newdir = 1;
+				else if ('Z' == newdir)
+					newdir = 2;
+				else
+				{
+					printf("ERROR: INVALID AXIS SELECTED.");
+					break;
+				}
+
+				std::cout << "Select new weight: ";
+				double newweight;
+				std::cin >> newweight;
+				if (-100 < newweight < 100)
+					FTMgr.set_weight(newdir, newweight);
 				else
 					printf("Invalid weight.");
 
 				gotoxy(1, 46);
 				std::cout << "\r                                                                \r";
-				std::cout << "Current weight: " << FTMgr.get_weight();
+				weight = FTMgr.get_weight();
+				std::cout << "Current weight (XYZ): " << weight[0] << ", " << weight[1] << ", " << weight[2];
 				break;
 			}
 			case 'S': // Speed
@@ -1876,6 +1901,26 @@ void ManualControl(char ch)
 				std::cout << "New tension constant: " << FTMgr.get_tension_const();
 				break;
 			} // end (Y) tension switch
+			case 'A': // Wrist angle offset
+			{
+				std::cout << "Wrist angle offset for tension: " << FTMgr.get_angle_offset() << ". Select new value (-100 < val < 100): ";
+				double newval;
+				std::cin >> newval;
+				if (-100 < newval && newval < 100)
+				{
+					FTMgr.set_angle_offset(newval);
+				}
+				else
+				{
+					std::cout << "Invalid value selected!";
+				}
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                                                     \r";
+				gotoxy(1, 46);
+				std::cout << "New angle offset: " << FTMgr.get_angle_offset();
+				break;
+			} // end (A) angle offset
 			default:
 			{
 				std::cout << "Invalid selection.";
@@ -2792,44 +2837,54 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 				auto_mode_start = true;
 				if (home_pos_flag == true)	// go to preset home position 1, 2, 3, 4.
 				{
-					char home_pos_str[256];
-					if (pos_index != 911)
+					if (true == new_position_flag)
 					{
-						sprintf_s(home_pos_str, "C:\\MANUS\\CommonSpace\\Setting\\home_pos%d.txt", pos_index);
-						FILE* fid2 = fopen(home_pos_str, "r");
-						if (fid2 != NULL)
-						{
-							float pd_h[6] = {};
-							for (int i = 0; i < 6; ++i)
-							{
-								fscanf_s(fid2, "%f ", &pd_h[i]);
-								pd[i] = (pd_h[i] == -1.0f) ? pos[i] : pd_h[i];
-							}
-							fclose(fid2);
-						}
-						else
-						{
-							cerr << "[Error]: Can not find home_pos file!" << endl;
-							for (int i = 0; i < 6; ++i)
-								pd[i] = pos[i];
-						}
-					}
-					else // pos_index = 911
-					{
-						bool empty_flag = false;
-						adjust_queue_index(-1);
 						for (int i = 0; i < 6; ++i)
 						{
-							if (good_pos[pos_queue_index][i])
-								pd[i] = good_pos[pos_queue_index][i];
+							pd[i] = (new_position[i] == -1.0f) ? pos[i] : new_position[i];
+						}
+					}
+					else
+					{
+						char home_pos_str[256];
+						if (pos_index != 911)
+						{
+							sprintf_s(home_pos_str, "C:\\MANUS\\CommonSpace\\Setting\\home_pos%d.txt", pos_index);
+							FILE* fid2 = fopen(home_pos_str, "r");
+							if (fid2 != NULL)
+							{
+								float pd_h[6] = {};
+								for (int i = 0; i < 6; ++i)
+								{
+									fscanf_s(fid2, "%f ", &pd_h[i]);
+									pd[i] = (pd_h[i] == -1.0f) ? pos[i] : pd_h[i];
+								}
+								fclose(fid2);
+							}
 							else
 							{
-								empty_flag = true;
-								pd[i] = pos[i];
+								cerr << "[Error]: Can not find home_pos file!" << endl;
+								for (int i = 0; i < 6; ++i)
+									pd[i] = pos[i];
 							}
 						}
-						if (empty_flag)
-							adjust_queue_index(+1);
+						else // pos_index = 911
+						{
+							bool empty_flag = false;
+							adjust_queue_index(-1);
+							for (int i = 0; i < 6; ++i)
+							{
+								if (good_pos[pos_queue_index][i])
+									pd[i] = good_pos[pos_queue_index][i];
+								else
+								{
+									empty_flag = true;
+									pd[i] = pos[i];
+								}
+							}
+							if (empty_flag)
+								adjust_queue_index(+1);
+						}
 					}
 				}
 			}
@@ -2852,6 +2907,20 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 
 		break;
 	}
+}
+
+void go_to_position(float new_pos[6])
+{
+	for (int i = 0; i < 6; i++)
+	{
+		new_position[i] = new_pos[i];
+	}
+
+	mode = AUTO_MODE;
+	new_position_flag = true;
+	home_pos_flag = true;
+	job_complete = false;
+	job_complete2 = true;
 }
 
 // This function will set the ID, lenght of package and 8 bits of data into the CAN buffer.
@@ -2941,7 +3010,8 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 int pd_control2(void)
 {
 	// INITIALIZATION
-	float Kp[6] = { 2, 2, 2, 0.8, 0.7, 0.6 };
+	//float Kp[6] = { 2, 2, 2, 0.8, 0.7, 0.6 };
+	float Kp[6] = { 2, 2, 2, 0.2, 0.2, 0.2 };
 
 	float pprev1[6] = {};
 	float eprev1[6] = {};
@@ -2956,62 +3026,46 @@ int pd_control2(void)
 	if (home_pos_flag == true)
 	{
 		// go to preset pos
-		float tmp1, tmp2;
 		for (int i = 0; i < 6; ++i)
 		{
-			//if (i == 5) // roll -180 ~ 180 : linear scailing
-			//{
-			//	tmp1 = (180.0f - pd[i]) - (180.0f - pprev1[i]);
-			//	if (tmp1 >= 0.0f)
-			//		if (tmp1 <= 180.0f)
-			//			tmp2 = tmp1;
-			//		else
-			//			tmp2 = tmp1 - 360.0f;
-			//	else
-			//		if (tmp1 > -180.0f)
-			//			tmp2 = tmp1;
-			//		else
-			//			tmp2 = 360.0f + tmp1;
-
-			//	eprev1[i] = tmp2;
-			//}
-			//else
-			eprev1[i] = pd[i] - pprev1[i];
-
-			float control_input = Kp[i] * eprev1[i];
-
-			gotoxy(1, 47);
-			std::cout << "\r                                                     \r";
-
-			if (i < 3)
+			if (i == 5) // roll -180 ~ 180 : linear scaling
 			{
-				//speed[i + 1] = (fabs(control_input) > linear_speed_limit[speed_mode]) ? sign(control_input) * linear_speed_limit[speed_mode] : control_input;
-				if (fabs(control_input) > linear_speed_limit[speed_mode])
-				{
-					speed[i + 1] = sign(control_input) * linear_speed_limit[speed_mode];
-					std::cout << "Ax: " << i << ", Lim; ";
-				}
-				else
-				{
-					speed[i + 1] = control_input;
-					std::cout << "Ax: " << i << ", Ctl; ";
-				}
+				eprev1[i] = pprev1[i] - pd[i]; 
 			}
 			else
 			{
-				//speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
-				if (fabs(control_input) > angular_speed_limit[speed_mode])
+				eprev1[i] = pd[i] - pprev1[i];
+			}
+
+			if (i > 2) // for rotation, go the shortest route. don't spin around for no reason
+			{
+				if (eprev1[i] > 180.0f)
 				{
-					speed[i + 1] = sign(control_input) * angular_speed_limit[speed_mode];
-					std::cout << "Ax: " << i << ", Lim; ";
+					eprev1[i] -= 360.0f;
 				}
-				else
+				else if (eprev1[i] <= -180.0f)
 				{
-					speed[i + 1] = control_input;
-					std::cout << "Ax: " << i << ", Ctl; ";
+					eprev1[i] += 360.0f;
 				}
 			}
+
+			float control_input = Kp[i] * eprev1[i];
+
+			if (i < 3)
+			{
+				speed[i + 1] = (fabs(control_input) > linear_speed_limit[speed_mode]) ? sign(control_input) * linear_speed_limit[speed_mode] : control_input;
+			}
+			else
+			{
+				speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
+			}
+			// Minimum speed!!!!
+			if (speed[i + 1] > 0 && speed[i + 1] < 1.0)
+				speed[i + 1] = 1.0;
+			if (speed[i + 1] < 0 && speed[i + 1] > -1.0)
+				speed[i + 1] = -1.0;
 		}
+
 	}
 	else if (adjust_pos == true)
 	{
@@ -3192,7 +3246,7 @@ int pd_control2(void)
 
 	/* SHOW SPEED/TARGET/ERROR */
 	gotoxy(1, 22);
-	printf("[S] %.0f %.0f %.0f %.0f %.0f %.0f %.0f %.0f \n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
+	printf("[S] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
 	gotoxy(1, 23);
 	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
 	gotoxy(1, 26);
@@ -3223,28 +3277,45 @@ int pd_control2(void)
 		std::cout << "\r                                                     \r";
 		if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
 		{
-			std::cout << "Going to ROTATION home position flag ...";
-			//if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
-			//{
-			//	if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
-			//	{
-			//		job_done = true;
-			//		auto_mode_start = false;
-			//		home_pos_flag = false;
-			//		block_all_motions = false;
-			//	}
-			//}
-			//else
-			//	speed[6] = 0;	// set roll motion to 0
-			if ((fabs(eprev1[3]) < R_ERR_BOUND) && (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))	// yaw & pitch rotation control
+			if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
 			{
+				if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
+				{
 					job_done = true;
 					auto_mode_start = false;
 					home_pos_flag = false;
 					block_all_motions = false;
-					std::cout << "\r                                                     \r";
-					std::cout << "Done going home.";
+				}
 			}
+			else
+				speed[6] = 0;	// set roll motion to 0
+			//if (fabs(eprev1[3]) < R_ERR_BOUND) 
+			//{
+			//	if (fabs(eprev1[4]) < R_ERR_BOUND) 
+			//	{
+			//		if (fabs(eprev1[5]) < R_ERR_BOUND)	// yaw & pitch rotation control
+			//		{
+			//			job_done = true;
+			//			auto_mode_start = false;
+			//			home_pos_flag = false;
+			//			block_all_motions = false;
+			//			std::cout << "\r                                                     \r";
+			//			std::cout << "Done going home.";
+			//		}
+			//		else
+			//			std::cout << "Going to ROTATION home position flag, finding ROLL";
+			//	}
+			//	else
+			//	{
+			//		std::cout << "Going to ROTATION home position flag, finding PITCH";
+			//		speed[6] = 0;
+			//	}
+			//}
+			//else
+			//{
+			//	std::cout << "Going to ROTATION home position flag, finding YAW";
+			//	speed[6] = 0;
+			//}
 		}
 		else
 		{

@@ -112,6 +112,7 @@ int pd_control2( void );
 int pd_controlJoint( void );// A simple p control given the desired rotation of end effector.
 int checkOneSecond(void);
 int pd_controlx( void );							//
+void go_to_position(float new_pos[6]);
 
 //=============================================================================
 // Miscellaneous.
