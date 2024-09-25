@@ -167,6 +167,7 @@
     <ClInclude Include="GenericException.hpp" />
     <ClInclude Include="Global.h" />
     <ClInclude Include="InteractPerceive.h" />
+    <ClInclude Include="ControlLogger.h" />
     <ClInclude Include="Macro.h" />
     <ClInclude Include="MathException.hpp" />
     <ClInclude Include="Matrix.hpp" />
@@ -191,6 +192,7 @@
     <ClCompile Include="GenericException.cpp" />
     <ClCompile Include="Global.cpp" />
     <ClCompile Include="InteractPerceive.cpp" />
+    <ClCompile Include="ControlLogger.cpp" />
     <ClCompile Include="PCANBasicClass.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Transform.cpp" />

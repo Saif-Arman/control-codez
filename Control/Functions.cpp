@@ -156,6 +156,31 @@ Matrix<3, 3> EE2w_transform3(float* position)
 	return Rc2w;
 }
 
+// Get R Link 3 2 w rotational transform.  nickleo test?
+Matrix<3, 3> lt2w_transform3(float* position)
+{
+	Matrix<3, 3> Ry, Rp, Rc2w;
+
+	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
+	float c_p = static_cast<float>(-position[4] * M_PI / 180.0f);
+	float c_r = static_cast<float>(sign(position[5]) * (180 - abs(position[5])) * M_PI / 180.0f);
+	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1; // same axes just shifted origin along Z
+	Rp = cos(c_p), 0, sin(c_p), 0, 1, 0, -sin(c_p), 0, cos(c_p); // is this right??? this does not seem correct
+	//Rr = 1, 0, 0, 0, cos(c_r), -sin(c_r), 0, sin(c_r), cos(c_r);
+	Rc2w = Ry * Rp;
+
+	ColumnVector<3> Rm;
+	Rm = sqrt(Rc2w(1, 1) * Rc2w(1, 1) + Rc2w(2, 1) * Rc2w(2, 1) + Rc2w(3, 1) * Rc2w(3, 1)),
+		sqrt(Rc2w(1, 2) * Rc2w(1, 2) + Rc2w(2, 2) * Rc2w(2, 2) + Rc2w(3, 2) * Rc2w(3, 2)),
+		sqrt(Rc2w(1, 3) * Rc2w(1, 3) + Rc2w(2, 3) * Rc2w(2, 3) + Rc2w(3, 3) * Rc2w(3, 3));
+
+	Rc2w = Rc2w(1, 1) / Rm(1), Rc2w(1, 2) / Rm(2), Rc2w(1, 3) / Rm(3),
+		Rc2w(2, 1) / Rm(1), Rc2w(2, 2) / Rm(2), Rc2w(2, 3) / Rm(3),
+		Rc2w(3, 1) / Rm(1), Rc2w(3, 2) / Rm(2), Rc2w(3, 3) / Rm(3);
+
+	return Rc2w;
+}
+
 // Get Ree2w rotational transform.  zc test
 Matrix<3, 3> EE2w_transform2(float* position)
 {
@@ -404,14 +429,7 @@ float DistanceBetween_Camera_Link3(float* position)
 	p4 = R06 * p4_c + p2;
 
 	dist = dist3D_Segment_to_Segment(p1, p2, p3, p4);
-	if (dist <= r)
-	{
-		collision = 1;
-	}
-	else 
-	{
-		collision = 0;
-	}
+	collision = (dist <= r) ? 1 : 0;
 
 	return dist;
 }
@@ -1300,6 +1318,7 @@ void ResetAll(void)
 	retreat_flag = false;
 	auto_mode_start = false;	// set it to the first status;; new auto-mode objective will be given
 	home_pos_flag = false;		// reset home_pos_flag
+	new_position_flag = false;
 	adjust_pos = false;
 	grab_in_progress = false;
 	lift_in_progress = false;
@@ -1335,6 +1354,7 @@ void ResetAll2(void) /// mushtaq
 	retreat_flag = false;
 	auto_mode_start = false;	// set it to the first status;; new auto-mode objective will be given
 	home_pos_flag = false;		// reset home_pos_flag
+	new_position_flag = false;
 	adjust_pos = false;
 	grab_in_progress = false;
 	lift_in_progress = false;
@@ -1740,7 +1760,6 @@ void ManualControl(char ch)
 			case 'C': // Build calibration cloud around home pos
 			{
 				FTMgr.build_calibration_cloud();
-				printf("Calibration cloud built.");
 				break;
 			}
 			case 'F': // FT sensor Force offsets
@@ -2018,8 +2037,8 @@ void ManualControl(char ch)
 	case ' ':
 	{
 		stop_arm();
+		break;
 	}
-	break;
 	case EXIT:
 		gotoxy(1, 38);
 		if (!UnloadAll())
@@ -2206,13 +2225,17 @@ void ManualControl(char ch)
 		ShowCommand("COM: User Position#0 \n");
 		break;
 	case ',': // pre set pos 2 wz 07282011
-		mode = AUTO_MODE;
-		home_pos_flag = true;
-		job_complete = false;
-		job_complete2 = true;
-		pos_index = 99;
+	{
+		//mode = AUTO_MODE;
+		//home_pos_flag = true;
+		//job_complete = false;
+		//job_complete2 = true;
+		//pos_index = 99;
+		float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
+		go_to_position(new_pos);
 		ShowCommand("COM: User Position#1 \n");
 		break;
+	}
 	case '.': // pre set pos 3 wz 07282011
 		mode = AUTO_MODE;
 		home_pos_flag = true;
@@ -2673,10 +2696,12 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			pos[3] = pos[3];// +90;//-0*1.2,  mushtaq Jan 2022 for corecting yaw angle
 			pos[4] = pos[4] - 2.3;//-0*2.6, was -8.3  May 2 ,2019
 			pos[5] = pos[5] - 0.6;//zc -0*5.2, was -9 
+
 			if (pos[5] < -180.0f)
-				pos[5] = 360.0f - abs(pos[5]);
-			else if (pos[5] > 180.0f) // Added by Nick July 2024
-				pos[5] = -360.0f + abs(pos[5]);
+				pos[5] += 360.0f;
+			else if (pos[5] > 180.0f)
+				pos[5] -= 360.0f;
+
 			if (reverse_flag)
 				pos[5] = (pos[5] > 0) ? pos[5] - 180.0f : pos[5] + 180.0f;
 
@@ -2966,24 +2991,25 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 	switch (cbox)
 	{
 	case CARTESIAN:
-	      {xmitMsg.ID = 0x371;
-	       xmitMsg.LEN = 8;
-	        //float spd_x = -speed[1]; // correct the issue of control box // mushtaq feb 2022// 
-	        //float spd_y = speed[2];
-	         /*speed[1] = -spd_y;
-	        speed[2] = spd_x;*/
+		{
+			xmitMsg.ID = 0x371;
+			xmitMsg.LEN = 8;
+			//float spd_x = -speed[1]; // correct the issue of control box // mushtaq feb 2022// 
+			//float spd_y = speed[2];
+			/*speed[1] = -spd_y;
+			speed[2] = spd_x;*/
 			/*xmitMsg.RDATA[0] = (BYTE)speed[0];
 			xmitMsg.RDATA[1] = (BYTE)spd_y;
 			xmitMsg.RDATA[2] = (BYTE)spd_x;*/
-	     for (int i = 0; i < xmitMsg.LEN; i++)
-	          {
-
-		     // Cartesian movement data.	
-		        xmitMsg.RDATA[i] = (BYTE)speed[i];
-		    //gotoxy(1, 52);
-		     //cout << TimeCheck() << endl;
-	          }
-	       break; }
+			for (int i = 0; i < xmitMsg.LEN; i++)
+			{
+				// Cartesian movement data.	
+				xmitMsg.RDATA[i] = (BYTE)speed[i];
+				//gotoxy(1, 52);
+				//cout << TimeCheck() << endl;
+			}
+			break;
+		}
 	case JOINT:
 		xmitMsg.ID = 0x374;
 		xmitMsg.LEN = 8;
@@ -3010,8 +3036,8 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 int pd_control2(void)
 {
 	// INITIALIZATION
-	//float Kp[6] = { 2, 2, 2, 0.8, 0.7, 0.6 };
-	float Kp[6] = { 2, 2, 2, 0.2, 0.2, 0.2 };
+	float Kp[6] = { 2, 2, 2, 0.8, 0.7, 0.6 };
+	//float Kp[6] = { 2, 2, 2, 0.2, 0.2, 0.2 };
 
 	float pprev1[6] = {};
 	float eprev1[6] = {};
@@ -3273,8 +3299,6 @@ int pd_control2(void)
 	/* [S] CONTROL OBJECTIVE */
 	if (home_pos_flag == true)	// set to home position
 	{
-		gotoxy(1, 46);
-		std::cout << "\r                                                     \r";
 		if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
 		{
 			if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
@@ -3284,42 +3308,15 @@ int pd_control2(void)
 					job_done = true;
 					auto_mode_start = false;
 					home_pos_flag = false;
+					new_position_flag = false;
 					block_all_motions = false;
 				}
 			}
 			else
 				speed[6] = 0;	// set roll motion to 0
-			//if (fabs(eprev1[3]) < R_ERR_BOUND) 
-			//{
-			//	if (fabs(eprev1[4]) < R_ERR_BOUND) 
-			//	{
-			//		if (fabs(eprev1[5]) < R_ERR_BOUND)	// yaw & pitch rotation control
-			//		{
-			//			job_done = true;
-			//			auto_mode_start = false;
-			//			home_pos_flag = false;
-			//			block_all_motions = false;
-			//			std::cout << "\r                                                     \r";
-			//			std::cout << "Done going home.";
-			//		}
-			//		else
-			//			std::cout << "Going to ROTATION home position flag, finding ROLL";
-			//	}
-			//	else
-			//	{
-			//		std::cout << "Going to ROTATION home position flag, finding PITCH";
-			//		speed[6] = 0;
-			//	}
-			//}
-			//else
-			//{
-			//	std::cout << "Going to ROTATION home position flag, finding YAW";
-			//	speed[6] = 0;
-			//}
 		}
 		else
 		{
-			std::cout << "Going to XYZ home position flag ...";
 			for (int i = 3; i < 6; i++)	// set all the rotation motion to 0
 				speed[i + 1] = 0;
 		}

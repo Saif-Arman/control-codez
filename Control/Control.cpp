@@ -399,48 +399,46 @@ int main(int argc, char* argv[])
 				{
 					for (int i = 3; i < 6; i++)
 					{
-						if (i == 5) // roll -180 ~ 180 : linear scailing
+						if (i == 5) // roll -180 ~ 180 : linear scaling
 						{
-							/*tmp1 = (180.0f - pd[i]) - (180.0f - pos[i]);*/ // why is this 180 here? Nick 2024
-							tmp1 = pos[i] - pd[i];
-							if (tmp1 >= 0.0f)
-							{
-								if (tmp1 <= 180.0f)
-									tmp2 = tmp1;
-								else
-									tmp2 = std::fmodf(tmp1, 360.0f); // Nick 2024
-									/*tmp2 = tmp1 - 360.0f;*/ 
-							}
-							else
-							{
-								if (tmp1 > -180.0f)
-									tmp2 = tmp1;
-								else
-									tmp2 = std::fmodf(tmp1, 360.0f); // Nick 2024
-									//tmp2 = 360.0f + tmp1;
-							}
-							eprev1[i] = tmp2;
+							eprev1[i] = pos[i] - pd[i];
 						}
 						else
+						{
 							eprev1[i] = pd[i] - pos[i];
+						}
+
+						if (eprev1[i] > 180.0f)
+						{
+							eprev1[i] -= 360.0f;
+						}
+						else if (eprev1[i] <= -180.0f)
+						{
+							eprev1[i] += 360.0f;
+						}
 
 						control_input = Kp[i] * eprev1[i];
-						float speed_limit = angular_speed_limit[speed_mode] * 1.0f;
-						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
+						speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
+						
+						// Minimum speed = +/- 1
+						if (speed[i + 1] > 0 && speed[i + 1] < 1.0)
+							speed[i + 1] = 1.0f;
+						else if (speed[i + 1] < 0 && speed[i + 1] > -1.0)
+							speed[i + 1] = -1.0f;
 					}
 
-					if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
+					if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))	// yaw & pitch & roll rotation control
 					{
-						speed[4] = 0; 
-						speed[5] = 0;
+						//speed[4] = 0; 
+						//speed[5] = 0;
 
-						if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
-						{
+						//if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
+						//{
 							rotation_start2 = false;
 							speed[4] = 0;
 							speed[5] = 0;
 							speed[6] = 0;
-						}
+						//}
 					}
 					else
 						speed[6] = 0;

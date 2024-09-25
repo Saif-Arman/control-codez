@@ -7,6 +7,7 @@
 #include <math.h> 
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <deque>
 
 #define PRINT_F_RAW 1, 32
@@ -27,7 +28,11 @@ ForceTorqueManager::ForceTorqueManager()
 	std::fill(std::begin(_FT_ee), std::end(_FT_ee), 0);
 	std::fill(std::begin(_F_ee), std::end(_F_ee), 0);
 	std::fill(std::begin(_T_ee), std::end(_T_ee), 0);
+	_Rw2FT_s = 0, 0, 0,
+			   0, 0, 0,
+			   0, 0, 0;
 	_calibration_status = STOPPED;
+	_logger = ControlLogger::getInstance();
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
 	_Mg_w[1] = 0;
@@ -58,12 +63,12 @@ ForceTorqueManager::ForceTorqueManager()
 	//_T_offset[2] = 0.216;
 
 	// No hand, hand screws screwed in
-	//_F_offset[0] = 3.729;
-	//_F_offset[1] = 4.619;
-	//_F_offset[2] = 5.491;
-	//_T_offset[0] = 0.334;
-	//_T_offset[1] = -0.282;
-	//_T_offset[2] = 0.217;
+	_F_offset[0] = 3.729;
+	_F_offset[1] = 4.619;
+	_F_offset[2] = 5.491;
+	_T_offset[0] = 0.334;
+	_T_offset[1] = -0.282;
+	_T_offset[2] = 0.217;
 
 	// Hand attached and screwed, no middle pin connector
 	//_F_offset[0] = 3.682;
@@ -99,41 +104,43 @@ ForceTorqueManager::ForceTorqueManager()
 	//_T_offset[2] = 0.203;
 
 
-	// Start with offset from nothing attached, only screws in place pushing on sensor
-	// No hand, hand screws screwed in
-	_F_offset[X] = 3.729;
-	_F_offset[Y] = 4.619;
-	_F_offset[Z] = 5.491;
-	_T_offset[X] = 0.334;
-	_T_offset[Y] = -0.282;
-	_T_offset[Z] = 0.217;
+	//// -----------------------------------------------------------------------------------------------------------------
+	//// Start with offset from nothing attached, only screws in place pushing on sensor
+	//// No hand, hand screws screwed in
+	//_F_offset[X] = 3.729;
+	//_F_offset[Y] = 4.619;
+	//_F_offset[Z] = 5.491;
+	//_T_offset[X] = 0.334;
+	//_T_offset[Y] = -0.282;
+	//_T_offset[Z] = 0.217;
 
-	double ft_offset_pin[6];
-	// Next, adjust for tension provided by rod & middle pin: diff hand with pin vs hand no pin
-	// Hand attached and screwed, no middle pin connector and flat out (pitch ~ 0)
-	ft_offset_pin[X] = -0.525;
-	ft_offset_pin[Y] = 6.115;
-	ft_offset_pin[Z] = 7.748;
-	ft_offset_pin[X + 3] = -0.080;
-	ft_offset_pin[Y + 3] = -0.225;
-	ft_offset_pin[Z + 3] = 0.204;
+	//double ft_offset_pin[6];
+	//// Next, adjust for tension provided by rod & middle pin: diff hand with pin vs hand no pin
+	//// Hand attached and screwed, no middle pin connector and flat out (pitch ~ 0)
+	//ft_offset_pin[X] = -0.525;
+	//ft_offset_pin[Y] = 6.115;
+	//ft_offset_pin[Z] = 7.748;
+	//ft_offset_pin[X + 3] = -0.080;
+	//ft_offset_pin[Y + 3] = -0.225;
+	//ft_offset_pin[Z + 3] = 0.204;
 
-	// Hand fully attached (pitch ~ 0)
-	ft_offset_pin[X] -= -0.141;
-	ft_offset_pin[Y] -= 6.691;
-	ft_offset_pin[Z] -= -4.578;
-	ft_offset_pin[X + 3] -= -0.087;
-	ft_offset_pin[Y + 3] -= -0.244;
-	ft_offset_pin[Z + 3] -= 0.203;
+	//// Hand fully attached (pitch ~ 0)
+	//ft_offset_pin[X] -= -0.141;
+	//ft_offset_pin[Y] -= 6.691;
+	//ft_offset_pin[Z] -= -4.578;
+	//ft_offset_pin[X + 3] -= -0.087;
+	//ft_offset_pin[Y + 3] -= -0.244;
+	//ft_offset_pin[Z + 3] -= 0.203;
+	//
+	//// Finally, combine the two
+	//_F_offset[X] -= ft_offset_pin[X];
+	//_F_offset[Y] -= ft_offset_pin[Y];
+	//_F_offset[Z] -= ft_offset_pin[Z];
+	//_T_offset[X] -= ft_offset_pin[X + 3];
+	//_T_offset[Y] -= ft_offset_pin[Y + 3];
+	//_T_offset[Z] -= ft_offset_pin[Z + 3];
 	
-	// Finally, combine the two
-	_F_offset[X] -= ft_offset_pin[X];
-	_F_offset[Y] -= ft_offset_pin[Y];
-	_F_offset[Z] -= ft_offset_pin[Z];
-	_T_offset[X] -= ft_offset_pin[X + 3];
-	_T_offset[Y] -= ft_offset_pin[Y + 3];
-	_T_offset[Z] -= ft_offset_pin[Z + 3];
-	
+	//// -----------------------------------------------------------------------------------------------------------------
 	// More offsets for left facing position :/
 	//_F_offset[X] = 4.165;
 	//_F_offset[Y] = 2.67;
@@ -201,7 +208,7 @@ void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 {
 	Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
-	Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
+	//Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
 	Matrix<3, 3> Rw2e;			// Rotation world to end effector (hand)
 	ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
 	ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
@@ -223,7 +230,7 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 				0.9968, -0.0098, -0.0796; // Mushtaq rotation
 	
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
-	Rw2FT_s = Rh2FT_s * Rw2e;
+	_Rw2FT_s = Rh2FT_s * Rw2e;
 
 	//Mg_w = 0, 0, _Mg_w[Z];
 	//Mg_w = -0.7792, 1.0664, -3.6563;
@@ -234,8 +241,8 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 	T_offset = _T_offset[X], _T_offset[Y], _T_offset[Z];
 
 	F_tension = 0, 0, _tension_const * pow(abs(wrist_angle + _wrist_offset), 2);
-	F_grav = Rw2FT_s * Mg_w;
-	F_bias = Rw2FT_s * Mg_w + F_offset + F_tension;
+	F_grav = _Rw2FT_s * Mg_w;
+	F_bias = _Rw2FT_s * Mg_w + F_offset + F_tension;
 
 	T_grav = crossProduct(r_vect, F_grav);
 	T_bias = T_grav + T_offset;
@@ -245,11 +252,11 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 	gotoxy(1, 50);
 	printf(" T grav:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", T_grav(1), T_grav(2), T_grav(3));
 	gotoxy(1, 51);
-	printf(" Rw2FT_s: %7.3f, %7.3f, %7.3f,", Rw2FT_s(1, 1), Rw2FT_s(1, 2), Rw2FT_s(1, 3));
+	printf(" Rw2FT_s: %7.3f, %7.3f, %7.3f,", _Rw2FT_s(1, 1), _Rw2FT_s(1, 2), _Rw2FT_s(1, 3));
 	gotoxy(1, 52);
-	printf("          %7.3f, %7.3f, %7.3f,", Rw2FT_s(2, 1), Rw2FT_s(2, 2), Rw2FT_s(2, 3));
+	printf("          %7.3f, %7.3f, %7.3f,", _Rw2FT_s(2, 1), _Rw2FT_s(2, 2), _Rw2FT_s(2, 3));
 	gotoxy(1, 53);
-	printf("          %7.3f, %7.3f, %7.3f,", Rw2FT_s(3, 1), Rw2FT_s(3, 2), Rw2FT_s(3, 3));
+	printf("          %7.3f, %7.3f, %7.3f,", _Rw2FT_s(3, 1), _Rw2FT_s(3, 2), _Rw2FT_s(3, 3));
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -270,6 +277,13 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 		_FT_ee[i + 3] = _T_ee[i];
 	}
 }
+
+//aaaa
+// get pos of link3 end
+// get pos of end effector
+// get intersect ? is end effector straight line to link3 end?
+// pitch is always world frame sooooo convert from world to link3 frame?
+// calc angle?? profit??
 
 void ForceTorqueManager::compensate_hand_FT_orig()
 {
@@ -366,8 +380,11 @@ void ForceTorqueManager::write_to_cal_file()
 {
 	std::ofstream calibration_file;
 	calibration_file.open("C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud.csv", std::ios_base::app);
-	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << "," << pos[6] << ",";
-	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << "," << _raw_FT[6] << "\n";
+	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << ",";
+	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << ",";
+	calibration_file << _Rw2FT_s(1, 1) << "," << _Rw2FT_s(1, 2) << "," << _Rw2FT_s(1, 3) << ",";
+	calibration_file << _Rw2FT_s(2, 1) << "," << _Rw2FT_s(2, 2) << "," << _Rw2FT_s(2, 3) << ",";
+	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << "\n";
 	calibration_file.close();
 }
 
@@ -376,9 +393,14 @@ void ForceTorqueManager::update_calibration()
 	static float home_x = 0;
 	static float home_y = 0;
 	static float home_z = 0;
+
 	static float home_roll = 0;
 	static float home_pitch = 0;
 	static float home_yaw = 0;
+
+	static float next_roll = 0;
+	static float next_pitch = 0;
+	static float next_yaw = 0;
 
 	static float min_yaw = 0;
 	static float max_yaw = 0;
@@ -389,27 +411,30 @@ void ForceTorqueManager::update_calibration()
 	static float min_roll = 0;
 	static float max_roll = 0;
 
-	static int i = 0;
-	static int j = 0;
-	static int k = 0;
+	static unsigned int i = 0;
+	static unsigned int j = 0;
+	static unsigned int k = 0;
+
+	static bool do_roll = false;
+	int num_pts = 15;
+	int total_pts = num_pts * num_pts;
+	if (do_roll) total_pts = total_pts * num_pts;
 
 	switch (_calibration_status)
 	{
 		case(STARTING):
 		{
-			float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
+			_logger->print_ip_status("Calibration: Start first home position ...");
+			float new_pos[6] = { -450, 100, -5, 180, 5, 180 };
 			go_to_position(new_pos);
 
-			gotoxy(1, 46);
-			std::cout << "\r                                                     \r";
-			std::cout << "Going to home position ...";
-			
 			_calibration_status = FIRST_HOME;
 			break;
 		} // STARTING
 		case(FIRST_HOME):
 		{
-			if (job_complete)
+			_logger->print_ip_status("Calibration: Going to first home position ...");
+			if(!new_position_flag)
 			{
 				home_x = pos[0];
 				home_y = pos[1];
@@ -418,14 +443,17 @@ void ForceTorqueManager::update_calibration()
 				home_pitch = pos[4];
 				home_roll = pos[5];
 
-				min_yaw = home_yaw - 10;
-				max_yaw = home_yaw + 10;
+				min_yaw = home_yaw - 15;
+				max_yaw = home_yaw + 15;
+				next_yaw = min_yaw;
 
-				min_pitch = home_pitch - 10;
-				max_pitch = home_pitch + 10;
+				min_pitch = home_pitch - 15;
+				max_pitch = home_pitch + 15;
+				next_pitch = min_pitch;
 
-				min_roll = home_roll - 10;
-				max_roll = home_roll + 10;
+				min_roll = home_roll - 15;
+				max_roll = home_roll + 15;
+				next_roll = min_roll;
 
 				i = 1;
 				j = 1;
@@ -433,42 +461,76 @@ void ForceTorqueManager::update_calibration()
 
 				_calibration_status = START_CLOUD;
 			}
-			else
-			{
-				gotoxy(1, 46);
-				std::cout << "\r                                                     \r";
-				std::cout << "Going to next position ...";
-			}
+
 			break;
 		} // FIRST_HOME
 		case(START_CLOUD):
 		{
-			if (job_complete)
+			std::stringstream logstr;
+			logstr << "Calibration: Going to position # " << i << ", " << j << ", " << k << ". ";
+			logstr << "Progress: " << (i-1) + (j-1)*num_pts << "/" << total_pts << std::endl;
+			_logger->print_ip_status(logstr.str());
+
+			if (!new_position_flag)
 			{
-				if (i <= 10)
+				if (i <= num_pts)
 				{
+					Sleep(500);
 					write_to_cal_file();
-					float next_yaw = min_yaw + static_cast<float>(i) * 2.0f;
-					float new_pos[6] = { -450, 100, -45, next_yaw, min_pitch, min_roll };
+					if (j % 2)
+					{
+						next_yaw = min_yaw + static_cast<float>(i) * 50.0f / num_pts;
+					}
+					else
+					{
+						next_yaw = min_yaw + static_cast<float>(num_pts - i) * 50.0f / num_pts;
+					}
+					
+					if (next_yaw > 180)
+						next_yaw -= 360;
+					else if (next_yaw <= -180)
+						next_yaw += 360;
+
+					float new_pos[6] = { -450, 100, -5, next_yaw, next_pitch, 180 };
 					i++;
 					go_to_position(new_pos);
 				}
 				else
 				{
-					float home_pos[6] = { -450, 100, -45, 180, 5, 180 };
-					go_to_position(home_pos);
-					_calibration_status = STOPPED;
+					if (j <= num_pts)
+					{
+						i = 1;
+						j++;
 
-					gotoxy(1, 46);
-					std::cout << "\r                                                     \r";
-					std::cout << "Calibration complete!";
+						next_pitch = min_pitch + static_cast<float>(j) * 50.0f / num_pts;
+
+						if (next_pitch > 180)
+							next_pitch -= 360;
+						else if (next_pitch <= -180)
+							next_pitch += 360;
+
+					}
+					else if (k <= num_pts && do_roll)
+					{
+						i = 1;
+						j = 1;
+						k++;
+
+						next_roll = min_roll + static_cast<float>(k) * 50.0f / num_pts;
+
+						if (next_roll > 180)
+							next_roll -= 360;
+						else if (next_roll <= -180)
+							next_roll += 360;
+					}
+					else
+					{
+						//float home_pos[6] = { -450, 100, -45, 180, 5, 180 };
+						//go_to_position(home_pos);
+						_calibration_status = STOPPED;
+						_logger->print_ip_status("Calibration complete!");
+					}
 				}
-			}
-			else
-			{
-				gotoxy(1, 46);
-				std::cout << "\r                                                     \r";
-				std::cout << "Going to next position ...";
 			}
 
 			break;

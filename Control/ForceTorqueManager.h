@@ -1,5 +1,7 @@
 #pragma once
 #include <array>
+#include "Matrix.hpp"								// Matrix definition.
+#include "ControlLogger.h"
 
 #define FT_SIZE 6
 
@@ -64,6 +66,8 @@ private:
 	std::array<double, FT_SIZE / 2> _Mg_w;
 	std::array<double, FT_SIZE / 2> _R;
 
+	Matrix<3, 3> _Rw2FT_s;		// Rotation world to FT sensor
+
 	double _tension_const;
 	double _wrist_offset;
 
@@ -76,4 +80,5 @@ private:
 	};
 
 	CAL_STATUS _calibration_status;
+	ControlLogger* _logger;
 };

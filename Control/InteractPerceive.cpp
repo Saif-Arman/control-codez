@@ -14,6 +14,7 @@ InteractPerceive::InteractPerceive()
 	, _move_speed(2.5f)
 {
 	std::fill(std::begin(_starting_FT), std::end(_starting_FT), 0);
+	_logger = ControlLogger::getInstance();
 }
 
 void InteractPerceive::reset_interact_perceive_flags()
@@ -28,8 +29,8 @@ InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(Int
 	{
 		gotoxy(1, 45);
 		std::cout << "move flag: " << _interact_perceive_state;
-		clear_ip_error();
-		clear_ip_status();
+		_logger->clear_ip_error();
+		_logger->clear_ip_status();
 	}
 	else
 	{
@@ -55,35 +56,6 @@ InteractPerceive::IntPercState InteractPerceive::toggle_interact_perceive_state(
 	}
 };
 
-void InteractPerceive::print_ip_status(std::string status)
-{
-	clear_ip_status();
-	std::cout << status;
-}
-
-void InteractPerceive::clear_ip_status()
-{
-	gotoxy(1, 46);
-	std::cout << "\r                                                     \r";
-}
-
-void InteractPerceive::print_ip_info(std::string info)
-{
-	print_ip_error(info);
-}
-
-void InteractPerceive::print_ip_error(std::string error)
-{
-	clear_ip_error();
-	std::cout << error;
-}
-
-void InteractPerceive::clear_ip_error()
-{
-	gotoxy(1, 44);
-	std::cout << "\r                                                     \r";
-}
-
 void InteractPerceive::check_force()
 {
 	IntPercState state = _interact_perceive_state;
@@ -100,7 +72,7 @@ void InteractPerceive::check_force()
 			stop_interact_perceive();
 			std::stringstream error;
 			error << "STOPPED DUE TO check_force() IN " << get_dir_string(i) << " direction.";
-			print_ip_error(error.str());
+			_logger->print_ip_error(error.str());
 		}
 	}
 }
@@ -132,7 +104,7 @@ void InteractPerceive::do_interact_perceive()
 	if (!printed_info_once)
 	{
 		printed_info_once = true;
-		print_ip_status("Press \"M\" to start interact_perceive!");
+		_logger->print_ip_status("Press \"M\" to start interact_perceive!");
 	}
 		
 	if (STOPPED == _interact_perceive_state)
@@ -155,7 +127,7 @@ void InteractPerceive::do_interact_perceive()
 		{
 			if (open_in_progress)
 			{
-				print_ip_status("Opening grippers ...");
+				_logger->print_ip_status("Opening grippers ...");
 				break;
 			}
 
@@ -166,7 +138,7 @@ void InteractPerceive::do_interact_perceive()
 		{
 			Sleep(1500); // Sleep to let the arm settle
 			_starting_FT = FTMgr.get_FT_ee();
-			print_ip_info("Grippers have been opened!");
+			_logger->print_ip_info("Grippers have been opened!");
 			_interact_perceive_state = INITIAL_APPROACH;
 			break;
 		}
@@ -181,7 +153,7 @@ void InteractPerceive::do_interact_perceive()
 					if (abs(current_FT[i] - _starting_FT[i]) < threshold[i])
 					{
 						go_forward_slowly(_move_speed);
-						print_ip_status("Approaching object in Z direction");
+						_logger->print_ip_status("Approaching object in Z direction");
 					}
 					else
 					{
@@ -190,7 +162,7 @@ void InteractPerceive::do_interact_perceive()
 						cooldowncntr = 100;
 						std::stringstream info;
 						info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
-						print_ip_info(info.str());
+						_logger->print_ip_info(info.str());
 						break;
 					}
 				}
@@ -202,14 +174,14 @@ void InteractPerceive::do_interact_perceive()
 		case START_GRASP:
 		{
 			do_grab_object();
-			print_ip_status("Starting grasp ...");
+			_logger->print_ip_status("Starting grasp ...");
 			_interact_perceive_state = GRASPING_OBJECT;
 		}
 		case GRASPING_OBJECT:
 		{
 			if (grab_in_progress)
 			{
-				print_ip_status("Grasping object ...");
+				_logger->print_ip_status("Grasping object ...");
 				break;
 			}
 				
@@ -226,7 +198,7 @@ void InteractPerceive::do_interact_perceive()
 	
 	if (elapsed_time1 > 30)
 	{
-		print_ip_error("Stopped interact perceive due to timeout.");
+		_logger->print_ip_error("Stopped interact perceive due to timeout.");
 		stop_interact_perceive();
 	}
 

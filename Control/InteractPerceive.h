@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ControlLogger.h"
+
 #define FT_SIZE 6
 
 class InteractPerceive
@@ -39,13 +41,6 @@ public:
 
 private:
 
-	// Print/clear status & error messages for interact perceive
-	void print_ip_status(std::string status);
-	void clear_ip_status();
-	void print_ip_info(std::string info);
-	void print_ip_error(std::string error);
-	void clear_ip_error();
-
 	// If STOPPED, will stop interact perceive
 	// Anything else will cause the state to go to that point.
 	IntPercState set_interact_perceive_state(IntPercState state);
@@ -60,5 +55,6 @@ private:
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
 	float _move_speed;
 	int _open_grippers_cntr;
+	ControlLogger *_logger;
 };
 
