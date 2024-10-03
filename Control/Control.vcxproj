@@ -106,6 +106,8 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN64;_DEBUG;_CONSOLE;__VISUALC__;QMATH_DLL;QMATH_DLL_EXPORT;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\MANUS\CommonSpace\Include\CxUtils;C:\MANUS\CommonSpace\Include\MANUS;C:\MANUS\CommonSpace\Include\Pthread;C:\MANUS\CommonSpace\Include\3DxWare SDK;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>
+      </MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

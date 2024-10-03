@@ -2,6 +2,7 @@
 #include <array>
 #include "Matrix.hpp"								// Matrix definition.
 #include "ControlLogger.h"
+#include "KDTree.h"
 
 #define FT_SIZE 6
 
@@ -45,6 +46,7 @@ public:
 	void build_calibration_cloud();
 	void write_to_cal_file();
 	void cancel_calibration();
+	void build_kdtree();
 
 private:
 
@@ -65,6 +67,9 @@ private:
 	std::array<double, FT_SIZE / 2> _T_offset;
 	std::array<double, FT_SIZE / 2> _Mg_w;
 	std::array<double, FT_SIZE / 2> _R;
+	std::string calibration_pt_file;
+
+	KDTree _cal_tree;
 
 	Matrix<3, 3> _Rw2FT_s;		// Rotation world to FT sensor
 

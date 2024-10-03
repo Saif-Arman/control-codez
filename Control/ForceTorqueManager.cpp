@@ -1,7 +1,4 @@
-﻿#include "ForceTorqueManager.h"
-#include "Functions.h"
-#include "Global.h"
-#include <random>
+﻿#include <random>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> 
@@ -9,6 +6,12 @@
 #include <iostream>
 #include <sstream>
 #include <deque>
+
+#include "Global.h"
+
+#include "Functions.h"
+#include "ForceTorqueManager.h"
+#include "KDTree.h"
 
 #define PRINT_F_RAW 1, 32
 #define PRINT_T_RAW PRINT_F_RAW+1
@@ -31,8 +34,12 @@ ForceTorqueManager::ForceTorqueManager()
 	_Rw2FT_s = 0, 0, 0,
 			   0, 0, 0,
 			   0, 0, 0;
+
 	_calibration_status = STOPPED;
 	_logger = ControlLogger::getInstance();
+	calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud_240pts.csv";
+	_cal_tree.initialize(calibration_pt_file);
+
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
 	_Mg_w[1] = 0;
@@ -186,7 +193,12 @@ void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 	//std::array<double, 3> R = { 0 };
 	//estimate_r(_raw_FT, R);
 
-	compensate_hand_FT(wrist_angle);
+	//compensate_hand_FT(wrist_angle);
+	std::array<double, FT_SIZE> ft_offsets = _cal_tree.get_ft_offset(pos[3], pos[4], pos[5]);
+	for (int i = 0; i < FT_SIZE; i++)
+	{
+		_compensated_FT[i] = _raw_FT[i] - ft_offsets[i];
+	}
 
 	if (STOPPED != _calibration_status)
 		update_calibration();
@@ -379,7 +391,8 @@ void ForceTorqueManager::cancel_calibration()
 void ForceTorqueManager::write_to_cal_file()
 {
 	std::ofstream calibration_file;
-	calibration_file.open("C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud.csv", std::ios_base::app);
+	/*calibration_file.open("C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud.csv", std::ios_base::app);*/
+	calibration_file.open(calibration_pt_file, std::ios_base::app);
 	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << ",";
 	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << ",";
 	calibration_file << _Rw2FT_s(1, 1) << "," << _Rw2FT_s(1, 2) << "," << _Rw2FT_s(1, 3) << ",";
@@ -536,4 +549,9 @@ void ForceTorqueManager::update_calibration()
 			break;
 		} // START_CLOUD
 	} // end switch
+}
+
+void ForceTorqueManager::build_kdtree()
+{
+
 }
