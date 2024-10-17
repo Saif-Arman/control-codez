@@ -18,7 +18,8 @@ public:
 		INITIAL_APPROACH,
 		START_GRASP,
 		GRASPING_OBJECT,
-		GRASP_DONE
+		GRASP_DONE,
+		GRASP_MIN_X
 	};
 
 	// Main interact perceive loop

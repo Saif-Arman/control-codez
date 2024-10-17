@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	// General variables.
 	Matrix<3,3> translation, rotation;
 	Matrix<3,1> wt;
-	float control_input, tmp1, tmp2;
+	float control_input; //, tmp1, tmp2;
 	char ch;
 	d_c_ee = 115.0f,-15.5f,-25.0f;				
 
@@ -668,9 +668,8 @@ int main(int argc, char* argv[])
 		}
 
 		IntPerc.do_interact_perceive(); // Only runs if interact_perceive_state is true
-		// Read force torque
-		FTMgr.ReadForceTorque(pos[4]);
-		IntPerc.check_force(); // Only checks if interact_perceive_state is true
+		FTMgr.ReadForceTorque(); // Read force torque from MINI FT sensor
+		IntPerc.check_force(); // Checks if FT sensor reading is > threshold
 		ReadPosit();
 		ReadPosit2();
 		ReadVel();
@@ -688,6 +687,7 @@ int main(int argc, char* argv[])
 		std::array<double, 3>F_ee = FTMgr.get_F_ee();
 		std::array<double, 3>T_ee = FTMgr.get_T_ee();
 		
+		/*
 		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " 
 				 << cur_position << ", " << cur_pos_nf << ", " << cur_force << ", "
 				 << lift_in_progress << ", " << grasp_end << ", " << speed[7] << ", " 
@@ -701,6 +701,7 @@ int main(int argc, char* argv[])
 				 << gamma_2 <<","<< lin_dist1<< "," << lin_dist2 <<"," << F_ee[0]<<"," 
 				 << F_ee[1] <<"," << F_ee[2]<<","<< T_ee[0]<<"," << T_ee[1]<<","<< T_ee[2]<<","
 				 <<elapsed_time1<<","<<Vx_ee<<","<<Vy_ee <<","<< Vz_ee<<","<< counter << "\n"; //u_hat_dot
+		*/
 		
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);

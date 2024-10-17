@@ -156,31 +156,6 @@ Matrix<3, 3> EE2w_transform3(float* position)
 	return Rc2w;
 }
 
-// Get R Link 3 2 w rotational transform.  nickleo test?
-Matrix<3, 3> lt2w_transform3(float* position)
-{
-	Matrix<3, 3> Ry, Rp, Rc2w;
-
-	float c_y = static_cast<float>(position[3] * M_PI / 180.0f);
-	float c_p = static_cast<float>(-position[4] * M_PI / 180.0f);
-	float c_r = static_cast<float>(sign(position[5]) * (180 - abs(position[5])) * M_PI / 180.0f);
-	Ry = cos(c_y), -sin(c_y), 0, sin(c_y), cos(c_y), 0, 0, 0, 1; // same axes just shifted origin along Z
-	Rp = cos(c_p), 0, sin(c_p), 0, 1, 0, -sin(c_p), 0, cos(c_p); // is this right??? this does not seem correct
-	//Rr = 1, 0, 0, 0, cos(c_r), -sin(c_r), 0, sin(c_r), cos(c_r);
-	Rc2w = Ry * Rp;
-
-	ColumnVector<3> Rm;
-	Rm = sqrt(Rc2w(1, 1) * Rc2w(1, 1) + Rc2w(2, 1) * Rc2w(2, 1) + Rc2w(3, 1) * Rc2w(3, 1)),
-		sqrt(Rc2w(1, 2) * Rc2w(1, 2) + Rc2w(2, 2) * Rc2w(2, 2) + Rc2w(3, 2) * Rc2w(3, 2)),
-		sqrt(Rc2w(1, 3) * Rc2w(1, 3) + Rc2w(2, 3) * Rc2w(2, 3) + Rc2w(3, 3) * Rc2w(3, 3));
-
-	Rc2w = Rc2w(1, 1) / Rm(1), Rc2w(1, 2) / Rm(2), Rc2w(1, 3) / Rm(3),
-		Rc2w(2, 1) / Rm(1), Rc2w(2, 2) / Rm(2), Rc2w(2, 3) / Rm(3),
-		Rc2w(3, 1) / Rm(1), Rc2w(3, 2) / Rm(2), Rc2w(3, 3) / Rm(3);
-
-	return Rc2w;
-}
-
 // Get Ree2w rotational transform.  zc test
 Matrix<3, 3> EE2w_transform2(float* position)
 {
@@ -1539,7 +1514,7 @@ void stop_arm()
 }
 
 // Move arm forward/approach in Z direction
-void go_forward()
+void go_forward(float move_speed)
 {
 	Matrix<3, 1> ca;
 	ca = 0, 0, 1;
@@ -1547,23 +1522,20 @@ void go_forward()
 	Matrix<3, 1> wa;
 	wa = C2W_transform(pos)* ca;
 
-	for (int i = 0; i < 3; i++)
-		speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
-}
-
-// Move arm forward/approach in Z direction
-void go_forward_slowly(float move_speed)
-{
-	Matrix<3, 1> ca;
-	ca = 0, 0, 1;
-
-	Matrix<3, 1> wa;
-	wa = C2W_transform(pos) * ca;
+	// These are here for reference
+	//int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
+	//int angular_speed_limit[5] = { 1,3,5,7,10 };
+	float new_speed = 0;
+	if (fabs(move_speed) < static_cast<float>(linear_speed_limit[speed_mode]))
+		new_speed = move_speed;
+	else
+		new_speed = linear_speed_limit[speed_mode] * sign(move_speed);
 
 	for (int i = 0; i < 3; i++)
-		speed[i + 1] = wa(i + 1, 1) * move_speed;
+		speed[i + 1] = static_cast<float>(wa(i + 1, 1)) * new_speed;
+	
+	new_status = true;
 }
-
 
 // Start grabbing and stop if something is detected between fingers
 void do_grab_object()
@@ -1573,7 +1545,7 @@ void do_grab_object()
 		speed[7] = static_cast<float>(-MAX_CART_GRIP_close); 
 		new_status = true; 
 		grasp_test = 1; 
-		grasp_inipos = pos[6]; 
+		grasp_inipos = static_cast<int>(pos[6] + 0.5f); // Add 0.5f to round float
 	}
 	else if (cbox == JOINT) 
 	{ 
@@ -1716,16 +1688,16 @@ void ManualControl(char ch)
 		cin >> newstate;
 		*/ // Comented by Nick 2024, using defaults and M is interact_perceive toggle
 		
-		vdx = 2;
-		vdy = 2;
-		fdx = 1;
+		//vdx = 2;
+		//vdy = 2;
+		//fdx = 1;
 
 		if (InteractPerceive::STOPPED == IntPerc.toggle_interact_perceive_state())
 			stop_arm();
 
-		gotoxy(1, 45);
-		std::cout << "\r                                   \r";
-		std::cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
+		//gotoxy(1, 45);
+		//std::cout << "\r                                   \r";
+		//std::cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
 
@@ -1739,10 +1711,17 @@ void ManualControl(char ch)
 		gotoxy(1, 47);
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 47);
-		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, C=Make Calibration Cloud:  ";
+		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, ";
+		gotoxy(1, 48);
+		std::cout << "\r                                                                                                     \r";
+		gotoxy(1, 48);
+		std::cout << "C=Make Calibration Cloud: ";
+
 		char type;
 		std::cin >> type;
 		// Clear what we just sent to the screen
+		gotoxy(1, 48);
+		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 47);
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 46);
@@ -1874,7 +1853,7 @@ void ManualControl(char ch)
 				std::cout << "Select new weight: ";
 				double newweight;
 				std::cin >> newweight;
-				if (-100 < newweight < 100)
+				if (-100 < newweight && newweight < 100)
 					FTMgr.set_weight(newdir, newweight);
 				else
 					printf("Invalid weight.");
@@ -1890,7 +1869,7 @@ void ManualControl(char ch)
 				std::cout << "Current speed: " << IntPerc.get_move_speed() << ". Input new speed: ";
 				float newspeed;
 				std::cin >> newspeed;
-				if (-25 < newspeed < 25)
+				if (-25 < newspeed && newspeed < 25)
 					IntPerc.set_move_speed(newspeed);
 				else
 					printf("Invalid speed.");
@@ -2090,7 +2069,7 @@ void ManualControl(char ch)
 		if (cbox == CARTESIAN)
 		{
 			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+				speed[i + 1] = static_cast<float>(wa(i + 1, 1)) * static_cast<float>(linear_speed_limit[speed_mode]);
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2226,13 +2205,13 @@ void ManualControl(char ch)
 		break;
 	case ',': // pre set pos 2 wz 07282011
 	{
-		//mode = AUTO_MODE;
-		//home_pos_flag = true;
-		//job_complete = false;
-		//job_complete2 = true;
-		//pos_index = 99;
-		float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
-		go_to_position(new_pos);
+		mode = AUTO_MODE;
+		home_pos_flag = true;
+		job_complete = false;
+		job_complete2 = true;
+		pos_index = 99;
+		//float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
+		//go_to_position(new_pos);
 		ShowCommand("COM: User Position#1 \n");
 		break;
 	}
@@ -3299,26 +3278,31 @@ int pd_control2(void)
 	/* [S] CONTROL OBJECTIVE */
 	if (home_pos_flag == true)	// set to home position
 	{
-		if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
+		if (fabs(eprev1[0]) < T_ERR_BOUND)
+			speed[1] = 0;
+		if (fabs(eprev1[1]) < T_ERR_BOUND)
+			speed[2] = 0;
+		if (fabs(eprev1[2]) < T_ERR_BOUND)
+			speed[3] = 0;
+		if (fabs(eprev1[3]) < R_ERR_BOUND)
+			speed[4] = 0;
+		if (fabs(eprev1[4]) < R_ERR_BOUND)
+			speed[5] = 0;
+		if (fabs(eprev1[5]) < R_ERR_BOUND)
+			speed[6] = 0;
+
+		if ((fabs(eprev1[0]) < T_ERR_BOUND)
+			&& (fabs(eprev1[1]) < T_ERR_BOUND)
+			&& (fabs(eprev1[2]) < T_ERR_BOUND)
+			&& (fabs(eprev1[3]) < R_ERR_BOUND)
+			&& (fabs(eprev1[4]) < R_ERR_BOUND)
+			&& (fabs(eprev1[5]) < R_ERR_BOUND))
 		{
-			if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
-			{
-				if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
-				{
-					job_done = true;
-					auto_mode_start = false;
-					home_pos_flag = false;
-					new_position_flag = false;
-					block_all_motions = false;
-				}
-			}
-			else
-				speed[6] = 0;	// set roll motion to 0
-		}
-		else
-		{
-			for (int i = 3; i < 6; i++)	// set all the rotation motion to 0
-				speed[i + 1] = 0;
+				job_done = true;
+				auto_mode_start = false;
+				home_pos_flag = false;
+				new_position_flag = false;
+				block_all_motions = false;
 		}
 	}
 	else if (adjust_pos == true)	// set to adjust position
@@ -3980,8 +3964,8 @@ void ReadForce(float cur_for)
 void ReadOBJ(void)
 {
 
-	char Spacemouse_str[256], read_str[256], pos_sign[3];
-	int i, j;
+	char Spacemouse_str[256], read_str[256];// , pos_sign[3];
+	int i;// , j;
 
 	Obj_in->SetReadPos(0);
 	Obj_in.Lock();
@@ -4123,15 +4107,15 @@ void ReadVel(void)
 
 	cur_velocity_f = b2[0] * cur_velocity + b2[1] * x2d[0] + b2[2] * x2d[1] - a2[0] * y2d[0] - a2[1] * y2d[1];
 	x2d[1] = x2d[0];
-	x2d[0] = cur_velocity;
+	x2d[0] = static_cast<float>(cur_velocity);
 	y2d[1] = y2d[0];
-	y2d[0] = cur_velocity_f;
+	y2d[0] = static_cast<float>(cur_velocity_f);
 
 	cur_velocity_f_y = b2[0] * cur_velocity_y + b2[1] * x2d_y[0] + b2[2] * x2d_y[1] - a2[0] * y2d_y[0] - a2[1] * y2d_y[1];
 	x2d_y[1] = x2d_y[0];
-	x2d_y[0] = cur_velocity_y;
+	x2d_y[0] = static_cast<float>(cur_velocity_y);
 	y2d_y[1] = y2d_y[0];
-	y2d_y[0] = cur_velocity_f_y;
+	y2d_y[0] = static_cast<float>(cur_velocity_f_y);
 
 
 
@@ -4188,15 +4172,15 @@ void ReadVel2(void)
 
 	cur_velocity_f2 = b2[0] * cur_velocity2 + b2[1] * x2d2[0] + b2[2] * x2d2[1] - a2[0] * y2d2[0] - a2[1] * y2d2[1];
 	x2d2[1] = x2d2[0];
-	x2d2[0] = cur_velocity2;
+	x2d2[0] = static_cast<float>(cur_velocity2);
 	y2d2[1] = y2d2[0];
-	y2d2[0] = cur_velocity_f2;
+	y2d2[0] = static_cast<float>(cur_velocity_f2);
 
 	cur_velocity_f_y2 = b2[0] * cur_velocity_y2 + b2[1] * x2d_y2[0] + b2[2] * x2d_y2[1] - a2[0] * y2d_y2[0] - a2[1] * y2d_y2[1];
 	x2d_y2[1] = x2d_y[0];
-	x2d_y2[0] = cur_velocity_y2;
+	x2d_y2[0] = static_cast<float>(cur_velocity_y2);
 	y2d_y2[1] = y2d_y[0];
-	y2d_y2[0] = cur_velocity_f_y2;
+	y2d_y2[0] = static_cast<float>(cur_velocity_f_y2);
 
 	//gotoxy(1, 45);
 	//printf("vel_x2: %.3f  vel_y2: %.6f  cur_time: %d", cur_velocity_f2, cur_velocity_f_y2, cur_t2);
@@ -4225,8 +4209,8 @@ void ReadTaKK(void)
 	//printf("[%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d]\n", cur_takk[0],cur_takk[1],cur_takk[2],cur_takk[3],cur_takk[4],cur_takk[5],
 	//	cur_takk[6],cur_takk[7],cur_takk[8],cur_takk[9],cur_takk[10],cur_takk[11]);
 
-	char Spacemouse_str[256], read_str[256], pos_sign[3];
-	int i, j;
+	char Spacemouse_str[256], read_str[256];// , pos_sign[3];
+	int i;// , j;
 
 	takktile->SetReadPos(0);
 	takktile.Lock();
@@ -4267,10 +4251,10 @@ void GraspController(void)
 	ofstream err_data;
 	err_data.open("C:\\MANUS\\CommonSpace\\Sensor_Data\\error_data.txt", ios::app);
 	ofstream exp_data;
-	float w_hat = 0.04;//0.098
-	float u_hat = 0.45;//0.45
+	float w_hat = 0.04f;//0.098
+	float u_hat = 0.45f;//0.45
 	float u_hat_dot = 0;
-	float tol = 0.01;
+	float tol = 0.01f;
 
 	int Que_count = 0;
 	bool Que_tick = false;
@@ -4279,9 +4263,9 @@ void GraspController(void)
 	int old_time = TimeCheck();
 	float dt;
 	float cur_distance;
-	float old_pos = cur_position;
+	float old_pos = static_cast<float>(cur_position);
 
-	float Fa = (1 / u_hat) * (w_hat + k * cur_velocity_f);
+	float Fa = (1 / u_hat) * (w_hat + k * static_cast<float>(cur_velocity_f));
 	float err = abs(cur_force - Fa);
 
 	//err_data << cur_time << ", " << err << "\n";
@@ -4299,14 +4283,14 @@ void GraspController(void)
 		ReadVel();
 
 		//force_que[Que_count] = cur_force;
-		vel_que[Que_count] = cur_velocity_f;
+		vel_que[Que_count] = static_cast<float>(cur_velocity_f);
 
 		//Que_count = ( Que_count == 6 ) ? 0 : Que_count + 1;
 		//if ( ( Que_count == 6 ) && ( !Que_tick ) )
 		//	Que_tick = true;
 
 		cur_time = TimeCheck();
-		cur_distance = abs(cur_position - old_pos) * 1000;
+		cur_distance = abs(static_cast<float>(cur_position) - old_pos) * 1000;
 		dt = static_cast<float>(cur_time - old_time) / 1000.0f;
 		w_hat = static_cast<float>(gamma1 * cur_distance + .625);
 		u_hat_dot = static_cast<float>(-gamma2 / u_hat * w_hat * cur_velocity_f);

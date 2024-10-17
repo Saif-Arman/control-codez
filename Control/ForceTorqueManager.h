@@ -11,7 +11,7 @@ class ForceTorqueManager
 public:
 	ForceTorqueManager();
 
-	void ReadForceTorque(double wrist_angle);
+	void ReadForceTorque();
 
 	void update_FT(std::array<double, FT_SIZE> new_FT);
 		
@@ -35,6 +35,8 @@ public:
 	inline std::array<double, FT_SIZE / 2> get_r() { return _R; };
 	inline void set_r(unsigned int axis, double offset) { axis < 3 ? _R[axis] = offset : printf("ERROR: Invalid axis selected!"); };
 
+	inline Matrix<3, 3> get_Rw2FT_s() { return _Rw2FT_s; };
+
 	void zero_offsets();
 
 	inline double get_tension_const() { return _tension_const; };
@@ -45,14 +47,14 @@ public:
 
 	void build_calibration_cloud();
 	void write_to_cal_file();
+	void clear_cal_file();
 	void cancel_calibration();
-	void build_kdtree();
 
 private:
 
 	std::array<double, FT_SIZE> get_raw_FT();
 
-	void compensate_hand_FT(double wrist_angle);
+	void compensate_hand_FT();
 	void compensate_hand_FT_orig();
 
 	void estimate_r(const std::array<double, FT_SIZE> new_ft, std::array<double, 3>& R);
@@ -72,6 +74,7 @@ private:
 	KDTree _cal_tree;
 
 	Matrix<3, 3> _Rw2FT_s;		// Rotation world to FT sensor
+	Matrix<3, 3> _Rh2FT_s;		// Rotation end effector (hand) to FT sensor
 
 	double _tension_const;
 	double _wrist_offset;
@@ -81,7 +84,9 @@ private:
 		STOPPED=0,
 		STARTING,
 		FIRST_HOME,
-		START_CLOUD
+		START_CLOUD,
+		GET_MULTIPLE_HOMES,
+		BUILD_KDTREE
 	};
 
 	CAL_STATUS _calibration_status;

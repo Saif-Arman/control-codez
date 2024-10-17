@@ -7,7 +7,6 @@
 #include "KDTree.h"
 #include "Macro.h"
 #include "ForceTorqueManager.h"
-//#include "Global.h"
 
 KDTree::KDTree()
 {
@@ -196,7 +195,6 @@ void KDTree::readYawPitchRollFromCSV(const std::string& filename, std::vector<KD
         if (values.size() >= 12)
         {
             std::array<double, 3> angles = anglesToUnitVector(values[3], values[4], values[5]);
-            /*points.emplace_back(angles[0], angles[1], angles[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11]);*/
             KDTree::Point newpt(angles[0], angles[1], angles[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11]);
             points.emplace_back(newpt);
         }
@@ -224,10 +222,7 @@ std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double rol
 
     // Find 4 nearest neighbors
     int k = 4;
-    std::priority_queue<std::pair<double, KDTree::Point>,
-        std::vector<std::pair<double, KDTree::Point>>,
-        KDTree::CompareDist>
-        maxHeap;
+    std::priority_queue<std::pair<double, KDTree::Point>, std::vector<std::pair<double, KDTree::Point>>, KDTree::CompareDist> maxHeap;
     KDTree::kNearestNeighbors(_root, target, k, 0, maxHeap);
 
     // Collect results from the max heap
@@ -240,17 +235,10 @@ std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double rol
 
     // Output results (closest first)
     double total_dist = 0;
-    //std::cout << "The " << k << " nearest neighbors are:\n";
-
     for (auto it = nearestNeighbors.rbegin(); it != nearestNeighbors.rend(); ++it)
     {
         double dist = std::sqrt(it->first);
         const KDTree::Point& pt = it->second;
-
-        //std::cout << "Yaw: " << pt.yaw_vec 
-        //            << ", Pitch: " << pt.pitch_vec
-        //            << ", Roll: " << pt.roll_vec 
-        //            << ", Distance(linear): " << dist << "\n";
         total_dist += dist;
     }
 
@@ -269,11 +257,6 @@ std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double rol
         offsets[4] += (dist / total_dist) * pt.ty;
         offsets[5] += (dist / total_dist) * pt.tz;
     }
-
-    //for (int i = 0; i < 6; i++)
-    //{
-    //    offsets[i] = raw_FT[i] - offsets[i];
-    //}
 
     return offsets;
 }

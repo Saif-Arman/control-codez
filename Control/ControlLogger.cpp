@@ -7,13 +7,13 @@ void ControlLogger::print_ip_status(std::string status)
 {
 	clear_ip_status();
 	gotoxy(1, 46);
-	std::cout << status << std::endl;
+	std::cout << status;;
 }
 
 void ControlLogger::clear_ip_status()
 {
 	gotoxy(1, 46);
-	std::cout << "\r                                                               \r" << std::endl;
+	std::cout << "\r                                                               \r";
 }
 
 void ControlLogger::print_ip_info(std::string info)
@@ -25,11 +25,11 @@ void ControlLogger::print_ip_error(std::string error)
 {
 	clear_ip_error();
 	gotoxy(1, 44);
-	std::cout << error << std::endl;
+	std::cout << error;
 }
 
 void ControlLogger::clear_ip_error()
 {
 	gotoxy(1, 44);
-	std::cout << "\r                                                               \r" << std::endl;
+	std::cout << "\r                                                               \r";
 }

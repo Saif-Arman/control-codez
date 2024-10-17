@@ -37,7 +37,7 @@ ForceTorqueManager::ForceTorqueManager()
 
 	_calibration_status = STOPPED;
 	_logger = ControlLogger::getInstance();
-	calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud_240pts.csv";
+	calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\manus_ft_calibration_cloud.csv";
 	_cal_tree.initialize(calibration_pt_file);
 
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
@@ -52,6 +52,10 @@ ForceTorqueManager::ForceTorqueManager()
 	_tension_const = 0;
 
 	_wrist_offset = 14.3;
+
+	_Rh2FT_s = -0.0065, -0.9991, 0.0421,
+			   -0.080, -0.0414, -0.9959,
+			    0.9968, -0.0098, -0.0796;
 
 	// With nothing attached
 	//_F_offset[0] = 5.387;
@@ -178,7 +182,11 @@ void ForceTorqueManager::zero_offsets()
 	_T_offset[Z] = _T_offset[Z] + _compensated_FT[Z+3];
 }
 
-void ForceTorqueManager::ReadForceTorque(double wrist_angle)
+// Note: this wrist angle is incorrect.
+// This should be the angle between the link before the wrist & the wrist,
+// where 0* = hand pointed straight out, in line with the arm.
+// Currently, this is using the pitch which is an angle in the world frame and not what we need.
+void ForceTorqueManager::ReadForceTorque()
 {
 	char read_pos_str[256];
 	for (int i=0; i < FT_SIZE; i++)
@@ -193,12 +201,7 @@ void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 	//std::array<double, 3> R = { 0 };
 	//estimate_r(_raw_FT, R);
 
-	//compensate_hand_FT(wrist_angle);
-	std::array<double, FT_SIZE> ft_offsets = _cal_tree.get_ft_offset(pos[3], pos[4], pos[5]);
-	for (int i = 0; i < FT_SIZE; i++)
-	{
-		_compensated_FT[i] = _raw_FT[i] - ft_offsets[i];
-	}
+	compensate_hand_FT();
 
 	if (STOPPED != _calibration_status)
 		update_calibration();
@@ -217,32 +220,44 @@ void ForceTorqueManager::ReadForceTorque(double wrist_angle)
 	printf(" T EE Frame:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
 }
 
-void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
+void ForceTorqueManager::compensate_hand_FT()
 {
-	Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
+	//Matrix<3, 3> Rh2FT_s;		// Rotation end effector (hand) to FT sensor
 	//Matrix<3, 3> Rw2FT_s;		// Rotation world to FT sensor
 	Matrix<3, 3> Rw2e;			// Rotation world to end effector (hand)
-	ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
-	ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> F_tension;	// Force in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> F_bias;		// Force in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> F_offset;		// Force in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> T_grav;		// Torque in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> T_bias;		// Torque in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> T_offset;		// Torque in the FT sensor frame due to weight of hand & attachments
-	ColumnVector<3> r_vect;		// Center of mass of hand weight in FT sensor frame
+	//ColumnVector<3> Mg_w;		// Weight of hand due to gravity = mass * g = Newtons
+	//ColumnVector<3> F_grav;		// Force in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> F_tension;	// Force in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> F_bias;		// Force in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> F_offset;		// Force in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> T_grav;		// Torque in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> T_bias;		// Torque in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> T_offset;		// Torque in the FT sensor frame due to weight of hand & attachments
+	//ColumnVector<3> r_vect;		// Center of mass of hand weight in FT sensor frame
 	ColumnVector<3> F_temp;		// Placeholder to convert forces compesated for offset & weight to vector
 	ColumnVector<3> T_temp;		// Placeholder to convert torques compesated for offset & weight to vector
 	ColumnVector<3> F_ee_temp;	// Placeholder to convert forces compesated for offset & weight back to array
 	ColumnVector<3> T_ee_temp;	// Placeholder to convert torques compesated for offset & weight back to array
 
 	Rw2e = transpose(EE2w_transform3(pos));
-	Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
-				-0.080, -0.0414, -0.9959, 
-				0.9968, -0.0098, -0.0796; // Mushtaq rotation
+	//Rh2FT_s =	-0.0065, -0.9991, 0.0421, 
+	//			-0.080, -0.0414, -0.9959, 
+	//			0.9968, -0.0098, -0.0796; // Mushtaq rotation
+
+	std::array<double, FT_SIZE> ft_offsets = _cal_tree.get_ft_offset(pos[3], pos[4], pos[5]);
+	for (int i = 0; i < FT_SIZE; i++)
+	{
+		_compensated_FT[i] = _raw_FT[i] - ft_offsets[i];
+	}
 	
 	// R (world) to Forcetouch sensor = R_hand to Forcetouch_sensor * R_world to end (effector)
-	_Rw2FT_s = Rh2FT_s * Rw2e;
+	_Rw2FT_s = _Rh2FT_s * Rw2e;
+	
+	/*
+	
+	// This should be re-implemented/ re-used when attempting to properly compensate the weight of the hand,
+	// tension of MANUS wrist, and any other parts needed to complete the model and completely zero out forces on the hand
+	// without relying on a point cloud.
 
 	//Mg_w = 0, 0, _Mg_w[Z];
 	//Mg_w = -0.7792, 1.0664, -3.6563;
@@ -276,10 +291,12 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 		_compensated_FT[i + 3] = _raw_FT[i + 3] - T_bias(i + 1);
 	}
 
+	*/
+
 	F_temp = _compensated_FT[X], _compensated_FT[Y], _compensated_FT[Z];
 	T_temp = _compensated_FT[X + 3], _compensated_FT[Y + 3], _compensated_FT[Z + 3];
-	F_ee_temp = transpose(Rh2FT_s) * F_temp;
-	T_ee_temp = transpose(Rh2FT_s) * T_temp;
+	F_ee_temp = transpose(_Rh2FT_s) * F_temp;
+	T_ee_temp = transpose(_Rh2FT_s) * T_temp;
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -289,13 +306,6 @@ void ForceTorqueManager::compensate_hand_FT(double wrist_angle)
 		_FT_ee[i + 3] = _T_ee[i];
 	}
 }
-
-//aaaa
-// get pos of link3 end
-// get pos of end effector
-// get intersect ? is end effector straight line to link3 end?
-// pitch is always world frame sooooo convert from world to link3 frame?
-// calc angle?? profit??
 
 void ForceTorqueManager::compensate_hand_FT_orig()
 {
@@ -380,12 +390,23 @@ void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, st
 void ForceTorqueManager::build_calibration_cloud()
 {
 	if (STOPPED == _calibration_status)
+	{
+		clear_cal_file();
 		_calibration_status = STARTING;
+	}
 }
 
 void ForceTorqueManager::cancel_calibration()
 {
 	_calibration_status = STOPPED;
+}
+
+void ForceTorqueManager::clear_cal_file()
+{
+	std::ofstream calibration_file;
+	calibration_file.open(calibration_pt_file, std::ios_base::trunc);
+	calibration_file << "X,Y,Z,YAW,PITCH,ROLL,F_X,F_Y,F_Z,T_X,T_Y,T_Z,RX1,RX2,RX3,RY1,RY2,RY3,RZ1,RZ2,RZ3" << std::endl;
+	calibration_file.close();
 }
 
 void ForceTorqueManager::write_to_cal_file()
@@ -397,19 +418,19 @@ void ForceTorqueManager::write_to_cal_file()
 	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << ",";
 	calibration_file << _Rw2FT_s(1, 1) << "," << _Rw2FT_s(1, 2) << "," << _Rw2FT_s(1, 3) << ",";
 	calibration_file << _Rw2FT_s(2, 1) << "," << _Rw2FT_s(2, 2) << "," << _Rw2FT_s(2, 3) << ",";
-	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << "\n";
+	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << std::endl;
 	calibration_file.close();
 }
 
 void ForceTorqueManager::update_calibration()
 {
-	static float home_x = 0;
-	static float home_y = 0;
-	static float home_z = 0;
-
-	static float home_roll = 0;
-	static float home_pitch = 0;
-	static float home_yaw = 0;
+	static float home_x = -450.0f;
+	static float home_y = 100.0f;
+	static float home_z = -5.0f;
+	static float home_yaw = 180.0f;
+	static float home_pitch = 5.0f;
+	static float home_roll = 180.0f;
+	float home_pos[6] = { home_x, home_y, home_z, home_yaw, home_pitch, home_roll };
 
 	static float next_roll = 0;
 	static float next_pitch = 0;
@@ -424,12 +445,13 @@ void ForceTorqueManager::update_calibration()
 	static float min_roll = 0;
 	static float max_roll = 0;
 
-	static unsigned int i = 0;
-	static unsigned int j = 0;
-	static unsigned int k = 0;
+	static int i = 0;
+	static int j = 0;
+	static int k = 0;
 
 	static bool do_roll = false;
 	int num_pts = 15;
+	float range = 15.0f;
 	int total_pts = num_pts * num_pts;
 	if (do_roll) total_pts = total_pts * num_pts;
 
@@ -437,121 +459,164 @@ void ForceTorqueManager::update_calibration()
 	{
 		case(STARTING):
 		{
-			_logger->print_ip_status("Calibration: Start first home position ...");
-			float new_pos[6] = { -450, 100, -5, 180, 5, 180 };
-			go_to_position(new_pos);
+			_logger->print_ip_status("Calibration: Going to first home position ...");
+			go_to_position(home_pos);
 
 			_calibration_status = FIRST_HOME;
 			break;
 		} // STARTING
 		case(FIRST_HOME):
 		{
-			_logger->print_ip_status("Calibration: Going to first home position ...");
 			if(!new_position_flag)
 			{
-				home_x = pos[0];
-				home_y = pos[1];
-				home_z = pos[2];
-				home_yaw = pos[3];
-				home_pitch = pos[4];
-				home_roll = pos[5];
-
-				min_yaw = home_yaw - 15;
-				max_yaw = home_yaw + 15;
+				min_yaw = home_yaw - range;
+				max_yaw = home_yaw + range;
 				next_yaw = min_yaw;
 
-				min_pitch = home_pitch - 15;
-				max_pitch = home_pitch + 15;
+				min_pitch = home_pitch - range;
+				max_pitch = home_pitch + range;
 				next_pitch = min_pitch;
 
-				min_roll = home_roll - 15;
-				max_roll = home_roll + 15;
-				next_roll = min_roll;
+				min_roll = home_roll - range;
+				max_roll = home_roll + range;
+				next_roll = do_roll ? min_roll : home_roll;
 
 				i = 1;
 				j = 1;
 				k = 1;
 
+				_logger->print_ip_status("Calibration: Starting cloud ...");
 				_calibration_status = START_CLOUD;
+				float new_pos[6] = { home_x, home_y, home_z, next_yaw, next_pitch, next_roll };
+				go_to_position(new_pos);
 			}
 
 			break;
 		} // FIRST_HOME
 		case(START_CLOUD):
 		{
-			std::stringstream logstr;
-			logstr << "Calibration: Going to position # " << i << ", " << j << ", " << k << ". ";
-			logstr << "Progress: " << (i-1) + (j-1)*num_pts << "/" << total_pts << std::endl;
-			_logger->print_ip_status(logstr.str());
-
-			if (!new_position_flag)
+			if (!new_position_flag && !home_pos_flag)
 			{
-				if (i <= num_pts)
-				{
-					Sleep(500);
-					write_to_cal_file();
-					if (j % 2)
-					{
-						next_yaw = min_yaw + static_cast<float>(i) * 50.0f / num_pts;
-					}
-					else
-					{
-						next_yaw = min_yaw + static_cast<float>(num_pts - i) * 50.0f / num_pts;
-					}
-					
-					if (next_yaw > 180)
-						next_yaw -= 360;
-					else if (next_yaw <= -180)
-						next_yaw += 360;
+				// Sleep to let arm settle for a moment
+				Sleep(500);
+				write_to_cal_file();
 
-					float new_pos[6] = { -450, 100, -5, next_yaw, next_pitch, 180 };
-					i++;
-					go_to_position(new_pos);
-				}
-				else
+				// If i (yaw) is max, increase pitch or roll
+				if (i > num_pts)
 				{
-					if (j <= num_pts)
+					if (j < num_pts)
 					{
 						i = 1;
 						j++;
 
-						next_pitch = min_pitch + static_cast<float>(j) * 50.0f / num_pts;
+						next_pitch = min_pitch + (static_cast<float>(j) * range * 2 / num_pts);
 
 						if (next_pitch > 180)
 							next_pitch -= 360;
 						else if (next_pitch <= -180)
 							next_pitch += 360;
-
 					}
-					else if (k <= num_pts && do_roll)
+					else if (k < num_pts && do_roll)
 					{
 						i = 1;
 						j = 1;
 						k++;
 
-						next_roll = min_roll + static_cast<float>(k) * 50.0f / num_pts;
+						next_roll = min_roll + (static_cast<float>(k) * range * 2 / num_pts);
 
 						if (next_roll > 180)
 							next_roll -= 360;
 						else if (next_roll <= -180)
 							next_roll += 360;
 					}
-					else
+					else // If max number of points reached, get multiple values for the home position
 					{
-						//float home_pos[6] = { -450, 100, -45, 180, 5, 180 };
-						//go_to_position(home_pos);
-						_calibration_status = STOPPED;
-						_logger->print_ip_status("Calibration complete!");
+						go_to_position(home_pos);
+						i = 1;
+						_calibration_status = GET_MULTIPLE_HOMES;
+						break;
 					}
 				}
+				// Continue if more points needed
+				std::stringstream logstr;
+				logstr << "Calibration: Going to position # " << i << ", " << j << ", " << k << ". ";
+				logstr << "Progress: " << (i - 1) + (j - 1) * num_pts << "/" << total_pts << std::endl;
+				_logger->print_ip_status(logstr.str());
+
+				if (j % 2)
+				{
+					next_yaw = min_yaw + (static_cast<float>(i) * range * 2 / num_pts);
+				}
+				else
+				{
+					next_yaw = min_yaw + (static_cast<float>(num_pts - i) * range * 2 / num_pts);
+				}
+					
+				if (next_yaw > 180)
+					next_yaw -= 360;
+				else if (next_yaw <= -180)
+					next_yaw += 360;
+
+				i++;
+				float new_pos[6] = { home_x, home_y, home_z, next_yaw, next_pitch, next_roll };
+				go_to_position(new_pos);
 			}
 
 			break;
 		} // START_CLOUD
+		case (GET_MULTIPLE_HOMES):
+		{
+			if (!new_position_flag && !home_pos_flag)
+			{
+				if (i <= 10)
+				{
+					// Sleep to let arm settle for a moment
+					Sleep(500);
+					write_to_cal_file();
+
+					std::stringstream logstr;
+					logstr << "Calibration: Getting multiple home calibration points. ";
+					logstr << "Progress: " << i << "/" << "10" << std::endl;
+					_logger->print_ip_status(logstr.str());
+
+					i++;
+					float new_pos[6];
+					if (i % 2)
+					{
+						new_pos[0] = home_x;
+						new_pos[1] = home_y;
+						new_pos[2] = home_z;
+						new_pos[3] = home_yaw + 1.0f;
+						new_pos[4] = home_pitch + 1.0f;
+						new_pos[5] = home_roll;
+					}
+					else
+					{
+						new_pos[0] = home_x;
+						new_pos[1] = home_y;
+						new_pos[2] = home_z;
+						new_pos[3] = home_yaw - 1.0f;
+						new_pos[4] = home_pitch - 1.0f;
+						new_pos[5] = home_roll;
+					}
+					go_to_position(new_pos);
+				}
+				else
+				{
+					_calibration_status = BUILD_KDTREE;
+					go_to_position(home_pos);
+				}
+			}
+			break;
+
+		} // GET_MULTIPLE_HOMES
+		case (BUILD_KDTREE):
+		{
+			_logger->print_ip_status("Calibration build KD tree...");
+			_cal_tree.initialize(calibration_pt_file);
+			_calibration_status = STOPPED;
+			_logger->print_ip_status("Calibration complete!");
+			break;
+		} // BUILD_KDTREE
 	} // end switch
-}
-
-void ForceTorqueManager::build_kdtree()
-{
-
 }
