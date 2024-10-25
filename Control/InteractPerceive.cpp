@@ -5,6 +5,7 @@
 #include <sstream>
 #include <deque>
 #include <array>
+#include <cmath>
 
 #define X 0
 #define Y 1
@@ -13,7 +14,8 @@
 InteractPerceive::InteractPerceive()
 	: _interact_perceive_state(STOPPED)
 	, _open_grippers_cntr(0)
-	, _move_speed(5.0f)
+	, _move_speed(10.0f)
+	, _cntr_div(1.0f)
 {
 	std::fill(std::begin(_starting_FT), std::end(_starting_FT), 0);
 	_logger = ControlLogger::getInstance();
@@ -115,8 +117,7 @@ void InteractPerceive::do_interact_perceive()
 	static float max_ft_time = 0;
 	static float v_dy = 0;
 	static float v_dx = 0;
-	static int move_cntr = 0;
-	static bool inc_cntr = true;
+	static bool grasp_done = false;
 	static std::deque<std::array<double, FT_SIZE>> prev_FT;
 	std::array<float, 3> move_speed_ee_xyz = { 0, 0, 0 };
 
@@ -177,8 +178,7 @@ void InteractPerceive::do_interact_perceive()
 					// Reset needed flags for next stage
 					grasp_start_time = TimeCheck();
 					max_ft_time = 0;
-					move_cntr = 0;
-					inc_cntr = true;
+					grasp_done = false;
 					prev_FT.clear();
 					
 					_interact_perceive_state = START_GRASP;
@@ -191,9 +191,11 @@ void InteractPerceive::do_interact_perceive()
 		case START_GRASP:
 		{
 			elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(grasp_start_time)) / 1000; // in sec
+			static std::array<double, FT_SIZE> last_touch_pos = { 0, 0, 0, 0, 0, 0 };
 			std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
 			std::array<double, FT_SIZE> avg_ft = { 0, 0, 0, 0, 0, 0 };
 			static float thr_x_speed;
+			static bool touched_once = false;
 			
 
 			if (prev_FT.size() >= 10)
@@ -214,6 +216,7 @@ void InteractPerceive::do_interact_perceive()
 				_logger->print_ip_status("Waiting for 10 FT samples ...");
 				// Get 10 samples first
 				prev_FT.emplace_back(current_FT);
+				touched_once = false;
 				break;
 			}
 
@@ -221,38 +224,58 @@ void InteractPerceive::do_interact_perceive()
 			if (avg_ft[X] > -threshold[X])
 			{
 				_logger->print_ip_status("Lost touch, re-approaching in X ...");
-				float forward_speed = v_dx * (1.0f + (static_cast<float>(abs(avg_ft[X]) / threshold[X])));
+				if (0 == avg_ft[X])
+					avg_ft[X] = 0.001;
+
+				float forward_speed = v_dx * (1.0f + (static_cast<float>(threshold[X] / abs(avg_ft[X]))));
 				go_forward(forward_speed);
 				speed[X + 3] = 0;
 				speed[Y + 3] = 0;
 				speed[Z + 3] = 0;
-				//speed[X + 1] = 
-				//speed[Y + 1] = 0;
-				//speed[Z + 1] = 0;
+
+				if (touched_once)
+				{
+					float distance = sqrt(pow((pos[0] - last_touch_pos[X]), 2) + pow((pos[1] - last_touch_pos[Y]), 2) + pow((pos[2] - last_touch_pos[Z]), 2));
+					if (distance > 80)
+					{
+						_interact_perceive_state = MIN_TORQUE_Z;
+						break;
+					}
+				}
 			}
 			else
 			{
-				std::stringstream logstr;
-				if (inc_cntr)
-					logstr << "Oscillating in + Y direction ...";
-				else
-					logstr << "Oscillating in - Y direction ...";
-
-				_logger->print_ip_status(logstr.str());
+				touched_once = true;
 				// Oscillate linearly to apply "feeling" touch
 				speed[X + 1] = 0;
 				speed[Y + 1] = 0;
 				speed[Z + 1] = 0;
+				int change_side = static_cast<int>((elapsed_grasp_time / _cntr_div) + 0.5f);
+				std::stringstream logstr;
 
-				if (static_cast<float>(move_cntr/2) <= elapsed_grasp_time)
+				// fastest is about 0.125, making this ~ 4 oscillations per second.
+				if (1 == change_side % 4 || 2 == change_side % 4)
 				{
-					inc_cntr = !inc_cntr;
-					move_cntr++;
-				}
+					logstr << "Oscillating in + Y direction, result: " << (elapsed_grasp_time / _cntr_div) + 0.5f << "/" << change_side;
+					speed[4] = 1.0f + fabs(v_dy); // yaw
 
-				speed[X + 4] = inc_cntr ? 1.0f + fabs(v_dy) : -1.0f - fabs(v_dy);
-				speed[Y + 4] = 0;
-				speed[Z + 4] = 0;
+				}
+				else
+				{
+					logstr << "Oscillating in - Y direction, result: " << (elapsed_grasp_time / _cntr_div) + 0.5f << "/" << change_side;
+					speed[X + 4] = -1.0f - fabs(v_dy);
+				}
+				_logger->print_ip_status(logstr.str());
+
+				speed[5] = 0; // pitch
+				speed[6] = 0; // roll
+
+				last_touch_pos[X] = pos[0];
+				last_touch_pos[Y] = pos[1];
+				last_touch_pos[Z] = pos[2];
+				last_touch_pos[3] = pos[3]; //yaw
+				last_touch_pos[4] = pos[4]; //pitch
+				last_touch_pos[5] = pos[5]; //roll
 			}
 
 			new_status = true;

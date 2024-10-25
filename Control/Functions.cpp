@@ -1829,7 +1829,7 @@ void ManualControl(char ch)
 		gotoxy(1, 48);
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 48);
-		std::cout << "C=Make Calibration Cloud, G: Give speed x, y, z EE frame: ";
+		std::cout << "C=Make Calibration Cloud, G=Give speed x, y, z EE frame, D=IP oscilaltion time: ";
 
 		char type;
 		std::cin >> type;
@@ -2053,6 +2053,19 @@ void ManualControl(char ch)
 					std::cout << "\r                                                                                                     \r";
 				}
 				go_speed(newval);
+				break;
+			}
+			case 'D':
+			{
+				std::cout << "What would you like your divider to be?: ";
+				float speedcnt;
+				std::cin >> speedcnt;
+				IntPerc.set_cntr_div(speedcnt);
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                                                     \r";
+				std::cout << "Divisor set to: " << IntPerc.get_cntr_div();
+
 				break;
 			}
 			default:
