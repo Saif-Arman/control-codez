@@ -449,9 +449,11 @@ void ForceTorqueManager::update_calibration()
 	static int j = 0;
 	static int k = 0;
 
+	static bool stop_movement = false;
 	static bool do_roll = false;
+	static int stop_cntr = 0;
 	int num_pts = 15;
-	float range = 15.0f;
+	float range = 30.0f;
 	int total_pts = num_pts * num_pts;
 	if (do_roll) total_pts = total_pts * num_pts;
 
@@ -487,6 +489,8 @@ void ForceTorqueManager::update_calibration()
 
 				_logger->print_ip_status("Calibration: Starting cloud ...");
 				_calibration_status = START_CLOUD;
+				stop_movement = false;
+				stop_cntr = 0;
 				float new_pos[6] = { home_x, home_y, home_z, next_yaw, next_pitch, next_roll };
 				go_to_position(new_pos);
 			}
@@ -497,8 +501,21 @@ void ForceTorqueManager::update_calibration()
 		{
 			if (!new_position_flag && !home_pos_flag)
 			{
+				if (stop_movement)
+				{
+					if (stop_cntr++ >= 10)
+						stop_movement = false;
+
+					for (int i = 0; i < 8; i++)
+						speed[i] = 0;
+					new_status = true;
+					break;
+				}
+				stop_movement = true;
+				stop_cntr = 0;
 				// Sleep to let arm settle for a moment
-				Sleep(500);
+				//Sleep(500);
+				
 				write_to_cal_file();
 
 				// If i (yaw) is max, increase pitch or roll
@@ -568,7 +585,7 @@ void ForceTorqueManager::update_calibration()
 		{
 			if (!new_position_flag && !home_pos_flag)
 			{
-				if (i <= 10)
+				if (i <= 12)
 				{
 					// Sleep to let arm settle for a moment
 					Sleep(500);
@@ -581,22 +598,31 @@ void ForceTorqueManager::update_calibration()
 
 					i++;
 					float new_pos[6];
-					if (i % 2)
+					new_pos[0] = home_x;
+					new_pos[1] = home_y;
+					new_pos[2] = home_z;
+					if (1 == i % 4)
 					{
-						new_pos[0] = home_x;
-						new_pos[1] = home_y;
-						new_pos[2] = home_z;
 						new_pos[3] = home_yaw + 1.0f;
 						new_pos[4] = home_pitch + 1.0f;
 						new_pos[5] = home_roll;
 					}
-					else
+					else if (2 == i % 4)
 					{
-						new_pos[0] = home_x;
-						new_pos[1] = home_y;
-						new_pos[2] = home_z;
+						new_pos[3] = home_yaw + 1.0f;
+						new_pos[4] = home_pitch - 1.0f;
+						new_pos[5] = home_roll;
+					}
+					else if (3 == i % 4)
+					{
 						new_pos[3] = home_yaw - 1.0f;
 						new_pos[4] = home_pitch - 1.0f;
+						new_pos[5] = home_roll;
+					}
+					else
+					{
+						new_pos[3] = home_yaw - 1.0f;
+						new_pos[4] = home_pitch + 1.0f;
 						new_pos[5] = home_roll;
 					}
 					go_to_position(new_pos);

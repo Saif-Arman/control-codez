@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> 
+#include <sstream>
 #include <string>
 #include "ForceTorqueManager.h"
 #include "InteractPerceive.h"
@@ -35,8 +36,17 @@ normal_distribution<double>distribution(0, 1);
 // This gets the transformation gripper to world using joint angles.
 Matrix<4, 4> GWj_Transformation(float* joint)
 {
-	float L1 = 99.2f, L2 = 396.7f, L3 = 323.4f, L4 = 0;
-	float angle1 = 0, angle2 = static_cast<float>(-M_PI / 2.0f), angle3 = 0, angle4 = static_cast<float>(M_PI / 2.0f), angle5 = static_cast<float>(-M_PI / 2.0f), angle6 = static_cast<float>(M_PI / 2.0f);
+	float L1 = 99.2f;
+	float L2 = 396.7f;
+	float L3 = 323.4f;
+	float L4 = 0;
+	float angle1 = 0;
+	float angle2 = static_cast<float>(-M_PI / 2.0f);
+	float angle3 = 0;
+	float angle4 = static_cast<float>(M_PI / 2.0f);
+	float angle5 = static_cast<float>(-M_PI / 2.0f);
+	float angle6 = static_cast<float>(M_PI / 2.0f);
+
 	for (int i = 0; i < 8; i++)
 	{
 		joint[i] = static_cast<float>(joint[i] * M_PI / 180);
@@ -1081,11 +1091,22 @@ void DisplayPos(float* pos)
 	float dist;
 	dist = static_cast<float>(sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2]))));
 
-	printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%1d) \n",
-		speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
-	gotoxy(1, 25);
-	printf("    Yaw: %06.2f, Pitch: %06.2f, Roll: %06.2f, Speed: %06.2f \n",
-		pos[3], pos[4], pos[5], speed[7]);
+	if (JOINT == cbox)
+	{
+		printf("[Joint Angle]  0: %06.2f, 1: %06.2f, 2: %06.2f, Block Motion: (%1d) \n",
+				speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
+		gotoxy(1, 25);
+		printf("			   3: %06.2f, 4: %06.2f, 5: %06.2f, Grip Speed: %06.2f \n",
+				pos[3], pos[4], pos[5], speed[7]);
+	}
+	else // CARTESIAN == cbox
+	{
+		printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%1d) \t\t\n",
+			speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
+		gotoxy(1, 25);
+		printf("     Yaw: %06.2f, Pitch: %06.2f, Roll: %06.2f, Speed: %06.2f \t\t\n",
+			pos[3], pos[4], pos[5], speed[7]);
+	}
 
 	int time_check = TimeCheck();
 	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " <<
@@ -1280,8 +1301,10 @@ void ResetAll(void)
 {
 	for (int i = 0; i < 8; i++)//
 		speed[i] = 0;
+
 	if ((cbox == FOLD_IN) || (cbox == FOLD_OUT))
 		cbox = FREE;
+
 	rotation_start1 = false;
 	rotation_start2 = false;
 	new_status = true;
@@ -1298,14 +1321,13 @@ void ResetAll(void)
 	grab_in_progress = false;
 	lift_in_progress = false;
 	init_fine_motion = false;
+
 	if (set_point_vel || set_points_control)
 	{
 		set_point_vel = false;
 		set_points_control = false;
 		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
 	}
-	IntPerc.end_interact_perceive_grasp();
-	FTMgr.cancel_calibration();
 }
 
 //-----------------------------------------------------------------------------------
@@ -1340,7 +1362,6 @@ void ResetAll2(void) /// mushtaq
 		set_points_control = false;
 		ClientSocketComm(CAN, VIS, WRITE_SET_POS_DONE, NULL);
 	}
-	IntPerc.end_interact_perceive_grasp();
 }
 
 // Read first 0x0D4 and 0x4D4
@@ -1513,28 +1534,121 @@ void stop_arm()
 	ResetAll();
 }
 
-// Move arm forward/approach in Z direction
+// These say "end effector" frame, but it's actually the camera frame,
+// Same thing, just rotated so Z is forwards
+// 
+// Apply speed in Z direction, end effector frame
 void go_forward(float move_speed)
 {
 	Matrix<3, 1> ca;
 	ca = 0, 0, 1;
+	apply_speed(ca, move_speed);
+}
 
+// Apply speed in X direction, end effector frame
+void go_sideways(float move_speed)
+{
+	Matrix<3, 1> ca;
+	ca = 1, 0, 0;
+	apply_speed(ca, move_speed);
+}
+
+// Apply speed in Y direction, end effector frame
+void go_vertical(float move_speed)
+{
+	Matrix<3, 1> ca;
+	ca = 0, 1, 0;
+	apply_speed(ca, move_speed);
+}
+
+// Passes given x, y, z speeds to robot
+void apply_speed(Matrix<3, 1> ca, float move_speed)
+{
 	Matrix<3, 1> wa;
-	wa = C2W_transform(pos)* ca;
+	wa = C2W_transform(pos) * ca;
 
 	// These are here for reference
 	//int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
 	//int angular_speed_limit[5] = { 1,3,5,7,10 };
 	float new_speed = 0;
-	if (fabs(move_speed) < static_cast<float>(linear_speed_limit[speed_mode]))
+	if (fabs(move_speed) <= static_cast<float>(linear_speed_limit[speed_mode]))
 		new_speed = move_speed;
 	else
 		new_speed = linear_speed_limit[speed_mode] * sign(move_speed);
 
 	for (int i = 0; i < 3; i++)
 		speed[i + 1] = static_cast<float>(wa(i + 1, 1)) * new_speed;
-	
+
 	new_status = true;
+}
+
+
+// Applies X, Y, and Z speeds from the orientation of the end effector
+void go_speed(std::vector<float>& move_speed)
+{
+
+	int speed_size = move_speed.size();
+
+	if (speed_size <= 0)
+		return;
+	else if (speed_size > 6)
+		speed_size = 6;
+
+	float lin_speed_lim = linear_speed_limit[speed_mode];
+	float ang_speed_lim = angular_speed_limit[speed_mode];
+	std::stringstream logstr;
+
+	for (int i = 0; i < speed_size; i++)
+	{
+		if (i < 3)
+			speed[i + 1] = (fabs(move_speed[i]) > lin_speed_lim) ? sign(move_speed[i]) * lin_speed_lim : move_speed[i]; 
+		else if (i < 6)
+			speed[i + 1] = (fabs(move_speed[i]) > ang_speed_lim) ? sign(move_speed[i]) * ang_speed_lim : move_speed[i];
+
+		logstr << "Speed #" << i << ": " << speed[i + 1] << ". ";
+	}
+
+	gotoxy(1, 47);
+	std::cout << "\r                                                                                                     \r";
+	gotoxy(1, 47);
+	std::cout << logstr.str();
+
+	new_status = true;
+}
+
+//// Applies X, Y, and Z speeds from the orientation of the end effector
+//void go_ee_xyz(std::array<float, 3>& move_speed)
+//{
+//	for (int i = 0; i < 3; i++)
+//	{
+//		if (fabs(move_speed[i]) > linear_speed_limit[speed_mode])
+//			move_speed[i] = sign(move_speed[i]) * linear_speed_limit[speed_mode];
+//	}
+//	Matrix<3, 1> ca;
+//	ca = move_speed[0], move_speed[1], move_speed[2];
+//
+//	Matrix<3, 1> wa;
+//	wa = C2W_transform(pos) * ca;
+//
+//	std::stringstream logstr;
+//
+//	for (int i = 0; i < 3; i++)
+//	{
+//		speed[i + 1] = static_cast<float>(wa(i + 1, 1));
+//		logstr << "Speed #" << i << ": " << speed[i + 1] << ". ";
+//	}
+//
+//	gotoxy(1, 47);
+//	std::cout << "\r                                                                                                     \r";
+//	gotoxy(1, 47);
+//	std::cout << logstr.str();
+//
+//	new_status = true;
+//}
+
+void roate_ee(std::array<double, 3> pt)
+{
+
 }
 
 // Start grabbing and stop if something is detected between fingers
@@ -1715,7 +1829,7 @@ void ManualControl(char ch)
 		gotoxy(1, 48);
 		std::cout << "\r                                                                                                     \r";
 		gotoxy(1, 48);
-		std::cout << "C=Make Calibration Cloud: ";
+		std::cout << "C=Make Calibration Cloud, G: Give speed x, y, z EE frame: ";
 
 		char type;
 		std::cin >> type;
@@ -1919,6 +2033,28 @@ void ManualControl(char ch)
 				std::cout << "New angle offset: " << FTMgr.get_angle_offset();
 				break;
 			} // end (A) angle offset
+			case 'G':
+			{
+				std::cout << "How many speeds?: ";
+				int speedcnt = 0;
+				std::cin >> speedcnt;
+
+				gotoxy(1, 46);
+				std::cout << "\r                                                                                                     \r";
+
+				std::vector<float> newval;
+				for (int i = 0; i < speedcnt; i++)
+				{
+					float tmp = 0;
+					std::cout << "Giving speed #" << i + 1 << ": ";
+					std::cin >> tmp;
+					newval.push_back(tmp);
+					gotoxy(1, 46);
+					std::cout << "\r                                                                                                     \r";
+				}
+				go_speed(newval);
+				break;
+			}
 			default:
 			{
 				std::cout << "Invalid selection.";
@@ -2015,6 +2151,8 @@ void ManualControl(char ch)
 		break;
 	case ' ':
 	{
+		IntPerc.end_interact_perceive_grasp();
+		FTMgr.cancel_calibration();
 		stop_arm();
 		break;
 	}
@@ -2121,7 +2259,7 @@ void ManualControl(char ch)
 		ShowCommand("COM: Relative Forward\n");
 		if (cbox == CARTESIAN)
 		{
-			go_forward();
+			go_forward(linear_speed_limit[speed_mode]);
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2737,7 +2875,7 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			{
 				while (Apos[i] > 1800.0f)
 					Apos[i] = (Apos[i] - 3600.0f);
-				while (Apos[i] < -1800.0f)
+				while (Apos[i] <= -1800.0f)
 					Apos[i] = (Apos[i] + 3600.0f);
 			}
 
@@ -3025,7 +3163,7 @@ int pd_control2(void)
 
 	/* Read position information sent by robot */
 	for (int i = 0; i < 6; i++)
-		pprev1[i] = pos[i];									    // p is read off the robot
+		pprev1[i] = pos[i]; // p is read off the robot
 
 	// 010308 control
 	if (home_pos_flag == true)
@@ -3034,41 +3172,30 @@ int pd_control2(void)
 		for (int i = 0; i < 6; ++i)
 		{
 			if (i == 5) // roll -180 ~ 180 : linear scaling
-			{
 				eprev1[i] = pprev1[i] - pd[i]; 
-			}
 			else
-			{
 				eprev1[i] = pd[i] - pprev1[i];
-			}
 
-			if (i > 2) // for rotation, go the shortest route. don't spin around for no reason
+			if (i > 2) // for rotation, go the shortest route. This prevents the hand from spinning all the way around
 			{
 				if (eprev1[i] > 180.0f)
-				{
 					eprev1[i] -= 360.0f;
-				}
 				else if (eprev1[i] <= -180.0f)
-				{
 					eprev1[i] += 360.0f;
-				}
 			}
 
 			float control_input = Kp[i] * eprev1[i];
 
 			if (i < 3)
-			{
 				speed[i + 1] = (fabs(control_input) > linear_speed_limit[speed_mode]) ? sign(control_input) * linear_speed_limit[speed_mode] : control_input;
-			}
 			else
-			{
 				speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
-			}
+
 			// Minimum speed!!!!
-			if (speed[i + 1] > 0 && speed[i + 1] < 1.0)
-				speed[i + 1] = 1.0;
-			if (speed[i + 1] < 0 && speed[i + 1] > -1.0)
-				speed[i + 1] = -1.0;
+			if (speed[i + 1] > 0 && speed[i + 1] < 1.0f)
+				speed[i + 1] = 1.0f;
+			if (speed[i + 1] < 0 && speed[i + 1] > -1.0f)
+				speed[i + 1] = -1.0f;
 		}
 
 	}
@@ -3586,14 +3713,14 @@ int pd_controlJoint(void)
 	}
 	/* SHOW SPEED/TARGET/ERROR */
 	gotoxy(1, 21);
-	printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n", pos[0], pos[1], pos[2], pos[3], pos[4], pos[5]);
+	printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", pos[0], pos[1], pos[2], pos[3], pos[4], pos[5]);
 	gotoxy(1, 22);
-	printf("[S] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
+	printf("[S] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
 	gotoxy(1, 23);
-	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
+	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
 	gotoxy(1, 25);
 	printf("\r                                                                  \r");
-	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
+	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 
 	//Prints requested position, current position, and speed to text file
 	ofstream position_data;
@@ -7100,7 +7227,7 @@ void SbMotionEvent(SiSpwEvent* pEvent)
 
 	/* put the actual ball data into the buffers */
 	len0 = _stprintf_s(buff0, 30, _T("TX: %d         "), pEvent->u.spwData.mData[SI_TX]);
-	len1 = _stprintf_s(buff1, 30, _T("TY: %d         "), pEvent->u.spwData.mData[SI_TY]);
+	len1 = _stprintf_s(buff1, 30, _T("TY: %d         "), pEvent->u.spwData.mData[SI_TY]);	
 	len2 = _stprintf_s(buff2, 30, _T("TZ: %d         "), pEvent->u.spwData.mData[SI_TZ]);
 	len3 = _stprintf_s(buff3, 30, _T("RX: %d         "), pEvent->u.spwData.mData[SI_RX]);
 	len4 = _stprintf_s(buff4, 30, _T("RY: %d         "), pEvent->u.spwData.mData[SI_RY]);

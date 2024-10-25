@@ -421,27 +421,22 @@ int main(int argc, char* argv[])
 						speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
 						
 						// Minimum speed = +/- 1
-						if (speed[i + 1] > 0 && speed[i + 1] < 1.0)
+						if (speed[i + 1] > 0 && speed[i + 1] < 1.0f)
 							speed[i + 1] = 1.0f;
-						else if (speed[i + 1] < 0 && speed[i + 1] > -1.0)
+						else if (speed[i + 1] < 0 && speed[i + 1] > -1.0f)
 							speed[i + 1] = -1.0f;
 					}
 
-					if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))	// yaw & pitch & roll rotation control
-					{
-						//speed[4] = 0; 
-						//speed[5] = 0;
+					if (fabs(eprev1[3]) < R_ERR_BOUND)
+						speed[3] = 0;
+					if (fabs(eprev1[4]) < R_ERR_BOUND)
+						speed[4] = 0;
+					if (fabs(eprev1[5]) < R_ERR_BOUND)
+						speed[5] = 0;
 
-						//if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
-						//{
-							rotation_start2 = false;
-							speed[4] = 0;
-							speed[5] = 0;
-							speed[6] = 0;
-						//}
-					}
-					else
-						speed[6] = 0;
+					// yaw & pitch & roll rotation control
+					if ((fabs(eprev1[3]) < R_ERR_BOUND) && (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))
+						rotation_start2 = false;
 
 					DisplaySpeed();
 				}
@@ -499,6 +494,7 @@ int main(int argc, char* argv[])
 
 					for (int i = 0; i < 8; i++)
 						Apos[i] = 0.1f * Apos[i];
+
 					float Kp[6] = { .5f, .5f, .5f, .5f, .5f, .5f };
 					// Joint control.
 					for (int i = 0; i < 6; i++)

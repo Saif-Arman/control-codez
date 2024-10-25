@@ -3,6 +3,8 @@
 #include "ForceTorqueManager.h"
 #include "Functions.h"
 #include <sstream>
+#include <deque>
+#include <array>
 
 #define X 0
 #define Y 1
@@ -35,6 +37,7 @@ InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(Int
 	else
 	{
 		stop_arm();
+		IntPerc.end_interact_perceive_grasp();
 		reset_interact_perceive_flags();
 		_logger->print_ip_status("Stopped interact_perceive. Press \"M\" to start.");
 		gotoxy(1, 45);
@@ -59,19 +62,19 @@ InteractPerceive::IntPercState InteractPerceive::toggle_interact_perceive_state(
 void InteractPerceive::check_force()
 {
 	IntPercState state = _interact_perceive_state;
-	if (STOPPED == state || OPENING_GRIPPERS == state || GRASPING_OBJECT == state)
+	if (STOPPED == state)
 		return;
 
-	std::array<double, 3> threshold = { 2, 2, 2 };
+	std::array<double, 3> threshold = { 4, 4, 4 };
 	std::array<double, 3> F_ee = FTMgr.get_F_ee();
 
 	for (auto i = X; i <= Z; i++)
 	{
 		if (abs(F_ee[i] - _starting_FT[i]) > threshold[i])
 		{
-			stop_interact_perceive();
+			//stop_interact_perceive();
 			std::stringstream error;
-			error << "STOPPED DUE TO check_force() IN " << get_dir_string(i) << " direction.";
+			error << "WARNING! check_force() EXCEEDED IN " << get_dir_string(i) << " direction.";
 			_logger->print_ip_error(error.str());
 		}
 	}
@@ -103,18 +106,19 @@ void InteractPerceive::do_interact_perceive()
 	if (STOPPED == _interact_perceive_state)
 		return;
 
-	std::array<double, 3> threshold = { 0.6, 0.21, 0.21 };
+	std::array<double, FT_SIZE> threshold = { 0.45, 0.21, 0.21, 0.017, 0.017, 0.017 };
 	Matrix<3, 3> Re2w = EE2w_transform3(pos);
 	Matrix<3, 3> Rw2e = transpose(EE2w_transform3(pos));
 	static int grasp_start_time = 0;
+	static float elapsed_grasp_time = 0;
 	static int int_perc_start_time = 0;
 	static float max_ft_time = 0;
 	static float v_dy = 0;
 	static float v_dx = 0;
-	static float max_FT[FT_SIZE] = { -999, -999, -999, -999, -999, -999, };
-	static float max_FT_pos[FT_SIZE] = { 0, 0, 0, 0, 0, 0 };
-	static float max_pos[FT_SIZE] = { 0, 0, 0, 0, 0, 0 };
-	static float min_pos[FT_SIZE] = { 0, 0, 0, 0, 0, 0 };
+	static int move_cntr = 0;
+	static bool inc_cntr = true;
+	static std::deque<std::array<double, FT_SIZE>> prev_FT;
+	std::array<float, 3> move_speed_ee_xyz = { 0, 0, 0 };
 
 	switch (_interact_perceive_state)
 	{
@@ -156,7 +160,7 @@ void InteractPerceive::do_interact_perceive()
 			std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
 			//for (int i = X; i < Z; i++)
 			//{
-				int i = Z;
+				int i = X;
 				if (abs(current_FT[i]) < threshold[i])
 				{
 					go_forward(_move_speed);
@@ -173,13 +177,9 @@ void InteractPerceive::do_interact_perceive()
 					// Reset needed flags for next stage
 					grasp_start_time = TimeCheck();
 					max_ft_time = 0;
-					for (auto i = 0; i < FT_SIZE; i++)
-					{
-						max_FT[i] = -999;
-						max_FT_pos[i] = pos[i];
-						max_pos[i] = max_FT_pos[i];
-						min_pos[i] = max_FT_pos[i];
-					}
+					move_cntr = 0;
+					inc_cntr = true;
+					prev_FT.clear();
 					
 					_interact_perceive_state = START_GRASP;
 
@@ -190,56 +190,78 @@ void InteractPerceive::do_interact_perceive()
 		}
 		case START_GRASP:
 		{
-			float elapsed_grasp_time = ((float)TimeCheck() - (float)grasp_start_time) / 1000; // in sec
+			elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(grasp_start_time)) / 1000; // in sec
 			std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
-			bool prev_speed_pos = 1;
+			std::array<double, FT_SIZE> avg_ft = { 0, 0, 0, 0, 0, 0 };
+			static float thr_x_speed;
+			
+
+			if (prev_FT.size() >= 10)
+			{
+				prev_FT.pop_front();
+				prev_FT.emplace_back(current_FT);
+
+				for (auto it = prev_FT.begin(); it != prev_FT.end(); ++it )
+				{
+					for (auto i = 0; i < FT_SIZE; i++)
+						avg_ft[i] += (*it)[i];
+				}
+				for (auto i = 0; i < FT_SIZE; i++)
+					avg_ft[i] /= 10;
+			}
+			else
+			{
+				_logger->print_ip_status("Waiting for 10 FT samples ...");
+				// Get 10 samples first
+				prev_FT.emplace_back(current_FT);
+				break;
+			}
 
 			// Keep steady force as needed
-			if (abs(current_FT[Z]) < threshold[Z])
-				go_forward(1.1f);
+			if (avg_ft[X] > -threshold[X])
+			{
+				_logger->print_ip_status("Lost touch, re-approaching in X ...");
+				float forward_speed = v_dx * (1.0f + (static_cast<float>(abs(avg_ft[X]) / threshold[X])));
+				go_forward(forward_speed);
+				speed[X + 3] = 0;
+				speed[Y + 3] = 0;
+				speed[Z + 3] = 0;
+				//speed[X + 1] = 
+				//speed[Y + 1] = 0;
+				//speed[Z + 1] = 0;
+			}
 			else
-				go_forward(0);
-
-			// Make gripper oscillate to find max forces & torques
-			speed[4] = v_dy * sign(float(sin(2 * M_PI * elapsed_grasp_time / 2)));
-				
-			if (abs(current_FT[X]) > abs(max_FT[X]))
 			{
-				max_ft_time = elapsed_grasp_time;
-				max_FT[X] = current_FT[X];
-				for (int i = 0; i < 6; i++)
-					max_FT_pos[i] = pos[i];
-			}
-			// Instead, track forces and go to position where force levels off to minimum
-			// JK, use torques :)
+				std::stringstream logstr;
+				if (inc_cntr)
+					logstr << "Oscillating in + Y direction ...";
+				else
+					logstr << "Oscillating in - Y direction ...";
 
-			if (elapsed_grasp_time - max_ft_time > 3.0f)
-			{
-				std::stringstream info;
-				info << "Going to Max F_X pos: " << pos[0] << ", " << pos[1] << ", " << pos[2] << ", "
-												 << pos[3] << ", " << pos[4] << ", " << pos[5] << ", ";
-				_logger->print_ip_info(info.str());
-				go_to_position(max_FT_pos);
-				_interact_perceive_state = GRASP_MIN_X;
-			}
+				_logger->print_ip_status(logstr.str());
+				// Oscillate linearly to apply "feeling" touch
+				speed[X + 1] = 0;
+				speed[Y + 1] = 0;
+				speed[Z + 1] = 0;
 
-			//if (elapsed_grasp_time > 30)
-			//{
-			//	_logger->print_ip_error("Stopped interact perceive due to timeout.");
-			//	stop_interact_perceive();
-			//}
+				if (static_cast<float>(move_cntr/2) <= elapsed_grasp_time)
+				{
+					inc_cntr = !inc_cntr;
+					move_cntr++;
+				}
+
+				speed[X + 4] = inc_cntr ? 1.0f + fabs(v_dy) : -1.0f - fabs(v_dy);
+				speed[Y + 4] = 0;
+				speed[Z + 4] = 0;
+			}
 
 			new_status = true;
-
-			std::stringstream status;
-			status << "Starting grasp, elapsed time: " << elapsed_grasp_time;
-			_logger->print_ip_status(status.str());
-			//_interact_perceive_state = GRASPING_OBJECT;
+			
 			break;
 		}
-		case GRASP_MIN_X:
+		case MIN_TORQUE_Z:
 		{
-			stop_interact_perceive();
+			_interact_perceive_state = GRASPING_OBJECT;
 			break;
 		}
 		case GRASPING_OBJECT:
