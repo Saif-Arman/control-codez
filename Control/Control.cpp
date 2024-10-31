@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	else
-		cout << "[Info]: Load successful! Entering the main loop!" << endl; 
+		cout << "[Info]: Finalizing initialization ..." << endl; 
 
 	int init_action = 3;
 
@@ -156,7 +156,8 @@ int main(int argc, char* argv[])
 	//end space mouse initialize
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
-
+	
+	cout << "[Info]: Load successful! Entering the main loop!" << endl;
 	while( 1 )
 	{
 		start_time = TimeCheck();
@@ -388,14 +389,14 @@ int main(int argc, char* argv[])
 				}
 
 				// Translate to eliminate the offset.
-				if ((auto_mode_start) & (rotation_start1))
+				if ((auto_mode_start) && (rotation_start1))
 				{
 					rotation_start1 = false;
 					rotation_start2 = true;
 				}
 
 				// Angular motion.
-				if ((auto_mode_start) & (rotation_start2))	// rotation	
+				if ((auto_mode_start) && (rotation_start2))	// rotation	
 				{
 					for (int i = 3; i < 6; i++)
 					{
@@ -408,11 +409,11 @@ int main(int argc, char* argv[])
 							eprev1[i] = pd[i] - pos[i];
 						}
 
-						if (eprev1[i] > 180.0f)
+						while (eprev1[i] > 180.0f)
 						{
 							eprev1[i] -= 360.0f;
 						}
-						else if (eprev1[i] <= -180.0f)
+						while (eprev1[i] <= -180.0f)
 						{
 							eprev1[i] += 360.0f;
 						}
@@ -422,27 +423,39 @@ int main(int argc, char* argv[])
 						
 						// Minimum speed = +/- 1
 						if (speed[i + 1] > 0 && speed[i + 1] < 1.0f)
+						{
 							speed[i + 1] = 1.0f;
+						}
 						else if (speed[i + 1] < 0 && speed[i + 1] > -1.0f)
+						{
 							speed[i + 1] = -1.0f;
+						}
 					}
 
 					if (fabs(eprev1[3]) < R_ERR_BOUND)
+					{
 						speed[3] = 0;
+					}
 					if (fabs(eprev1[4]) < R_ERR_BOUND)
+					{
 						speed[4] = 0;
+					}
 					if (fabs(eprev1[5]) < R_ERR_BOUND)
+					{
 						speed[5] = 0;
+					}
 
 					// yaw & pitch & roll rotation control
 					if ((fabs(eprev1[3]) < R_ERR_BOUND) && (fabs(eprev1[4]) < R_ERR_BOUND) && (fabs(eprev1[5]) < R_ERR_BOUND))
+					{
 						rotation_start2 = false;
+					}
 
 					DisplaySpeed();
 				}
 
 				// Linear motion.
-				if ((auto_mode_start) & (!rotation_start2) & (!rotation_start1) & (cbox == CARTESIAN)) // translation
+				if ((auto_mode_start) && (!rotation_start2) && (!rotation_start1) && (cbox == CARTESIAN)) // translation
 				{
 					// position control.
 					for (int i = 0; i < 3; i++)
@@ -453,15 +466,26 @@ int main(int argc, char* argv[])
 						float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
 						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
 					}
-					if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND))
+					if (fabs(eprev1[0]) < T_ERR_BOUND)
+					{
+						speed[1] = 0;
+					}
+					if (fabs(eprev1[1]) < T_ERR_BOUND)
+					{
+						speed[2] = 0;
+					}
+					if (fabs(eprev1[2]) < T_ERR_BOUND)
+					{
+						speed[3] = 0;
+					}
+					if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND))
 					{
 						auto_mode_start = false;
-						speed[1] = speed[2] = speed[3] = 0;
 					}
 					DisplaySpeed();
 				}
 				//Joint P control Brandon 10/28/16
-				if ((auto_mode_start) & (!rotation_start2) & (!rotation_start1) & (cbox == JOINT)) // Joint control
+				if ((auto_mode_start) && (!rotation_start2) && (!rotation_start1) && (cbox == JOINT)) // Joint control
 				{
 					int joint3 = 0;
 					int joint4 = 0;
@@ -476,9 +500,13 @@ int main(int argc, char* argv[])
 					joint3 = joint3 + 900 + static_cast<int>(Apos[1] + 0.5); // +0.5 to round int
 
 					if (joint3 >= 0)
+					{
 						Apos[2] = static_cast<float>(1800 - joint3);
+					}
 					else
+					{
 						Apos[2] = static_cast<float>(-1800 - joint3);
+					}
 
 					joint4 = static_cast<int>(pos[3] + 900 + 0.5); // +0.5 to round int
 					Apos[3] = static_cast<float>(joint4);
@@ -487,13 +515,19 @@ int main(int argc, char* argv[])
 					for (int i = 0; i < 7; i++)
 					{
 						while (Apos[i] > 1800.0f)
+						{
 							Apos[i] = (Apos[i] - 3600.0f);
-						while (Apos[i] < -1800.0f)
+						}
+						while (Apos[i] <= -1800.0f)
+						{
 							Apos[i] = (Apos[i] + 3600.0f);
+						}
 					}
 
 					for (int i = 0; i < 8; i++)
+					{
 						Apos[i] = 0.1f * Apos[i];
+					}
 
 					float Kp[6] = { .5f, .5f, .5f, .5f, .5f, .5f };
 					// Joint control.
@@ -505,10 +539,21 @@ int main(int argc, char* argv[])
 						float speed_limit = linear_speed_limit[speed_mode] * 1.0f;
 						speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
 					}
-					if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND))
+					if (fabs(eprev1[0]) < T_ERR_BOUND)
+					{
+						speed[1] = 0;
+					}
+					if (fabs(eprev1[1]) < T_ERR_BOUND)
+					{
+						speed[2] = 0;
+					}
+					if (fabs(eprev1[2]) < T_ERR_BOUND)
+					{
+						speed[3] = 0;
+					}
+					if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND))
 					{
 						auto_mode_start = false;
-						speed[1] = speed[2] = speed[3] = 0;
 					}
 					DisplaySpeed();
 				}
@@ -563,14 +608,14 @@ int main(int argc, char* argv[])
 				tc = TimeCheck();
 				if ((new_status == true) && (rcvMsg.ID == 0x37f))
 				{
-					if (((rotation_start1) | (rotation_start2)))
+					if (((rotation_start1) || (rotation_start2)))
 					{
 
 						stsResult = m_objPCANBasic.Write(m_Handle, &xmitMsg);
 						if (stsResult != PCAN_ERROR_OK)
 							cout << "[Error!]: Fail to write to PCAN!" << endl;
 					}
-					else if (((!rotation_start2) & (!rotation_start1)))
+					else if (((!rotation_start2) && (!rotation_start1)))
 					{
 
 						stsResult = m_objPCANBasic.Write(m_Handle, &xmitMsg);
@@ -596,14 +641,20 @@ int main(int argc, char* argv[])
 					speed[i] = 0;
 				//cbox = CARTESIAN;
 				// Translation, approach, retreat.
-				if ((job_complete == true) & (job_complete2 == false))
+				if ((job_complete == true) && (job_complete2 == false))
+				{
 					job_done = job_complete2;
+				}
 				// Rotation.	
-				else if ((job_complete == false) & (job_complete2 == true))
+				else if ((job_complete == false) && (job_complete2 == true))
+				{
 					job_done = job_complete;
+				}
 				//
 				else if (home_pos_flag == true)
+				{
 					job_done = false;
+				}
 
 				SendCommand(CAN, GUI, UPDATE_IN_MOTION, 1);
 
@@ -639,7 +690,9 @@ int main(int argc, char* argv[])
 				SendCommand(CAN, GUI, UPDATE_IN_MOTION, 0);
 				mode = MANUAL_MODE;
 				for (int i = 0; i < 8; ++i)
+				{
 					speed[i] = 0;
+				}
 
 				ShowStatus("STAT: Job Complete\n");
 				btn_cmd = '*';
@@ -650,22 +703,18 @@ int main(int argc, char* argv[])
 		end_time = TimeCheck();
 		ShowFrequency( end_time - start_time );
 		ReadForce(cur_force);
-		//FTMgr.ReadForce(cur_force);
 		ReadLPS(LPS_value);
 		new_force = cur_force;
 		
-		if (end_time-force_t>40)
+		if (end_time - force_t > 40)
 		{
 			force_que[force_count] =  new_force;
 			force_count = ( force_count == 4 ) ? 0 : force_count + 1;
 			old_force = new_force;
-			cout << "Force Que: "<< old_force<< endl;
+			cout << "Force Que: " << old_force << endl;
 			force_t = TimeCheck();
 		}
 
-		IntPerc.do_interact_perceive(); // Only runs if interact_perceive_state is true
-		FTMgr.ReadForceTorque(); // Read force torque from MINI FT sensor
-		IntPerc.check_force(); // Checks if FT sensor reading is > threshold
 		ReadPosit();
 		ReadPosit2();
 		ReadVel();
@@ -676,12 +725,16 @@ int main(int argc, char* argv[])
 		Readblock_dir();
 		ReadTaKK();
 
+		FTMgr.ReadForceTorque(); // Read force torque from MINI FT sensor
+		IntPerc.check_force(); // Checks if FT sensor reading is > threshold
+		IntPerc.do_interact_perceive(); // Only runs if interact_perceive_state is true
+
 		if (assistant_flag)
 		{
 			oneclick();
 		}
-		std::array<double, 3>F_ee = FTMgr.get_F_ee();
-		std::array<double, 3>T_ee = FTMgr.get_T_ee();
+		//std::array<double, 3>F_ee = FTMgr.get_F_ee();
+		//std::array<double, 3>T_ee = FTMgr.get_T_ee();
 		
 		/*
 		exp_data << end_time << ", " << cur_velocity_f << ", " << cur_velocity << ", " 

@@ -406,6 +406,7 @@ extern LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 // Interactive Perception // mushtaq Feb 2022
 extern ForceTorqueManager FTMgr;
 extern InteractPerceive IntPerc;
+extern ControlLogger* gLogger;
 //extern int switch_contact ;
 //extern int swx ;
 //extern int swy ;

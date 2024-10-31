@@ -15,10 +15,8 @@ InteractPerceive::InteractPerceive()
 	: _interact_perceive_state(STOPPED)
 	, _open_grippers_cntr(0)
 	, _move_speed(10.0f)
-	, _cntr_div(1.0f)
 {
 	std::fill(std::begin(_starting_FT), std::end(_starting_FT), 0);
-	_logger = ControlLogger::getInstance();
 }
 
 void InteractPerceive::reset_interact_perceive_flags()
@@ -31,19 +29,15 @@ InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(Int
 	_interact_perceive_state = state;
 	if (STOPPED != state)
 	{
-		gotoxy(1, 45);
-		std::cout << "Interact Perceive State: " << _interact_perceive_state;
-		_logger->clear_ip_error();
-		_logger->clear_ip_status();
+		gLogger->clear_ip_error();
+		gLogger->clear_ip_status();
 	}
 	else
 	{
 		stop_arm();
 		IntPerc.end_interact_perceive_grasp();
 		reset_interact_perceive_flags();
-		_logger->print_ip_status("Stopped interact_perceive. Press \"M\" to start.");
-		gotoxy(1, 45);
-		std::cout << "Interact Perceive State: " << _interact_perceive_state;
+		gLogger->print_ip_info("Stopped interact_perceive. Press \"M\" to start.");
 	}
 
 	return _interact_perceive_state;
@@ -77,7 +71,7 @@ void InteractPerceive::check_force()
 			//stop_interact_perceive();
 			std::stringstream error;
 			error << "WARNING! check_force() EXCEEDED IN " << get_dir_string(i) << " direction.";
-			_logger->print_ip_error(error.str());
+			gLogger->print_ip_error(error.str());
 		}
 	}
 }
@@ -108,7 +102,7 @@ void InteractPerceive::do_interact_perceive()
 	if (STOPPED == _interact_perceive_state)
 		return;
 
-	std::array<double, FT_SIZE> threshold = { 0.45, 0.21, 0.21, 0.017, 0.017, 0.017 };
+	static std::array<double, FT_SIZE> threshold = { 0.55, 0.45, 0.45, 0.017, 0.017, 0.017 };
 	Matrix<3, 3> Re2w = EE2w_transform3(pos);
 	Matrix<3, 3> Rw2e = transpose(EE2w_transform3(pos));
 	static int grasp_start_time = 0;
@@ -117,7 +111,9 @@ void InteractPerceive::do_interact_perceive()
 	static float max_ft_time = 0;
 	static float v_dy = 0;
 	static float v_dx = 0;
+	static int oscillations_per_sec = 0;
 	static bool grasp_done = false;
+	static bool touched_once = false;
 	static std::deque<std::array<double, FT_SIZE>> prev_FT;
 	std::array<float, 3> move_speed_ee_xyz = { 0, 0, 0 };
 
@@ -125,30 +121,75 @@ void InteractPerceive::do_interact_perceive()
 	{
 		case STARTING:
 		{
-			_logger->print_ip_status("");
-			std::cout << "Please enter the desired Y speed (from -10 to 10): ";
-			std::cin >> v_dy;
+			// Grabbing desired speeds & forces
+			float tmp = 0;
 
-			if (v_dy < -10.0f || v_dy > 10.0f)
+			gLogger->print_ip_status("");
+			std::cout << "Please enter the desired wiggling speed (from -10 to 10): ";
+			std::cin >> tmp;
+
+			if (tmp < -10.0f || tmp > 10.0f)
 			{
 				std::stringstream logstr;
-				logstr << "Given speed <" << v_dy << "> is out of bounds!";
-				_logger->print_ip_error(logstr.str());
+				logstr << "Given speed <" << tmp << "> is out of bounds!";
+				gLogger->print_ip_error(logstr.str());
 				stop_interact_perceive();
 				break;
 			}
+			else
+			{
+				v_dy = tmp;
+			}
 
-			_logger->print_ip_status("");
-			std::cout << "Please enter the desired X speed (from -10 to 10): ";
-			std::cin >> v_dx;
+			gLogger->print_ip_status("");
+			std::cout << "Please enter the desired approach speed (from 0 to 15): ";
+			std::cin >> tmp;
 
-			if (v_dx < -10.0f || v_dx > 10.0f)
+			if (tmp < 0 || tmp > 15.0f)
 			{
 				std::stringstream logstr;
-				logstr << "Given speed <" << v_dx << "> is out of bounds!";
-				_logger->print_ip_error(logstr.str());
+				logstr << "Given speed <" << tmp << "> is out of bounds!";
+				gLogger->print_ip_error(logstr.str());
 				stop_interact_perceive();
 				break;
+			}
+			else
+			{
+				v_dx = tmp;
+			}
+
+			gLogger->print_ip_status("");
+			std::cout << "Please enter the desired force threshold! (from -5 to 0): ";
+			std::cin >> tmp;
+
+			if (tmp < -5.0f || tmp > 0)
+			{
+				std::stringstream logstr;
+				logstr << "Given threshold <" << tmp << "> is out of bounds!";
+				gLogger->print_ip_error(logstr.str());
+				stop_interact_perceive();
+				break;
+			}
+			else
+			{
+				threshold[0] = threshold[1] = threshold[2] = tmp;
+			}
+
+			gLogger->print_ip_status("");
+			std::cout << "Please enter the desired oscilaltions per sec! (from 0 to 10): ";
+			std::cin >> tmp;
+
+			if (tmp < 0 || tmp > 10.0f)
+			{
+				std::stringstream logstr;
+				logstr << "Given oscillations <" << tmp << "> is out of bounds!";
+				gLogger->print_ip_error(logstr.str());
+				stop_interact_perceive();
+				break;
+			}
+			else
+			{
+				oscillations_per_sec = tmp;
 			}
 
 			int_perc_start_time = TimeCheck();
@@ -162,10 +203,10 @@ void InteractPerceive::do_interact_perceive()
 			//for (int i = X; i < Z; i++)
 			//{
 				int i = X;
-				if (abs(current_FT[i]) < threshold[i])
+				if (current_FT[i] > threshold[i])
 				{
 					go_forward(_move_speed);
-					_logger->print_ip_status("Approaching object in Z direction");
+					gLogger->print_ip_status("Approaching object in Z direction");
 				}
 				else
 				{
@@ -173,13 +214,14 @@ void InteractPerceive::do_interact_perceive()
 					
 					std::stringstream info;
 					info << "Initial approach complete due to force in " << get_dir_string(i) << " direction.";
-					_logger->print_ip_info(info.str());
+					gLogger->print_ip_info(info.str());
 
 					// Reset needed flags for next stage
 					grasp_start_time = TimeCheck();
 					max_ft_time = 0;
 					grasp_done = false;
 					prev_FT.clear();
+					touched_once = false;
 					
 					_interact_perceive_state = START_GRASP;
 
@@ -193,42 +235,55 @@ void InteractPerceive::do_interact_perceive()
 			elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(grasp_start_time)) / 1000; // in sec
 			static std::array<double, FT_SIZE> last_touch_pos = { 0, 0, 0, 0, 0, 0 };
 			std::array<double, FT_SIZE> current_FT = FTMgr.get_FT_ee();
-			std::array<double, FT_SIZE> avg_ft = { 0, 0, 0, 0, 0, 0 };
+			//std::array<double, FT_SIZE> avg_ft = { 0, 0, 0, 0, 0, 0 };
 			static float thr_x_speed;
-			static bool touched_once = false;
+			int num_ft_samples = 3;
+			speed_mode = 4;
+			UpdatePos(pos);
 			
+			//if (prev_FT.size() >= num_ft_samples)
+			//{
+			//	prev_FT.pop_front();
+			//	prev_FT.emplace_back(current_FT);
 
-			if (prev_FT.size() >= 10)
-			{
-				prev_FT.pop_front();
-				prev_FT.emplace_back(current_FT);
-
-				for (auto it = prev_FT.begin(); it != prev_FT.end(); ++it )
-				{
-					for (auto i = 0; i < FT_SIZE; i++)
-						avg_ft[i] += (*it)[i];
-				}
-				for (auto i = 0; i < FT_SIZE; i++)
-					avg_ft[i] /= 10;
-			}
-			else
-			{
-				_logger->print_ip_status("Waiting for 10 FT samples ...");
-				// Get 10 samples first
-				prev_FT.emplace_back(current_FT);
-				touched_once = false;
-				break;
-			}
+			//	for (auto it = prev_FT.begin(); it != prev_FT.end(); ++it )
+			//	{
+			//		for (auto i = 0; i < FT_SIZE; i++)
+			//		{
+			//			avg_ft[i] += (*it)[i];
+			//		}
+			//	}
+			//	for (auto i = 0; i < FT_SIZE; i++)
+			//	{
+			//		avg_ft[i] /= num_ft_samples;
+			//	}
+			//}
+			//else
+			//{
+			//	std::stringstream logstr;
+			//	logstr << "Waiting for " << num_ft_samples << " FT samples ...";
+			//	gLogger->print_ip_status(logstr.str());
+			//	// Get num_fT_samples samples first
+			//	prev_FT.emplace_back(current_FT);
+			//	touched_once = false;
+			//	break;
+			//}
 
 			// Keep steady force as needed
-			if (avg_ft[X] > -threshold[X])
+			// Threshold should be negative
+			//if (avg_ft[X] > threshold[X])
+			if (current_FT[X] > threshold[X])
 			{
-				_logger->print_ip_status("Lost touch, re-approaching in X ...");
-				if (0 == avg_ft[X])
-					avg_ft[X] = 0.001;
+				//float forward_speed = v_dx * (1.0f - (static_cast<float>(avg_ft[X] / threshold[X])));
+				float forward_speed = v_dx * (1.0f - (static_cast<float>(current_FT[X] / threshold[X])));
+				if (forward_speed > v_dx)
+					forward_speed = v_dx;
 
-				float forward_speed = v_dx * (1.0f + (static_cast<float>(threshold[X] / abs(avg_ft[X]))));
 				go_forward(forward_speed);
+				std::stringstream logstr;
+				logstr << "Lost touch, re-approaching in X with speed " << forward_speed << std::endl;
+				gLogger->print_ip_status(logstr.str());
+
 				speed[X + 3] = 0;
 				speed[Y + 3] = 0;
 				speed[Z + 3] = 0;
@@ -236,9 +291,10 @@ void InteractPerceive::do_interact_perceive()
 				if (touched_once)
 				{
 					float distance = sqrt(pow((pos[0] - last_touch_pos[X]), 2) + pow((pos[1] - last_touch_pos[Y]), 2) + pow((pos[2] - last_touch_pos[Z]), 2));
-					if (distance > 80)
+					if (distance > 60)
 					{
-						_interact_perceive_state = MIN_TORQUE_Z;
+						gLogger->print_ip_status("Traveled > 60mm! Interact perceive is done.");
+						_interact_perceive_state = GRASP_DONE;
 						break;
 					}
 				}
@@ -246,29 +302,34 @@ void InteractPerceive::do_interact_perceive()
 			else
 			{
 				touched_once = true;
-				// Oscillate linearly to apply "feeling" touch
-				speed[X + 1] = 0;
-				speed[Y + 1] = 0;
-				speed[Z + 1] = 0;
-				int change_side = static_cast<int>((elapsed_grasp_time / _cntr_div) + 0.5f);
+				//speed[X + 1] = 0;
+				//speed[Y + 1] = 0;
+				//speed[Z + 1] = 0;
+				go_forward(0);
 				std::stringstream logstr;
 
-				// fastest is about 0.125, making this ~ 4 oscillations per second.
-				if (1 == change_side % 4 || 2 == change_side % 4)
+				// fastest is about 0.25, making this ~ 4 oscillations per second.
+				float oscillation_cntr = sin(2 * M_PI * elapsed_grasp_time * oscillations_per_sec);
+				if (oscillation_cntr > 0)
 				{
-					logstr << "Oscillating in + Y direction, result: " << (elapsed_grasp_time / _cntr_div) + 0.5f << "/" << change_side;
-					speed[4] = 1.0f + fabs(v_dy); // yaw
+					logstr << "Oscillating in + Y direction, result: " << oscillation_cntr;
+					//speed[4] = 1.0f + fabs(v_dy); // yaw
+					//speed[4] = 5.0f; // yaw
+					go_yaw(v_dy);
 
 				}
 				else
 				{
-					logstr << "Oscillating in - Y direction, result: " << (elapsed_grasp_time / _cntr_div) + 0.5f << "/" << change_side;
-					speed[X + 4] = -1.0f - fabs(v_dy);
+					logstr << "Oscillating in - Y direction, result: " << oscillation_cntr;
+					//speed[X + 4] = -1.0f - fabs(v_dy);
+					//speed[X + 4] = -5.0f;
+					go_yaw(-v_dy);
 				}
-				_logger->print_ip_status(logstr.str());
+				logstr << "ft_x: " << current_FT[X] << ", thresh_x: " << threshold[X];
+				gLogger->print_ip_status(logstr.str());
 
-				speed[5] = 0; // pitch
-				speed[6] = 0; // roll
+				//speed[5] = 0; // pitch
+				//speed[6] = 0; // roll
 
 				last_touch_pos[X] = pos[0];
 				last_touch_pos[Y] = pos[1];
@@ -284,23 +345,12 @@ void InteractPerceive::do_interact_perceive()
 		}
 		case MIN_TORQUE_Z:
 		{
-			_interact_perceive_state = GRASPING_OBJECT;
-			break;
-		}
-		case GRASPING_OBJECT:
-		{
-			if (grab_in_progress)
-			{
-				_logger->print_ip_status("Grasping object ...");
-				break;
-			}
-				
 			_interact_perceive_state = GRASP_DONE;
 			break;
 		}
 		case GRASP_DONE:
 		{
-			_logger->print_ip_status("Interact perceive done!");
+			gLogger->print_ip_status("Interact perceive done!");
 			stop_interact_perceive();
 		}
 	}

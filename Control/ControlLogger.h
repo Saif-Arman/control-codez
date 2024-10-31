@@ -14,9 +14,11 @@ public:
     }
 
     // Print/clear status & error messages for interact perceive
+    void clear_line();
     void print_ip_status(std::string status);
     void clear_ip_status();
     void print_ip_info(std::string info);
+    void clear_ip_info();
     void print_ip_error(std::string error);
     void clear_ip_error();
 

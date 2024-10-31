@@ -1151,7 +1151,7 @@ void ShowFrequency(int time)
 		time = 1;
 
 	if (time > 0)
-		sprintf(str, "Freq: %09.4f", 1000.0 / (float)time);
+		sprintf(str, "Freq: %09.4f hz, loop time: %07.4f seconds", 1000.0f / (float)time, (float)time/1000.0f);
 	else
 		sprintf(str, "Freq: Normal");
 	printf(str);
@@ -1553,6 +1553,15 @@ void go_sideways(float move_speed)
 	apply_speed(ca, move_speed);
 }
 
+void go_yaw(float move_speed)
+{
+	// pitch is 1, 0, 0
+	// roll is 1, 0, 0?
+	Matrix<3, 1> ca;
+	ca = 0, 0, 1;
+	apply_speed(ca, move_speed, false);
+}
+
 // Apply speed in Y direction, end effector frame
 void go_vertical(float move_speed)
 {
@@ -1562,26 +1571,39 @@ void go_vertical(float move_speed)
 }
 
 // Passes given x, y, z speeds to robot
-void apply_speed(Matrix<3, 1> ca, float move_speed)
+void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear)
 {
 	Matrix<3, 1> wa;
 	wa = C2W_transform(pos) * ca;
 
 	// These are here for reference
-	//int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
-	//int angular_speed_limit[5] = { 1,3,5,7,10 };
-	float new_speed = 0;
-	if (fabs(move_speed) <= static_cast<float>(linear_speed_limit[speed_mode]))
-		new_speed = move_speed;
-	else
-		new_speed = linear_speed_limit[speed_mode] * sign(move_speed);
+	// int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
+	// int angular_speed_limit[5] = { 1,3,5,7,10 };
 
-	for (int i = 0; i < 3; i++)
-		speed[i + 1] = static_cast<float>(wa(i + 1, 1)) * new_speed;
+	float speed_limit = 0;
+	if (go_linear)
+	{
+		speed_mode = speed_mode > 11 ? 11 : speed_mode;
+		speed_limit = static_cast<float>(linear_speed_limit[speed_mode]);
+	}
+	else
+	{
+		speed_mode = speed_mode > 4 ? 4 : speed_mode;
+		speed_limit = static_cast<float>(angular_speed_limit[speed_mode]);
+	}
+
+	if (fabs(move_speed) > speed_limit)
+		move_speed = speed_limit * sign(move_speed);
+
+	int angle_offset = go_linear ? 0 : 3;
+
+	for (int i = 0 + angle_offset; i < 3 + angle_offset; i++)
+	{
+		speed[i + 1] = static_cast<float>(wa(i - angle_offset + 1, 1)) * move_speed;
+	}
 
 	new_status = true;
 }
-
 
 // Applies X, Y, and Z speeds from the orientation of the end effector
 void go_speed(std::vector<float>& move_speed)
@@ -1818,28 +1840,26 @@ void ManualControl(char ch)
 	case 'A': // ADJUST IntPerc & F/T OFFSETS
 
 		// Ask user what they want to change, clear lines before printing
+		
 		gotoxy(1, 46);
-		std::cout << "\r                                                                                                     \r";
-		gotoxy(1, 46);
+		gLogger->clear_line();
 		std::cout << "Select F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed" << std::endl;
 		gotoxy(1, 47);
-		std::cout << "\r                                                                                                     \r";
-		gotoxy(1, 47);
+		gLogger->clear_line();
 		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, ";
 		gotoxy(1, 48);
-		std::cout << "\r                                                                                                     \r";
-		gotoxy(1, 48);
-		std::cout << "C=Make Calibration Cloud, G=Give speed x, y, z EE frame, D=IP oscilaltion time: ";
+		gLogger->clear_line();
+		std::cout << "C=Make Calibration Cloud, G=Give speed x, y, z EE frame";
 
 		char type;
 		std::cin >> type;
 		// Clear what we just sent to the screen
 		gotoxy(1, 48);
-		std::cout << "\r                                                                                                     \r";
+		gLogger->clear_line();
 		gotoxy(1, 47);
-		std::cout << "\r                                                                                                     \r";
+		gLogger->clear_line();
 		gotoxy(1, 46);
-		std::cout << "\r                                                                                                     \r";
+		gLogger->clear_line();
 		gotoxy(1, 46);
 
 		switch (type)
@@ -1873,14 +1893,14 @@ void ManualControl(char ch)
 					break;
 				}
 
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				std::cout << " Select new offset: ";
 				double newoffset;
 				std::cin >> newoffset;
 				FTMgr.set_f_offset(newdir, newoffset);
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				offsets = FTMgr.get_f_offsets();
 				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
 				break;
@@ -1903,14 +1923,14 @@ void ManualControl(char ch)
 					break;
 				}
 
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				std::cout << " Select new offset: ";
 				double newoffset;
 				std::cin >> newoffset;
 				FTMgr.set_t_offset(newdir, newoffset);
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				offsets = FTMgr.get_t_offsets();
 				std::cout << "Current offsets: " << offsets[0] << ", " << offsets[1] << ", " << offsets[2];
 				break;
@@ -1933,14 +1953,14 @@ void ManualControl(char ch)
 					break;
 				}
 
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				std::cout << " Select new offset: ";
 				double newoffset;
 				std::cin >> newoffset;
 				FTMgr.set_r(newdir, newoffset);
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				r = FTMgr.get_r();
 				std::cout << "Current offsets: " << r[0] << ", " << r[1] << ", " << r[2];
 				break;
@@ -1973,7 +1993,7 @@ void ManualControl(char ch)
 					printf("Invalid weight.");
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				weight = FTMgr.get_weight();
 				std::cout << "Current weight (XYZ): " << weight[0] << ", " << weight[1] << ", " << weight[2];
 				break;
@@ -1989,7 +2009,7 @@ void ManualControl(char ch)
 					printf("Invalid speed.");
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                \r";
+				gLogger->clear_line();
 				std::cout << "Current speed: " << IntPerc.get_move_speed();
 				break;
 			}
@@ -2008,8 +2028,7 @@ void ManualControl(char ch)
 				}
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                                                     \r";
-				gotoxy(1, 46);
+				gLogger->clear_line();
 				std::cout << "New tension constant: " << FTMgr.get_tension_const();
 				break;
 			} // end (Y) tension switch
@@ -2028,7 +2047,7 @@ void ManualControl(char ch)
 				}
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                                                     \r";
+				gLogger->clear_line();
 				gotoxy(1, 46);
 				std::cout << "New angle offset: " << FTMgr.get_angle_offset();
 				break;
@@ -2040,7 +2059,7 @@ void ManualControl(char ch)
 				std::cin >> speedcnt;
 
 				gotoxy(1, 46);
-				std::cout << "\r                                                                                                     \r";
+				gLogger->clear_line();
 
 				std::vector<float> newval;
 				for (int i = 0; i < speedcnt; i++)
@@ -2049,23 +2068,8 @@ void ManualControl(char ch)
 					std::cout << "Giving speed #" << i + 1 << ": ";
 					std::cin >> tmp;
 					newval.push_back(tmp);
-					gotoxy(1, 46);
-					std::cout << "\r                                                                                                     \r";
 				}
 				go_speed(newval);
-				break;
-			}
-			case 'D':
-			{
-				std::cout << "What would you like your divider to be?: ";
-				float speedcnt;
-				std::cin >> speedcnt;
-				IntPerc.set_cntr_div(speedcnt);
-
-				gotoxy(1, 46);
-				std::cout << "\r                                                                                                     \r";
-				std::cout << "Divisor set to: " << IntPerc.get_cntr_div();
-
 				break;
 			}
 			default:
@@ -4097,7 +4101,7 @@ void ReadForce(float cur_for)
 	/*gotoxy(1, 30);
 	printf("Force: %.3f", cur_force);*/
     gotoxy(30, 30);
-	printf("Speed mode: %d", speed_mode);
+	printf("Speed mode: %d   ", speed_mode);
 }
 
 //-----------------------------------------------------------------------------------

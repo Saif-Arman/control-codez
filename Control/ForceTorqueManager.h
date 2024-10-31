@@ -90,5 +90,4 @@ private:
 	};
 
 	CAL_STATUS _calibration_status;
-	ControlLogger* _logger;
 };

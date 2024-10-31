@@ -36,7 +36,6 @@ ForceTorqueManager::ForceTorqueManager()
 			   0, 0, 0;
 
 	_calibration_status = STOPPED;
-	_logger = ControlLogger::getInstance();
 	calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\manus_ft_calibration_cloud.csv";
 	_cal_tree.initialize(calibration_pt_file);
 
@@ -461,7 +460,7 @@ void ForceTorqueManager::update_calibration()
 	{
 		case(STARTING):
 		{
-			_logger->print_ip_status("Calibration: Going to first home position ...");
+			gLogger->print_ip_status("Calibration: Going to first home position ...");
 			go_to_position(home_pos);
 
 			_calibration_status = FIRST_HOME;
@@ -487,7 +486,7 @@ void ForceTorqueManager::update_calibration()
 				j = 1;
 				k = 1;
 
-				_logger->print_ip_status("Calibration: Starting cloud ...");
+				gLogger->print_ip_status("Calibration: Starting cloud ...");
 				_calibration_status = START_CLOUD;
 				stop_movement = false;
 				stop_cntr = 0;
@@ -501,6 +500,7 @@ void ForceTorqueManager::update_calibration()
 		{
 			if (!new_position_flag && !home_pos_flag)
 			{
+				// Make the arm briefly stop to take readings
 				if (stop_movement)
 				{
 					if (stop_cntr++ >= 10)
@@ -513,8 +513,6 @@ void ForceTorqueManager::update_calibration()
 				}
 				stop_movement = true;
 				stop_cntr = 0;
-				// Sleep to let arm settle for a moment
-				//Sleep(500);
 				
 				write_to_cal_file();
 
@@ -558,7 +556,7 @@ void ForceTorqueManager::update_calibration()
 				std::stringstream logstr;
 				logstr << "Calibration: Going to position # " << i << ", " << j << ", " << k << ". ";
 				logstr << "Progress: " << (i - 1) + (j - 1) * num_pts << "/" << total_pts << std::endl;
-				_logger->print_ip_status(logstr.str());
+				gLogger->print_ip_status(logstr.str());
 
 				if (j % 2)
 				{
@@ -587,14 +585,26 @@ void ForceTorqueManager::update_calibration()
 			{
 				if (i <= 12)
 				{
-					// Sleep to let arm settle for a moment
-					Sleep(500);
+					// Make the arm briefly stop to take readings
+					if (stop_movement)
+					{
+						if (stop_cntr++ >= 10)
+							stop_movement = false;
+
+						for (int i = 0; i < 8; i++)
+							speed[i] = 0;
+						new_status = true;
+						break;
+					}
+					stop_movement = true;
+					stop_cntr = 0;
+
 					write_to_cal_file();
 
 					std::stringstream logstr;
 					logstr << "Calibration: Getting multiple home calibration points. ";
 					logstr << "Progress: " << i << "/" << "10" << std::endl;
-					_logger->print_ip_status(logstr.str());
+					gLogger->print_ip_status(logstr.str());
 
 					i++;
 					float new_pos[6];
@@ -638,10 +648,10 @@ void ForceTorqueManager::update_calibration()
 		} // GET_MULTIPLE_HOMES
 		case (BUILD_KDTREE):
 		{
-			_logger->print_ip_status("Calibration build KD tree...");
+			gLogger->print_ip_status("Calibration build KD tree...");
 			_cal_tree.initialize(calibration_pt_file);
 			_calibration_status = STOPPED;
-			_logger->print_ip_status("Calibration complete!");
+			gLogger->print_ip_status("Calibration complete!");
 			break;
 		} // BUILD_KDTREE
 	} // end switch

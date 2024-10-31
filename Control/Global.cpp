@@ -381,6 +381,7 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 // Interactive Perceiption parameters// Mushtaq Feb 2022
 ForceTorqueManager FTMgr;
 InteractPerceive IntPerc;
+ControlLogger *gLogger = ControlLogger::getInstance();
 //int switch_contact= 0;
 //int swx = 0;
 //int swy = 0;

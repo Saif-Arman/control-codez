@@ -102,8 +102,9 @@ bool Open_Grabber( void );							// Open the grabber.
 void stop_arm();									// Stop all arm movement.
 void go_forward(float move_speed = 5.0f);			// Applies linear speed in end effector's Z direction
 void go_sideways(float move_speed = 5.0f);			// Applies linear speed in end effector's X direction
+void go_yaw(float move_speed = 5.0f);
 void go_vertical(float move_speed = 5.0f);			// Applies linear speed in end effector's Y direction
-void apply_speed(Matrix<3, 1> ca, float move_speed);// Helper function for go_forward/sideways/vertical to make robot move
+void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear = true);// Helper function for 1-axis robot movement functions
 void go_speed(std::vector<float>& move_speed);
 void do_grab_object();								// Starts grabbing, stops if something is detected between fingers
 void do_open_grippers();							// Opens grippers all the way
@@ -291,9 +292,3 @@ void  HandleDeviceChangeEvent(SiSpwEvent *pEvent);
 void  HandleV3DCMDEvent(SiSpwEvent *pEvent);
 void  HandleAppEvent(SiSpwEvent *pEvent);
 //#endif
-
-
-//=============================================================================
-// Space Mouse
-//=============================================================================
-

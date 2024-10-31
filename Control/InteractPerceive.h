@@ -39,9 +39,6 @@ public:
 
 	inline float get_move_speed() { return _move_speed; };
 	inline void set_move_speed(float speed) { _move_speed = speed; };
-	
-	inline void set_cntr_div(float div) { _cntr_div = div; }
-	inline float get_cntr_div() { return _cntr_div; }
 
 private:
 
@@ -59,7 +56,5 @@ private:
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
 	float _move_speed;
 	int _open_grippers_cntr;
-	ControlLogger *_logger;
-	float _cntr_div;
 };
 
