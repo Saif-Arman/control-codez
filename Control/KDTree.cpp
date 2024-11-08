@@ -32,11 +32,11 @@ KDTree::KDNode* KDTree::buildKDTree(std::vector<KDTree::Point>::iterator begin, 
     auto comparator = [axis](const KDTree::Point& a, const KDTree::Point& b) -> bool
     {
         if (axis == 0)
-            return a.yaw < b.yaw;
+            return a.yaw_r < b.yaw_r;
         else if (axis == 1)
-            return a.pitch < b.pitch;
+            return a.pitch_r < b.pitch_r;
         else
-            return a.roll < b.roll;
+            return a.roll_r < b.roll_r;
     };
 
     // Sort point list and choose median as pivot element
@@ -54,9 +54,16 @@ KDTree::KDNode* KDTree::buildKDTree(std::vector<KDTree::Point>::iterator begin, 
 // Function to calculate squared Euclidean distance between two points
 double KDTree::squaredDistance(const KDTree::Point& a, const KDTree::Point& b)
 {
-    return (a.yaw - b.yaw) * (a.yaw - b.yaw) +
-        (a.pitch - b.pitch) * (a.pitch - b.pitch) +
-        (a.roll - b.roll) * (a.roll - b.roll);
+    return (a.yaw_r - b.yaw_r) * (a.yaw_r - b.yaw_r) +
+        (a.pitch_r - b.pitch_r) * (a.pitch_r - b.pitch_r) +
+        (a.roll_r - b.roll_r) * (a.roll_r - b.roll_r);
+}
+
+double KDTree::squaredDistance_ft(const KDTree::Point& a, const KDTree::Point& b)
+{
+    return (a.fx - b.fx) * (a.fx - b.fx) +
+        (a.fy - b.fy) * (a.fy - b.fy) +
+        (a.fz - b.fz) * (a.fz - b.fz);
 }
 
 // Function to find the k nearest neighbors
@@ -89,11 +96,11 @@ void KDTree::kNearestNeighbors(KDNode* root, const KDTree::Point& target, int k,
     int axis = depth % 3;
     double diff;
     if (axis == 0)
-        diff = target.yaw - root->point.yaw;
+        diff = target.yaw_r - root->point.yaw_r;
     else if (axis == 1)
-        diff = target.pitch - root->point.pitch;
+        diff = target.pitch_r - root->point.pitch_r;
     else
-        diff = target.roll - root->point.roll;
+        diff = target.roll_r - root->point.roll_r;
 
     KDNode* first = diff < 0 ? root->left : root->right;
     KDNode* second = diff < 0 ? root->right : root->left;
@@ -105,6 +112,55 @@ void KDTree::kNearestNeighbors(KDNode* root, const KDTree::Point& target, int k,
     if (static_cast<int>(maxHeap.size()) < k || diff * diff < maxHeap.top().first)
     {
         KDTree::kNearestNeighbors(second, target, k, depth + 1, maxHeap);
+    }
+}
+
+// Function to find the k nearest neighbors by force
+void KDTree::kNearestNeighbors_ypr(KDNode* root, const KDTree::Point& target, int k, int depth,
+    std::priority_queue<std::pair<double, KDTree::Point>,
+    std::vector<std::pair<double, KDTree::Point>>,
+    CompareDist>& maxHeap)
+{
+    if (!root)
+        return;
+
+    // Compute squared distance between target and current point
+    double dist = squaredDistance_ft(root->point, target);
+
+    // If heap is not full, push current point
+    if (static_cast<int>(maxHeap.size()) < k)
+    {
+        //maxHeap.emplace(dist, root->point);
+        maxHeap.push(std::make_pair(dist, root->point));
+    }
+    // If current point is closer than the farthest point in heap, replace it
+    else if (dist < maxHeap.top().first)
+    {
+        maxHeap.pop();
+        //maxHeap.emplace(dist, root->point);
+        maxHeap.push(std::make_pair(dist, root->point));
+    }
+
+    // Determine which side to search first
+    int axis = depth % 3;
+    double diff;
+    if (axis == 0)
+        diff = target.fx - root->point.fx;
+    else if (axis == 1)
+        diff = target.fy - root->point.fy;
+    else
+        diff = target.fz - root->point.fz;
+
+    KDNode* first = diff < 0 ? root->left : root->right;
+    KDNode* second = diff < 0 ? root->right : root->left;
+
+    // Search nearer subtree first
+    KDTree::kNearestNeighbors_ypr(first, target, k, depth + 1, maxHeap);
+
+    // Check if we need to search the farther subtree
+    if (static_cast<int>(maxHeap.size()) < k || diff * diff < maxHeap.top().first)
+    {
+        KDTree::kNearestNeighbors_ypr(second, target, k, depth + 1, maxHeap);
     }
 }
 
@@ -130,6 +186,43 @@ void KDTree::readPoints(std::vector<double>& points, std::vector<KDTree::Point>&
 
 std::array<double, 3> KDTree::anglesToUnitVector(double yaw, double pitch, double roll)
 {
+    //// Convert angles from degrees to radians
+    //double yawRad = yaw * M_PI / 180.0;
+    //double pitchRad = pitch * M_PI / 180.0;
+    //double rollRad = roll * M_PI / 180.0;
+
+    //// Compute components based on yaw, pitch, and roll
+    //double cosYaw = std::cos(yawRad);
+    //double sinYaw = std::sin(yawRad);
+    //double cosPitch = std::cos(pitchRad);
+    //double sinPitch = std::sin(pitchRad);
+    //double cosRoll = std::cos(rollRad);
+    //double sinRoll = std::sin(rollRad);
+
+    //// Apply yaw, pitch, and roll rotations to compute the unit vector components
+    //double x = cosYaw * cosPitch;
+    //double y = sinYaw * cosPitch;
+    //double z = sinPitch;
+
+    //// Now apply roll: roll rotates the vector around the y-axis (forward/back)
+    //double newX = x * cosRoll + z * sinRoll;
+    //double newZ = -x * sinRoll + z * cosRoll;
+
+    //// Return the final unit vector as an array
+    //std::array<double, 3> result = { newX, y, newZ };
+    //return result;
+
+    double yawRad = yaw * M_PI / 180.0;
+    double pitchRad = pitch * M_PI / 180.0;
+    double rollRad = roll * M_PI / 180.0;
+
+    std::array<double, 3> results = { yawRad, pitchRad, rollRad };
+    return results;
+
+}
+
+/*std::array<double, 3> KDTree::unitVectorToAngles(double x, double y, double z)
+{
     // Convert angles from degrees to radians
     double yawRad = yaw * M_PI / 180.0;
     double pitchRad = pitch * M_PI / 180.0;
@@ -140,9 +233,11 @@ std::array<double, 3> KDTree::anglesToUnitVector(double yaw, double pitch, doubl
     double y = std::sin(yawRad) * std::cos(pitchRad);
     double z = std::sin(pitchRad);
 
-    std::array<double, 3> result = { x, y, z };
+    double yawrad = std::sqrt(x);
+
+    std::array<double, 3> result = { yaw, pitch, roll };
     return result;
-}
+}*/
 
 // Function to read yaw, pitch, and roll from a CSV file, skipping the first line
 void KDTree::readYawPitchRollFromCSV(const std::string& filename, std::vector<KDTree::Point>& points)
@@ -194,8 +289,8 @@ void KDTree::readYawPitchRollFromCSV(const std::string& filename, std::vector<KD
 
         if (values.size() >= 12)
         {
-            std::array<double, 3> angles = anglesToUnitVector(values[3], values[4], values[5]);
-            KDTree::Point newpt(angles[0], angles[1], angles[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11]);
+            std::array<double, 3> angles_radians = anglesToUnitVector(values[3], values[4], values[5]);
+            KDTree::Point newpt(angles_radians[0], angles_radians[1], angles_radians[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10], values[11]);
             points.emplace_back(newpt);
         }
         else
@@ -214,19 +309,46 @@ void KDTree::initialize(std::string calibration_pt_file)
     _root = buildKDTree(points.begin(), points.end(), 0);
 }
 
-std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double roll)
+/*void KDTree::get_points(std::vector<std::pair<double, KDTree::Point>>& nearestNeighbors, KDTree::Point& target)
 {
-    // Target point
-    std::array<double, 3> angles = anglesToUnitVector(yaw, pitch, roll);
-    KDTree::Point target(angles[0], angles[1], angles[2]);
-
     // Find 4 nearest neighbors
     int k = 4;
     std::priority_queue<std::pair<double, KDTree::Point>, std::vector<std::pair<double, KDTree::Point>>, KDTree::CompareDist> maxHeap;
-    KDTree::kNearestNeighbors(_root, target, k, 0, maxHeap);
+    kNearestNeighbors(_root, target, k, 0, maxHeap);
 
     // Collect results from the max heap
+    while (!maxHeap.empty())
+    {
+        nearestNeighbors.push_back(maxHeap.top());
+        maxHeap.pop();
+    }
+};
+
+double KDTree::get_total_dist(std::vector<std::pair<double, KDTree::Point>>& nearestNeighbors)
+{
+    // Output results (closest first)
+    double total_dist = 0;
+    for (auto it = nearestNeighbors.rbegin(); it != nearestNeighbors.rend(); ++it)
+    {
+        double dist = std::sqrt(it->first);
+        total_dist += dist;
+    }
+    return total_dist;
+};*/
+
+std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double roll)
+{
+    // Target point
+    std::array<double, 3> angles_radians = anglesToUnitVector(yaw, pitch, roll);
+    KDTree::Point target(angles_radians[0], angles_radians[1], angles_radians[2]);
+
+    // Find 4 nearest neighbors
     std::vector<std::pair<double, KDTree::Point>> nearestNeighbors;
+    int k = 4;
+    std::priority_queue<std::pair<double, KDTree::Point>, std::vector<std::pair<double, KDTree::Point>>, KDTree::CompareDist> maxHeap;
+    kNearestNeighbors(_root, target, k, 0, maxHeap);
+
+    // Collect results from the max heap
     while (!maxHeap.empty())
     {
         nearestNeighbors.push_back(maxHeap.top());
@@ -238,7 +360,6 @@ std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double rol
     for (auto it = nearestNeighbors.rbegin(); it != nearestNeighbors.rend(); ++it)
     {
         double dist = std::sqrt(it->first);
-        const KDTree::Point& pt = it->second;
         total_dist += dist;
     }
 
@@ -257,6 +378,53 @@ std::array<double, 6> KDTree::get_ft_offset(double yaw, double pitch, double rol
         offsets[4] += (dist / total_dist) * pt.ty;
         offsets[5] += (dist / total_dist) * pt.tz;
     }
+
+    return offsets;
+}
+
+std::array<double, 3> KDTree::get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 6>& ft_vector)
+{
+    // Target point
+    std::array<double, 3> angles_radians = anglesToUnitVector(yaw, pitch, roll);
+    KDTree::Point target(yaw, pitch, roll, angles_radians[0], angles_radians[1], angles_radians[2], ft_vector[0], ft_vector[1], ft_vector[2], ft_vector[3], ft_vector[4], ft_vector[5]);
+
+    // Find 4 nearest neighbors
+    std::vector<std::pair<double, KDTree::Point>> nearestNeighbors;
+    int k = 4;
+    std::priority_queue<std::pair<double, KDTree::Point>, std::vector<std::pair<double, KDTree::Point>>, KDTree::CompareDist> maxHeap;
+    kNearestNeighbors_ypr(_root, target, k, 0, maxHeap);
+
+    // Collect results from the max heap
+    while (!maxHeap.empty())
+    {
+        nearestNeighbors.push_back(maxHeap.top());
+        maxHeap.pop();
+    }
+
+    // Output results (closest first)
+    double total_dist = 0;
+    for (auto it = nearestNeighbors.rbegin(); it != nearestNeighbors.rend(); ++it)
+    {
+        double dist = std::sqrt(it->first);
+        total_dist += dist;
+    }
+
+    // Offset weighted avg for roll, pitch, yaw
+    std::array<double, 3> offsets = { 0 };
+
+    for (auto it = nearestNeighbors.rbegin(); it != nearestNeighbors.rend(); ++it)
+    {
+        double dist = std::sqrt(it->first);
+        const KDTree::Point& pt = it->second;
+
+        offsets[0] += (dist / total_dist) * pt.yaw_d;
+        offsets[1] += (dist / total_dist) * pt.pitch_d;
+        offsets[2] += (dist / total_dist) * pt.roll_d;
+    }
+
+    offsets[0] = 0;
+    offsets[1] = 0;
+    offsets[2] = 0;
 
     return offsets;
 }

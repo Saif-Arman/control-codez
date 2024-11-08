@@ -35,7 +35,7 @@ InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(Int
 	else
 	{
 		stop_arm();
-		IntPerc.end_interact_perceive_grasp();
+		end_interact_perceive_grasp();
 		reset_interact_perceive_flags();
 		gLogger->print_ip_info("Stopped interact_perceive. Press \"M\" to start.");
 	}
@@ -102,6 +102,7 @@ void InteractPerceive::do_interact_perceive()
 	if (STOPPED == _interact_perceive_state)
 		return;
 
+	FTMgr.ReadForceTorque(); // Read force torque from MINI FT sensor
 	static std::array<double, FT_SIZE> threshold = { 0.55, 0.45, 0.45, 0.017, 0.017, 0.017 };
 	Matrix<3, 3> Re2w = EE2w_transform3(pos);
 	Matrix<3, 3> Rw2e = transpose(EE2w_transform3(pos));
@@ -112,10 +113,12 @@ void InteractPerceive::do_interact_perceive()
 	static float v_dy = 0;
 	static float v_dx = 0;
 	static int oscillations_per_sec = 0;
+	static int ip_cntr = 0;
 	static bool grasp_done = false;
 	static bool touched_once = false;
 	static std::deque<std::array<double, FT_SIZE>> prev_FT;
 	std::array<float, 3> move_speed_ee_xyz = { 0, 0, 0 };
+	static std::array<double, 3> rpy_offsets = { 0 };
 
 	switch (_interact_perceive_state)
 	{
@@ -195,6 +198,7 @@ void InteractPerceive::do_interact_perceive()
 			int_perc_start_time = TimeCheck();
 			_interact_perceive_state = INITIAL_APPROACH;
 			_starting_FT = FTMgr.get_FT_ee();
+			//rpy_offsets = FTMgr.get_ypr_offsets();
 			break;
 		}
 		case INITIAL_APPROACH:
@@ -291,7 +295,7 @@ void InteractPerceive::do_interact_perceive()
 				if (touched_once)
 				{
 					float distance = sqrt(pow((pos[0] - last_touch_pos[X]), 2) + pow((pos[1] - last_touch_pos[Y]), 2) + pow((pos[2] - last_touch_pos[Z]), 2));
-					if (distance > 60)
+					if (distance > 75)
 					{
 						gLogger->print_ip_status("Traveled > 60mm! Interact perceive is done.");
 						_interact_perceive_state = GRASP_DONE;
@@ -308,23 +312,51 @@ void InteractPerceive::do_interact_perceive()
 				go_forward(0);
 				std::stringstream logstr;
 
-				// fastest is about 0.25, making this ~ 4 oscillations per second.
-				float oscillation_cntr = sin(2 * M_PI * elapsed_grasp_time * oscillations_per_sec);
-				if (oscillation_cntr > 0)
+				// Wait until robot is waiting for a command,
+				// send every 5 robot ticks
+				if (0x37F == rcvMsg.ID)
 				{
-					logstr << "Oscillating in + Y direction, result: " << oscillation_cntr;
-					//speed[4] = 1.0f + fabs(v_dy); // yaw
-					//speed[4] = 5.0f; // yaw
-					go_yaw(v_dy);
+					if (ip_cntr < oscillations_per_sec/2)
+					{
+						logstr << "Oscillating in + Y direction, count: " << ip_cntr;
+						go_yaw(v_dy);
+					}
+					else
+					{
+						logstr << "Oscillating in - Y direction, count: " << ip_cntr;
+						go_yaw(-v_dy);
+					}
+					// 5 robot ticks in each direction
+					ip_cntr++;
+					if (ip_cntr > oscillations_per_sec - 1)
+						ip_cntr = 0;
+				}
+				//float oscillation_cntr = sin(2 * M_PI * elapsed_grasp_time * oscillations_per_sec);
+				//if (oscillation_cntr > 0.5)
+				//{
+				//	logstr << "   Stopping in + Y direction, result: " << oscillation_cntr;
+				//	go_yaw(0);
+				//}
+				//else if (oscillation_cntr >= 0)
+				//{
+				//	logstr << "Oscillating in + Y direction, result: " << oscillation_cntr;
+				//	//speed[4] = 1.0f + fabs(v_dy); // yaw
+				//	//speed[4] = 5.0f; // yaw
+				//	go_yaw(v_dy);
 
-				}
-				else
-				{
-					logstr << "Oscillating in - Y direction, result: " << oscillation_cntr;
-					//speed[X + 4] = -1.0f - fabs(v_dy);
-					//speed[X + 4] = -5.0f;
-					go_yaw(-v_dy);
-				}
+				//}
+				//else if (oscillation_cntr < -0.5)
+				//{
+				//	logstr << "   Stopping in - Y direction, result: " << oscillation_cntr;
+				//	go_yaw(0);
+				//}
+				//else
+				//{
+				//	logstr << "Oscillating in - Y direction, result: " << oscillation_cntr;
+				//	//speed[X + 4] = -1.0f - fabs(v_dy);
+				//	//speed[X + 4] = -5.0f;
+				//	go_yaw(-v_dy);
+				//}
 				logstr << "ft_x: " << current_FT[X] << ", thresh_x: " << threshold[X];
 				gLogger->print_ip_status(logstr.str());
 

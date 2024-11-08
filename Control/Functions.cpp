@@ -1105,7 +1105,7 @@ void DisplayPos(float* pos)
 			speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
 		gotoxy(1, 25);
 		printf("     Yaw: %06.2f, Pitch: %06.2f, Roll: %06.2f, Speed: %06.2f \t\t\n",
-			pos[3], pos[4], pos[5], speed[7]);
+			pos[3], pos[4], pos[5], speed[7]);		
 	}
 
 	int time_check = TimeCheck();
@@ -2759,7 +2759,7 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		//
 		//gotoxy(1, 53);
 		//cout << suggspeed[6] << endl;
-		if (new_status & (mode == MANUAL_MODE))
+		if (new_status && (mode == MANUAL_MODE))
 			SetTransmitMessage(xmitMsg);
 		else if (mode == AUTO_MODE)
 			new_status = false;
@@ -2818,26 +2818,28 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			{
 				while (raw_pos[i] > 1800.0f)
 					raw_pos[i] = (raw_pos[i] - 3600.0f);
-				while (raw_pos[i] < -1800.0f)
+				while (raw_pos[i] <= -1800.0f)
 					raw_pos[i] = (raw_pos[i] + 3600.0f);
 			}
 			// Yaw, pitch, roll in degrees.
 			for (int i = 3; i < 6; i++)
 				pos[i] = 0.1f * raw_pos[i];
 
-			//
+			// pos[3] = pos[3];// +90;//-0*1.2,  mushtaq Jan 2022 for corecting yaw angle
+			// pos[4] = pos[4] - 2.3;//-0*2.6, was -8.3  May 2 ,2019
+			// pos[5] = pos[5] - 0.6;//zc -0*5.2, was -9 
 
-			pos[3] = pos[3];// +90;//-0*1.2,  mushtaq Jan 2022 for corecting yaw angle
-			pos[4] = pos[4] - 2.3;//-0*2.6, was -8.3  May 2 ,2019
-			pos[5] = pos[5] - 0.6;//zc -0*5.2, was -9 
+			pos[3] = pos[3];
+			pos[4] = pos[4];
+			pos[5] = pos[5];
 
-			if (pos[5] < -180.0f)
+			while (pos[5] <= -180.0f)
 				pos[5] += 360.0f;
-			else if (pos[5] > 180.0f)
+			while (pos[5] > 180.0f)
 				pos[5] -= 360.0f;
 
 			if (reverse_flag)
-				pos[5] = (pos[5] > 0) ? pos[5] - 180.0f : pos[5] + 180.0f;
+				pos[5] = (pos[5] >= 0) ? pos[5] - 180.0f : pos[5] + 180.0f;
 
 			pos[6] = (raw_pos[6] > 0) ? (raw_pos[6] - 32768.0f) : (raw_pos[6] + 32768.0f);
 		}
@@ -2845,7 +2847,8 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		//Convert raw data to angular mode
 		if (cbox == JOINT)
 		{
-			for (int i = 0; i < 7; i++) {
+			for (int i = 0; i < 7; i++) 
+			{
 				pos[i] = raw_pos[i];
 			}
 		}
@@ -2866,7 +2869,8 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		{
 			int joint3 = 0;
 			int joint4 = 0;
-			for (int i = 0; i < 7; i++) {
+			for (int i = 0; i < 7; i++) 
+			{
 				pos[i] = raw_pos[i];
 			}
 			Apos[0] = pos[0];
@@ -3193,11 +3197,11 @@ int pd_control2(void)
 			else
 				eprev1[i] = pd[i] - pprev1[i];
 
-			if (i > 2) // for rotation, go the shortest route. This prevents the hand from spinning all the way around
+			if (i >= 3) // for yaw/pitch/roll, go the shortest route. This prevents the hand from spinning all the way around
 			{
-				if (eprev1[i] > 180.0f)
+				while (eprev1[i] > 180.0f)
 					eprev1[i] -= 360.0f;
-				else if (eprev1[i] <= -180.0f)
+				while (eprev1[i] <= -180.0f)
 					eprev1[i] += 360.0f;
 			}
 

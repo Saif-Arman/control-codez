@@ -50,6 +50,8 @@ public:
 	void clear_cal_file();
 	void cancel_calibration();
 
+	void get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 3>& offsets);
+
 private:
 
 	std::array<double, FT_SIZE> get_raw_FT();

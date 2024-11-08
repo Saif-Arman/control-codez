@@ -13,12 +13,12 @@ public:
     // Define a point in 3D space (yaw, pitch, roll)
     struct Point
     {
-        double yaw;
-        double pitch;
-        double roll;
-        double yaw_vec;
-        double pitch_vec;
-        double roll_vec;
+        double yaw_r; // yaw in radians
+        double pitch_r; // pitch in radians
+        double roll_r; // roll in radians
+        double yaw_d; // yaw in degrees
+        double pitch_d; // pitch in degrees
+        double roll_d; // roll in degrees
         double fx;
         double fy;
         double fz;
@@ -27,12 +27,12 @@ public:
         double tz;
 
         Point(double y, double p, double r, double y_v, double p_v, double r_v, double fx, double fy, double fz, double tx, double ty, double tz)
-            : yaw(y)
-            , pitch(p)
-            , roll(r)
-            , yaw_vec(y_v)
-            , pitch_vec(p_v)
-            , roll_vec(r_v)
+            : yaw_r(y)
+            , pitch_r(p)
+            , roll_r(r)
+            , yaw_d(y_v)
+            , pitch_d(p_v)
+            , roll_d(r_v)
             , fx(fx)
             , fy(fy)
             , fz(fz)
@@ -43,12 +43,12 @@ public:
         }
 
         Point(double y, double p, double r)
-            : yaw(y)
-            , pitch(p)
-            , roll(r)
-            , yaw_vec(0)
-            , pitch_vec(0)
-            , roll_vec(0)
+            : yaw_r(y)
+            , pitch_r(p)
+            , roll_r(r)
+            , yaw_d(0)
+            , pitch_d(0)
+            , roll_d(0)
             , fx(0)
             , fy(0)
             , fz(0)
@@ -75,6 +75,7 @@ private:
 
     // Function to calculate squared Euclidean distance between two points
     double squaredDistance(const Point& a, const Point& b);
+    double squaredDistance_ft(const KDTree::Point& a, const KDTree::Point& b);
 
     // Custom comparator for the priority queue
     struct CompareDist
@@ -106,6 +107,13 @@ public:
         std::priority_queue<std::pair<double, Point>,
         std::vector<std::pair<double, Point>>,
         CompareDist>& maxHeap);
+
+    void KDTree::kNearestNeighbors_ypr(KDNode* root, const KDTree::Point& target, int k, int depth,
+        std::priority_queue<std::pair<double, KDTree::Point>,
+        std::vector<std::pair<double, KDTree::Point>>,
+        CompareDist>& maxHeap);
+
+    std::array<double, 3> get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 6>& ft_vector);
 
     /*inline void setPointFileName(std::string filename) { _calFile = filename; };*/
     

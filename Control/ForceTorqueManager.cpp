@@ -583,7 +583,7 @@ void ForceTorqueManager::update_calibration()
 		{
 			if (!new_position_flag && !home_pos_flag)
 			{
-				if (i <= 12)
+				if (i <= 15)
 				{
 					// Make the arm briefly stop to take readings
 					if (stop_movement)
@@ -611,29 +611,45 @@ void ForceTorqueManager::update_calibration()
 					new_pos[0] = home_x;
 					new_pos[1] = home_y;
 					new_pos[2] = home_z;
-					if (1 == i % 4)
+
+					int res = i % 8;
+					switch (res)
 					{
-						new_pos[3] = home_yaw + 1.0f;
-						new_pos[4] = home_pitch + 1.0f;
-						new_pos[5] = home_roll;
-					}
-					else if (2 == i % 4)
-					{
-						new_pos[3] = home_yaw + 1.0f;
-						new_pos[4] = home_pitch - 1.0f;
-						new_pos[5] = home_roll;
-					}
-					else if (3 == i % 4)
-					{
-						new_pos[3] = home_yaw - 1.0f;
-						new_pos[4] = home_pitch - 1.0f;
-						new_pos[5] = home_roll;
-					}
-					else
-					{
-						new_pos[3] = home_yaw - 1.0f;
-						new_pos[4] = home_pitch + 1.0f;
-						new_pos[5] = home_roll;
+						case 1:
+						{
+							new_pos[3] = home_yaw + 1.0f;
+							new_pos[4] = home_pitch + 1.0f;
+							new_pos[5] = home_roll;
+							break;
+						}
+						case 3:
+						{
+							new_pos[3] = home_yaw + 1.0f;
+							new_pos[4] = home_pitch - 1.0f;
+							new_pos[5] = home_roll;
+							break;
+						}
+						case 5:
+						{
+							new_pos[3] = home_yaw - 1.0f;
+							new_pos[4] = home_pitch - 1.0f;
+							new_pos[5] = home_roll;
+							break;
+						}
+						case 7:
+						{
+							new_pos[3] = home_yaw - 1.0f;
+							new_pos[4] = home_pitch + 1.0f;
+							new_pos[5] = home_roll;
+							break;
+						}
+						default: // Even numbers
+						{
+							new_pos[3] = home_yaw;
+							new_pos[4] = home_pitch;
+							new_pos[5] = home_roll;
+							break;
+						}
 					}
 					go_to_position(new_pos);
 				}
@@ -655,4 +671,9 @@ void ForceTorqueManager::update_calibration()
 			break;
 		} // BUILD_KDTREE
 	} // end switch
+}
+
+void ForceTorqueManager::get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 3>& offsets)
+{
+	offsets = _cal_tree.get_ypr_offsets(yaw, pitch, roll, _raw_FT);
 }
