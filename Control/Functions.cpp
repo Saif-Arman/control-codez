@@ -1556,7 +1556,7 @@ void go_sideways(float move_speed)
 void go_yaw(float move_speed)
 {
 	// pitch is 1, 0, 0
-	// roll is 1, 0, 0?
+	// roll is 0, 1, 0?
 	Matrix<3, 1> ca;
 	ca = 0, 0, 1;
 	apply_speed(ca, move_speed, false);
@@ -1597,7 +1597,7 @@ void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear)
 
 	int angle_offset = go_linear ? 0 : 3;
 
-	for (int i = 0 + angle_offset; i < 3 + angle_offset; i++)
+	for (int i = angle_offset; i < 3 + angle_offset; i++)
 	{
 		speed[i + 1] = static_cast<float>(wa(i - angle_offset + 1, 1)) * move_speed;
 	}

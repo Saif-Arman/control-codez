@@ -56,5 +56,23 @@ private:
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
 	float _move_speed;
 	int _open_grippers_cntr;
+
+	std::array<double, FT_SIZE> _threshold; // thresholds we want to trigger interact perceive reactions at from mini at sensor
+	int _grasp_start_time;
+	float _elapsed_grasp_time;
+	int _int_perc_start_time;
+	float _max_ft_time;
+	float _v_dy;
+	float _v_dx;
+	int _oscillations_per_sec;
+	int _ip_cntr;
+	bool _grasp_done;
+	bool _touched_once;
+	std::deque<std::array<double, FT_SIZE>> _prev_FT;
+	std::array<double, 3> _rpy_offsets;
+
+	std::array<double, FT_SIZE> _last_touch_pos; // position that last exceeded the FT threhsold
+	std::array<double, FT_SIZE> _max_FT;
+	std::array<double, FT_SIZE> _min_FT;
 };
 
