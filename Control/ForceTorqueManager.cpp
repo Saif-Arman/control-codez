@@ -36,8 +36,9 @@ ForceTorqueManager::ForceTorqueManager()
 			   0, 0, 0;
 
 	_calibration_status = STOPPED;
-	calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\manus_ft_calibration_cloud.csv";
-	_cal_tree.initialize(calibration_pt_file);
+	_calibration_pt_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\manus_ft_calibration_cloud.csv";
+	_cal_tree.initialize(_calibration_pt_file);
+	_plot_file = "C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\plotting\\data\\data.csv";
 
 	//Mg_w = 0, 0, 0.578 * -9.807;				// 0.578kg measured with ati sensor head + hand + camera & attachments/wires
 	_Mg_w[0] = 0;
@@ -403,7 +404,7 @@ void ForceTorqueManager::cancel_calibration()
 void ForceTorqueManager::clear_cal_file()
 {
 	std::ofstream calibration_file;
-	calibration_file.open(calibration_pt_file, std::ios_base::trunc);
+	calibration_file.open(_calibration_pt_file, std::ios_base::trunc);
 	calibration_file << "X,Y,Z,YAW,PITCH,ROLL,F_X,F_Y,F_Z,T_X,T_Y,T_Z,RX1,RX2,RX3,RY1,RY2,RY3,RZ1,RZ2,RZ3" << std::endl;
 	calibration_file.close();
 }
@@ -412,9 +413,30 @@ void ForceTorqueManager::write_to_cal_file()
 {
 	std::ofstream calibration_file;
 	/*calibration_file.open("C:\\Users\\yroberts\\Desktop\\Nick Leocadio - 1-15-2024\\calibration_cloud.csv", std::ios_base::app);*/
-	calibration_file.open(calibration_pt_file, std::ios_base::app);
+	calibration_file.open(_calibration_pt_file, std::ios_base::app);
 	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << ",";
 	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << ",";
+	calibration_file << _Rw2FT_s(1, 1) << "," << _Rw2FT_s(1, 2) << "," << _Rw2FT_s(1, 3) << ",";
+	calibration_file << _Rw2FT_s(2, 1) << "," << _Rw2FT_s(2, 2) << "," << _Rw2FT_s(2, 3) << ",";
+	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << std::endl;
+	calibration_file.close();
+}
+
+void ForceTorqueManager::clear_plot_file()
+{
+	std::ofstream calibration_file;
+	calibration_file.open(_plot_file, std::ios_base::trunc);
+	calibration_file << "X,Y,Z,YAW,PITCH,ROLL,RAW F_X,RAW F_Y,RAW F_Z,RAW T_X,RAW T_Y,RAW T_Z,F_X,F_Y,F_Z,T_X,T_Y,T_Z,RX1,RX2,RX3,RY1,RY2,RY3,RZ1,RZ2,RZ3" << std::endl;
+	calibration_file.close();
+}
+
+void ForceTorqueManager::write_to_plot_file(std::array<double, 6>& interact_perceive_FT)
+{
+	std::ofstream calibration_file;
+	calibration_file.open(_plot_file, std::ios_base::app);
+	calibration_file << pos[0] << "," << pos[1] << "," << pos[2] << "," << pos[3] << "," << pos[4] << "," << pos[5] << ",";
+	calibration_file << _raw_FT[0] << "," << _raw_FT[1] << "," << _raw_FT[2] << "," << _raw_FT[3] << "," << _raw_FT[4] << "," << _raw_FT[5] << ",";
+	calibration_file << interact_perceive_FT[0] << "," << interact_perceive_FT[1] << "," << interact_perceive_FT[2] << "," << interact_perceive_FT[3] << "," << interact_perceive_FT[4] << "," << interact_perceive_FT[5] << ",";
 	calibration_file << _Rw2FT_s(1, 1) << "," << _Rw2FT_s(1, 2) << "," << _Rw2FT_s(1, 3) << ",";
 	calibration_file << _Rw2FT_s(2, 1) << "," << _Rw2FT_s(2, 2) << "," << _Rw2FT_s(2, 3) << ",";
 	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << std::endl;
@@ -665,7 +687,7 @@ void ForceTorqueManager::update_calibration()
 		case (BUILD_KDTREE):
 		{
 			gLogger->print_ip_status("Calibration build KD tree...");
-			_cal_tree.initialize(calibration_pt_file);
+			_cal_tree.initialize(_calibration_pt_file);
 			_calibration_status = STOPPED;
 			gLogger->print_ip_status("Calibration complete!");
 			break;

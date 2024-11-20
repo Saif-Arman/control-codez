@@ -50,6 +50,9 @@ public:
 	void clear_cal_file();
 	void cancel_calibration();
 
+	void write_to_plot_file(std::array<double, 6>& interact_perceive_FT);
+	void clear_plot_file();
+
 	void get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 3>& offsets);
 
 private:
@@ -71,7 +74,8 @@ private:
 	std::array<double, FT_SIZE / 2> _T_offset;
 	std::array<double, FT_SIZE / 2> _Mg_w;
 	std::array<double, FT_SIZE / 2> _R;
-	std::string calibration_pt_file;
+	std::string _calibration_pt_file;
+	std::string _plot_file;
 
 	KDTree _cal_tree;
 

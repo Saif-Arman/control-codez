@@ -302,10 +302,10 @@ void KDTree::readYawPitchRollFromCSV(const std::string& filename, std::vector<KD
     file.close();
 }
 
-void KDTree::initialize(std::string calibration_pt_file)
+void KDTree::initialize(std::string _calibration_pt_file)
 {
     std::vector<KDTree::Point> points;
-    readYawPitchRollFromCSV(calibration_pt_file, points);
+    readYawPitchRollFromCSV(_calibration_pt_file, points);
     _root = buildKDTree(points.begin(), points.end(), 0);
 }
 

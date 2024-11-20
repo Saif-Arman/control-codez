@@ -117,7 +117,7 @@ public:
 
     /*inline void setPointFileName(std::string filename) { _calFile = filename; };*/
     
-    void initialize(std::string calibration_pt_file);
+    void initialize(std::string _calibration_pt_file);
 
     std::array<double, 6> get_ft_offset(double yaw, double pitch, double roll);
 };

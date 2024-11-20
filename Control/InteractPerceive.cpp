@@ -220,6 +220,7 @@ void InteractPerceive::do_interact_perceive()
 			_int_perc_start_time = TimeCheck();
 			_interact_perceive_state = INITIAL_APPROACH;
 			_starting_FT = FTMgr.get_FT_ee();
+			FTMgr.clear_plot_file();
 			//rpy_offsets = FTMgr.get_ypr_offsets();
 			break;
 		}
@@ -375,6 +376,7 @@ void InteractPerceive::do_interact_perceive()
 				_last_touch_pos[PITCH] = pos[PITCH]; //pitch
 				_last_touch_pos[ROLL] = pos[ROLL]; //roll
 			}
+			FTMgr.write_to_plot_file(current_FT);
 
 			break;
 		}
