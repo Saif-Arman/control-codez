@@ -1525,6 +1525,8 @@ bool Open_Grabber(void)
 // Reset the arm variables so that it stops moving.
 void stop_arm()
 {
+	IntPerc.stop_interact_perceive();
+	FTMgr.cancel_calibration();
 	grasp_test = 0;
 	grasp_inipos = 0;
 	grasp_flag = 0;
@@ -1781,59 +1783,10 @@ void ManualControl(char ch)
 		break;
 
 
-	case 'M':// mushtaq to  find F_min for slip paper 7/3/2021
-		gotoxy(1, 50);
-		//cout << "Enter F_d value" << endl;
-		//cin >> F_d;
-		/*cout << "Enter k1 value:";
-		cin >> k1;
-		cout << "Enter k2 value:" ;
-		cin >> k2;
-		cout << "Enter k3 value:" ;
-		cin >> k3;
-		cout << "Enter gamma_1 value:" ;
-		cin >> gamma_1;
-		cout << "Enter gamma_2 value:" ;
-		cin >> gamma_2;
-		cout << "Enter initial value of a_hat: " ;
-		cin >> init_a_hat;
-		cout << "Enter initial value of b_hat: ";
-		cin >> init_b_hat;
-		cout << "Enter contact_force_min value: ";
-		cin >> contact_force_min;
-		cout << "Enter MAX_CART_GRIP_close value: ";
-		cin >> MAX_CART_GRIP_close;*/
-
-		/*
-		gotoxy(1, 45);
-		cout << "\r                                                                             \r";
-		cout << "Enter vdx value: ";
-		cin >> vdx;
-		gotoxy(1, 45);
-		cout << "\r                                   \r";
-		cout << "Enter vdy value: ";
-		cin >> vdy;
-		gotoxy(1, 45);
-		cout << "\r                                   \r";
-		cout << "Fdx value: ";
-		cin >> fdx;
-		gotoxy(1, 45);
-		cout << "\r                                   \r";
-		cout << "Enter move flag move ";
-		bool newstate;
-		cin >> newstate;
-		*/ // Comented by Nick 2024, using defaults and M is interact_perceive toggle
-		
-		//vdx = 2;
-		//vdy = 2;
-		//fdx = 1;
+	case 'M':// nick to do Interact Perceive
 
 		if (InteractPerceive::STOPPED == IntPerc.toggle_interact_perceive_state())
 			stop_arm();
-
-		//gotoxy(1, 45);
-		//std::cout << "\r                                   \r";
-		//std::cout << "move flag: " << IntPerc.get_interact_perceive_state() << ", vdx: " << vdx << ", vdy: " << vdy << ", fdx: " << fdx;
 		
 		break;
 
@@ -1843,7 +1796,7 @@ void ManualControl(char ch)
 		
 		gotoxy(1, 46);
 		gLogger->clear_line();
-		std::cout << "Select F=Force, T=Torque, R=R(COM_hand), W=Weight, S=Speed" << std::endl;
+		std::cout << "Select F=Force, T=Torque, R=R(COM_hand), W=Weight," << std::endl;
 		gotoxy(1, 47);
 		gLogger->clear_line();
 		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, ";
@@ -1996,21 +1949,6 @@ void ManualControl(char ch)
 				gLogger->clear_line();
 				weight = FTMgr.get_weight();
 				std::cout << "Current weight (XYZ): " << weight[0] << ", " << weight[1] << ", " << weight[2];
-				break;
-			}
-			case 'S': // Speed
-			{
-				std::cout << "Current speed: " << IntPerc.get_move_speed() << ". Input new speed: ";
-				float newspeed;
-				std::cin >> newspeed;
-				if (-25 < newspeed && newspeed < 25)
-					IntPerc.set_move_speed(newspeed);
-				else
-					printf("Invalid speed.");
-
-				gotoxy(1, 46);
-				gLogger->clear_line();
-				std::cout << "Current speed: " << IntPerc.get_move_speed();
 				break;
 			}
 			case 'Y': // Tension
@@ -2168,8 +2106,6 @@ void ManualControl(char ch)
 		break;
 	case ' ':
 	{
-		IntPerc.end_interact_perceive_grasp();
-		FTMgr.cancel_calibration();
 		stop_arm();
 		break;
 	}

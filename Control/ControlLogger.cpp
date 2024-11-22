@@ -5,7 +5,7 @@ ControlLogger* ControlLogger::_instance = nullptr;
 
 void ControlLogger::clear_line()
 {
-	std::cout << "\r                                                                                                                   \r";
+	std::cout << "\r                                                                                                                                  \r";
 	return;
 }
 

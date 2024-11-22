@@ -1,9 +1,11 @@
 #pragma once
-
+// Includes
 #include "ControlLogger.h"
 
+// Defines & Macros
 #define FT_SIZE 6
 
+// Class definition
 class InteractPerceive
 {
 public:
@@ -13,32 +15,29 @@ public:
 	{
 		STOPPED = 0,
 		STARTING,
-		OPENING_GRIPPERS,
-		GRIPPERS_OPENED,
-		INITIAL_APPROACH,
 		START_GRASP,
-		GRASPING_OBJECT,
-		GRASP_DONE,
-		MIN_TORQUE_Z
+		MIN_TORQUE_Z,
+		IP_DONE,
 	};
 
 	// Main interact perceive loop
 	void do_interact_perceive();
-	void do_interact_perceive_orig(); // Mushtaq's original function
+	//void do_interact_perceive_orig(); // Mushtaq's original function
 
-	// If force from FT sensor exceeds threshold, stops arm
+	// Bound check forces to +/- 4. Shouldn't ever exceed this and it's a pretty big number
 	void check_force();
 
 	// Start/stop the interact_perceive routine
 	inline void start_interact_perceive() { set_interact_perceive_state(STARTING); };
+
+	// Start/stop the interact_perceive routine
 	inline void stop_interact_perceive() { set_interact_perceive_state(STOPPED); };
+
+	// Invert the interact_perceive routine between running/stopped
 	IntPercState toggle_interact_perceive_state();
 
-	inline void end_interact_perceive_grasp() { if (GRASPING_OBJECT == _interact_perceive_state) _interact_perceive_state = GRASP_DONE; };
+	//inline void end_interact_perceive_grasp() { if (GRASPING_OBJECT == _interact_perceive_state) _interact_perceive_state = GRASP_DONE; };
 	inline IntPercState get_interact_perceive_state() { return _interact_perceive_state; };
-
-	inline float get_move_speed() { return _move_speed; };
-	inline void set_move_speed(float speed) { _move_speed = speed; };
 
 private:
 
@@ -46,16 +45,11 @@ private:
 	// Anything else will cause the state to go to that point.
 	IntPercState set_interact_perceive_state(IntPercState state);
 
-	// Resets all interact perceive flags
-	void reset_interact_perceive_flags();
-
 	// Print given direction: 0 = X, 1 = Y, 2 = Z.
 	std::string get_dir_string(int dir);
 
 	std::array<double, FT_SIZE> _starting_FT; // FT observed at start of interact perceive routine
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
-	float _move_speed;
-	int _open_grippers_cntr;
 
 	std::array<double, FT_SIZE> _threshold; // thresholds we want to trigger interact perceive reactions at from mini at sensor
 	int _grasp_start_time;
@@ -64,9 +58,8 @@ private:
 	float _max_ft_time;
 	float _v_dy;
 	float _v_dx;
-	int _oscillations_per_sec;
+	int _oscillation_timer;
 	int _ip_cntr;
-	bool _grasp_done;
 	bool _touched_once;
 	std::deque<std::array<double, FT_SIZE>> _prev_FT;
 	std::array<double, 3> _rpy_offsets;

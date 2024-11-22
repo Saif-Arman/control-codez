@@ -1,4 +1,5 @@
-﻿#include <random>
+﻿// Includes
+#include <random>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> 
@@ -13,6 +14,8 @@
 #include "ForceTorqueManager.h"
 #include "KDTree.h"
 
+
+// Defines & Macros
 #define PRINT_F_RAW 1, 32
 #define PRINT_T_RAW PRINT_F_RAW+1
 #define PRINT_F_CORR PRINT_T_RAW+1
@@ -23,6 +26,8 @@
 #define X 0
 #define Y 1
 #define Z 2
+
+//------------------------------------------------------------------------------------------------------------
 
 ForceTorqueManager::ForceTorqueManager()
 {
@@ -162,15 +167,21 @@ ForceTorqueManager::ForceTorqueManager()
 
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::update_FT(std::array<double, FT_SIZE> new_FT)
 {
 	_raw_FT = new_FT;
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 std::array<double, FT_SIZE> ForceTorqueManager::get_raw_FT()
 {
 	return _raw_FT;
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::zero_offsets()
 {
@@ -181,6 +192,8 @@ void ForceTorqueManager::zero_offsets()
 	_T_offset[Y] = _T_offset[Y] + _compensated_FT[Y+3];
 	_T_offset[Z] = _T_offset[Z] + _compensated_FT[Z+3];
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 // Note: this wrist angle is incorrect.
 // This should be the angle between the link before the wrist & the wrist,
@@ -219,6 +232,8 @@ void ForceTorqueManager::ReadForceTorque()
 	gotoxy(PRINT_T_EE);
 	printf(" T EE Frame:  Tx: %7.3f, Ty: %7.3f, Tz: %7.3f ", _T_ee[0], _T_ee[1], _T_ee[2]);
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::compensate_hand_FT()
 {
@@ -307,6 +322,8 @@ void ForceTorqueManager::compensate_hand_FT()
 	}
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::compensate_hand_FT_orig()
 {
 	Matrix<3, 3> Rh2FT_s, Rw2FT_s;
@@ -361,6 +378,8 @@ void ForceTorqueManager::compensate_hand_FT_orig()
 	}
 }
 
+//------------------------------------------------------------------------------------------------------------
+// 
 // R is the r vector of the center of mass of the hand/gripper
 void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, std::array<double, 3> &R)
 {
@@ -387,6 +406,8 @@ void ForceTorqueManager::estimate_r(const std::array<double, FT_SIZE> new_ft, st
 	printf("              Rx: %7.3f, Ry: %7.3f, Rz: %7.3f ", R[X], R[Y], R[Z]);
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::build_calibration_cloud()
 {
 	if (STOPPED == _calibration_status)
@@ -396,10 +417,14 @@ void ForceTorqueManager::build_calibration_cloud()
 	}
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::cancel_calibration()
 {
 	_calibration_status = STOPPED;
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::clear_cal_file()
 {
@@ -408,6 +433,8 @@ void ForceTorqueManager::clear_cal_file()
 	calibration_file << "X,Y,Z,YAW,PITCH,ROLL,F_X,F_Y,F_Z,T_X,T_Y,T_Z,RX1,RX2,RX3,RY1,RY2,RY3,RZ1,RZ2,RZ3" << std::endl;
 	calibration_file.close();
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::write_to_cal_file()
 {
@@ -422,6 +449,8 @@ void ForceTorqueManager::write_to_cal_file()
 	calibration_file.close();
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::clear_plot_file()
 {
 	std::ofstream calibration_file;
@@ -429,6 +458,8 @@ void ForceTorqueManager::clear_plot_file()
 	calibration_file << "X,Y,Z,YAW,PITCH,ROLL,RAW F_X,RAW F_Y,RAW F_Z,RAW T_X,RAW T_Y,RAW T_Z,F_X,F_Y,F_Z,T_X,T_Y,T_Z,RX1,RX2,RX3,RY1,RY2,RY3,RZ1,RZ2,RZ3" << std::endl;
 	calibration_file.close();
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::write_to_plot_file(std::array<double, 6>& interact_perceive_FT)
 {
@@ -442,6 +473,8 @@ void ForceTorqueManager::write_to_plot_file(std::array<double, 6>& interact_perc
 	calibration_file << _Rw2FT_s(3, 1) << "," << _Rw2FT_s(3, 2) << "," << _Rw2FT_s(3, 3) << std::endl;
 	calibration_file.close();
 }
+
+//------------------------------------------------------------------------------------------------------------
 
 void ForceTorqueManager::update_calibration()
 {
@@ -695,7 +728,11 @@ void ForceTorqueManager::update_calibration()
 	} // end switch
 }
 
+//------------------------------------------------------------------------------------------------------------
+
 void ForceTorqueManager::get_ypr_offsets(double yaw, double pitch, double roll, std::array<double, 3>& offsets)
 {
 	offsets = _cal_tree.get_ypr_offsets(yaw, pitch, roll, _raw_FT);
 }
+
+//------------------------------------------------------------------------------------------------------------
