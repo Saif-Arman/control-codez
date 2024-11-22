@@ -22,7 +22,6 @@ public:
 
 	// Main interact perceive loop
 	void do_interact_perceive();
-	//void do_interact_perceive_orig(); // Mushtaq's original function
 
 	// Bound check forces to +/- 4. Shouldn't ever exceed this and it's a pretty big number
 	void check_force();
