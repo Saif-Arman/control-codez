@@ -9,7 +9,11 @@
 class InteractPerceive
 {
 public:
+	// Constructor
 	InteractPerceive();
+
+	// Destructor
+	~InteractPerceive();
 
 	enum IntPercState
 	{

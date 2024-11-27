@@ -525,7 +525,7 @@ int main(int argc, char* argv[])
 						}
 					}
 
-					for (int i = 0; i < 8; i++)
+					for (int i = 0; i < 7; i++)
 					{
 						Apos[i] = 0.1f * Apos[i];
 					}

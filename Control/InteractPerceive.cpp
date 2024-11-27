@@ -49,6 +49,11 @@ InteractPerceive::InteractPerceive()
 	_threshold[TZ] = 0.017;
 }
 
+InteractPerceive::~InteractPerceive()
+{
+
+}
+
 //------------------------------------------------------------------------------------------------------------
 
 InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(IntPercState state)

@@ -72,10 +72,11 @@ float rpos[8];
 
 // Speed control.
 //int linear_speed_limit[5] = {10,30,50,20,127};
-int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
+int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,90 };
 int angular_speed_limit[5] = {1,3,5,7,10};
 int suggspeed[7];
-//int joint_speed_limit[5] = {.5,1.5,.5,.7,1};
+int joint_speed_limit_arm[3] = { 1,2,3 }; // Column/ shoulder/ elbow joints (pos 1, 2, 3)
+int joint_speed_limit_hand[5] = { 1,2,3,5,6 }; // Lower arm, wrist, gripper joints (yaw, pitch, roll) (pos 4, 5, 6)
 
 int oneSecondStart = 0;
 

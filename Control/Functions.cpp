@@ -34,7 +34,7 @@ normal_distribution<double>distribution(0, 1);
 // Maths functions.
 //=============================================================================
 // This gets the transformation gripper to world using joint angles.
-Matrix<4, 4> GWj_Transformation(float* joint)
+Matrix<4, 4> GWj_Transformation(std::array<float, 7>& joint)
 {
 	float L1 = 99.2f;
 	float L2 = 396.7f;
@@ -47,7 +47,7 @@ Matrix<4, 4> GWj_Transformation(float* joint)
 	float angle5 = static_cast<float>(-M_PI / 2.0f);
 	float angle6 = static_cast<float>(M_PI / 2.0f);
 
-	for (int i = 0; i < 8; i++)
+	for (int i = 0; i < 7; i++)
 	{
 		joint[i] = static_cast<float>(joint[i] * M_PI / 180);
 	}
@@ -1093,7 +1093,7 @@ void DisplayPos(float* pos)
 
 	if (JOINT == cbox)
 	{
-		printf("[Joint Angle]  0: %06.2f, 1: %06.2f, 2: %06.2f, Block Motion: (%1d) \n",
+		printf("[Joint Angle][%d]  0: %06.2f, 1: %06.2f, 2: %06.2f, Block Motion: (%d) \n",
 				speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
 		gotoxy(1, 25);
 		printf("			   3: %06.2f, 4: %06.2f, 5: %06.2f, Grip Speed: %06.2f \n",
@@ -1101,7 +1101,7 @@ void DisplayPos(float* pos)
 	}
 	else // CARTESIAN == cbox
 	{
-		printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%1d) \t\t\n",
+		printf("[%d]  X: %06.2f, Y: %06.2f, Z: %06.2f, Block Motion: (%d) \t\t\n",
 			speed_mode, pos[0], pos[1], pos[2], (block_all_motions ? 1 : 0));
 		gotoxy(1, 25);
 		printf("     Yaw: %06.2f, Pitch: %06.2f, Roll: %06.2f, Speed: %06.2f \t\t\n",
@@ -2300,7 +2300,10 @@ void ManualControl(char ch)
 		home_pos_flag = true;
 		job_complete = false;
 		job_complete2 = true;
-		pos_index = 99;
+		if (cbox == CARTESIAN)
+			pos_index = 99;
+		else if(cbox == JOINT)
+			pos_index = 991;
 		//float new_pos[6] = { -450, 100, -45, 180, 5, 180 };
 		//go_to_position(new_pos);
 		ShowCommand("COM: User Position#1 \n");
@@ -2842,9 +2845,13 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 			/*printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n", pos[0], pos[1], pos[2], pos[3], pos[4], pos[5]);*/
 			//printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \n",Apos[0], Apos[1], Apos[2], Apos[3], Apos[4], Apos[5]);
 			DisplayPos(Apos);
+			std::array<float, 7> gwj_pos = { 0 };
+			for (int i = 0; i < 7; i++)
+				gwj_pos[i] = Apos[i];
+
 			gotoxy(1, 35);
 			cout << "[6R0] " << endl;
-			cout << GWj_Transformation(Apos);
+			cout << GWj_Transformation(gwj_pos);
 		}
 		// cartesian mode
 		else
@@ -3029,29 +3036,28 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 	//// pitch limit
 
 
-
+/* Nick 2024 - I don't want any of this for interact perceive
+* Needs to be fixed so that this program actually accounts for where the camera & arm are and do not collide
+* It is currently not working correctly and just prevents me from doing my work, so I am commenting this out
 	if (cam_cls)
 	{
 		for (int j = 0; j < 6; j++)
 		{
-			/*//for old block_dir
-			if (block_dir[j] == 2)
-				speed[j + 1] = 0;
-			else if (block_dir[j] == -1 && speed[j + 1] < 0)
-				speed[j + 1] = 0;
-			else if (block_dir[j] == 1 && speed[j + 1] > 0)
-				speed[j + 1] = 0;
-			// for old block_dir end*/
+			//for old block_dir
+			//if (block_dir[j] == 2)
+			//	speed[j + 1] = 0;
+			//else if (block_dir[j] == -1 && speed[j + 1] < 0)
+			//	speed[j + 1] = 0;
+			//else if (block_dir[j] == 1 && speed[j + 1] > 0)
+			//	speed[j + 1] = 0;
+			// for old block_dir end
 
 			if (block_movement[2 * j + 1] == 1 && speed[j + 1] > 0)
 				speed[j + 1] = 0;
 			if (block_movement[2 * j + 2] == 1 && speed[j + 1] < 0)
 				speed[j + 1] = 0;
-
-
 		}
 	}
-
 	if ((pos[4] < -80) || (pos[4] > 80))
 	{
 		if ((speed[5] < 0) && (pos[4] < -80))
@@ -3060,11 +3066,11 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 		if ((speed[5] > 0) && (pos[4] > 80))
 			speed[5] = 0;// block the movement in the direction before sending the velocity out
 	}
-
+*/
 	xmitMsg.MSGTYPE = PCAN_MESSAGE_STANDARD; //Standard message type for all cboxes
 	switch (cbox)
 	{
-	case CARTESIAN:
+		case CARTESIAN:
 		{
 			xmitMsg.ID = 0x371;
 			xmitMsg.LEN = 8;
@@ -3084,25 +3090,33 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 			}
 			break;
 		}
-	case JOINT:
-		xmitMsg.ID = 0x374;
-		xmitMsg.LEN = 8;
-		for (int i = 0; i < xmitMsg.LEN; i++)
-			// Joint movement data.
-			xmitMsg.RDATA[i] = speed[i];
-		break;
-	case FOLD_OUT:
-		xmitMsg.ID = 0x375;
-		xmitMsg.LEN = 0;
-		break;
-	case FOLD_IN:
-		xmitMsg.ID = 0x376;
-		xmitMsg.LEN = 0;
-		break;
-	default:
-		xmitMsg.ID = 0x370;
-		xmitMsg.LEN = 0;
-		break;
+		case JOINT:
+		{
+			xmitMsg.ID = 0x374;
+			xmitMsg.LEN = 8;
+			for (int i = 0; i < xmitMsg.LEN; i++)
+				// Joint movement data.
+				xmitMsg.RDATA[i] = speed[i];
+			break;
+		}
+		case FOLD_OUT:
+		{
+			xmitMsg.ID = 0x375;
+			xmitMsg.LEN = 0;
+			break;
+		}
+		case FOLD_IN:
+		{
+			xmitMsg.ID = 0x376;
+			xmitMsg.LEN = 0;
+			break;
+		}
+		default:
+		{
+			xmitMsg.ID = 0x370;
+			xmitMsg.LEN = 0;
+			break;
+		}
 	}
 }
 
@@ -3526,10 +3540,12 @@ int pd_controlJoint(void)
 	float eprev1[6] = {};
 
 	// Joint control.
-	if (!useRawJoints) {
+	if (!useRawJoints) 
+	{
 		/* Read position information sent by robot */
 		for (int i = 0; i < 6; i++)
 			pprev1[i] = pos[i];									    // p is read off the robot
+
 		int joint3 = 0;
 		int joint4 = 0;
 		Apos[0] = pos[0];
@@ -3555,12 +3571,13 @@ int pd_controlJoint(void)
 		{
 			while (Apos[i] > 1800)
 				Apos[i] = (Apos[i] - 3600);
-			while (Apos[i] < -1800)
+			while (Apos[i] <= -1800)
 				Apos[i] = (Apos[i] + 3600);
 		}
 
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < 7; i++)
 			Apos[i] = 0.1 * Apos[i];
+
 		int flip;
 		float Kp[6] = { 1.1, 1, 1.1, 1, 1, 1 };
 		for (int i = 0; i < 6; i++)
@@ -3595,7 +3612,13 @@ int pd_controlJoint(void)
 			float speed_limit = angular_speed_limit[0] * 1.0f;
 			speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
 		}
-		if ((fabs(eprev1[0]) < J_ERR_BOUND) & (fabs(eprev1[1]) < J_ERR_BOUND) & (fabs(eprev1[2]) < J_ERR_BOUND) & (fabs(eprev1[3]) < J_ERR_BOUND) & (fabs(eprev1[4]) < J_ERR_BOUND) & (fabs(eprev1[5]) < J_ERR_BOUND))
+
+		if ((fabs(eprev1[0]) < J_ERR_BOUND) 
+			&& (fabs(eprev1[1]) < J_ERR_BOUND) 
+			&& (fabs(eprev1[2]) < J_ERR_BOUND) 
+			&& (fabs(eprev1[3]) < J_ERR_BOUND) 
+			&& (fabs(eprev1[4]) < J_ERR_BOUND) 
+			&& (fabs(eprev1[5]) < J_ERR_BOUND))
 		{
 			job_done = true;
 			auto_mode_start = false;
@@ -3604,23 +3627,25 @@ int pd_controlJoint(void)
 			SendCommand(CAN, VIS, 'Q', job_done);
 		}
 	}
-	else if (useRawJoints) {
-		int flip;
-
+	else if (useRawJoints) 
+	{
 		float Kp[6] = { 1, 1, 1, 1, 1, 1 };
 		//float Ki[6]={0.05,0.0,0.0,0.0,0.0,0.0};
 		float Kd[6] = { 0.3, 0.3, 0.3, 0.3, 0.3, 0.3 };
 		for (int i = 0; i < 6; i++)
 		{
-			switch (i) {
+			int flip = 1;
+			eprev1[i] = pd[i] - Apos[i];
+			switch (i) 
+			{
 			case 0:
 				flip = -1;
 				break;
 			case 1:
-				flip = -1;
+				flip = 1;
 				break;
 			case 2:
-				flip = -1;
+				flip = 1;
 				break;
 			case 3:
 				flip = -1;
@@ -3636,26 +3661,57 @@ int pd_controlJoint(void)
 				break;
 			}
 
-			//Iteration Time
-			CurrentTime[i] = TimeCheck();
+			// Nick 2024 - Removed. What's the point of this? Idk but it's breaking joint mode homing.
+			////Iteration Time
+			//CurrentTime[i] = TimeCheck();
 
-			int DeltaT = abs(CurrentTime[i] - PrevTime[i]);
+			//int DeltaT = abs(CurrentTime[i] - PrevTime[i]);
 
-			float dDiff;
+			//float dDiff;
 
-			eprev1[i] = (pd[i] - (pos[i] * .1f)) * flip;
-			dDiff = (eprev1[i] - oldDiff[i]) / DeltaT;
+			//eprev1[i] = (pd[i] - (pos[i] * .1f)) * flip;
+			//dDiff = (eprev1[i] - oldDiff[i]) / DeltaT;
 
-			float control_input = Kp[i] * eprev1[i] + Kd[i] * dDiff;
+			//float control_input = Kp[i] * eprev1[i] + Kd[i] * dDiff;
 
-			oldDiff[i] = eprev1[i];
-			PrevTime[i] = CurrentTime[i];
+			//oldDiff[i] = eprev1[i];
+			//PrevTime[i] = CurrentTime[i];
 
-			float speed_limit = /*angular_speed_limit[0]*/1.0f * 1.0f;
+			//float speed_limit = /*angular_speed_limit[0]*/1.0f * 1.0f;
+			//speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
+
+			float control_input = Kp[i] * eprev1[i] * flip;
+
+			float speed_limit;
+			if (i < 3)
+			{
+				int mode = speed_mode > 2 ? 2 : speed_mode;
+				speed_limit = static_cast<float>(joint_speed_limit_arm[mode]);
+			}
+			else if (i < 7)
+			{
+				int mode = speed_mode > 4 ? 4 : speed_mode;
+				speed_limit = static_cast<float>(joint_speed_limit_hand[mode]);
+			}
 			speed[i + 1] = (fabs(control_input) > speed_limit) ? sign(control_input) * speed_limit : control_input;
 
+			// Speed is in integer increments
+			if (speed[i + 1] > 0 && speed[i + 1] < 1.0f)
+				speed[i + 1] = 1.0f;
+			else if (speed[i + 1] < 0 && speed[i + 1] > -1.0f)
+				speed[i + 1] = -1.0f;
 		}
-		if ((fabs(eprev1[0]) < J_ERR_BOUND) & (fabs(eprev1[1]) < J_ERR_BOUND) & (fabs(eprev1[2]) < J_ERR_BOUND) & (fabs(eprev1[3]) < J_ERR_BOUND) & (fabs(eprev1[4]) < J_ERR_BOUND) & (fabs(eprev1[5]) < J_ERR_BOUND))
+
+		bool allGood = true;
+		for (int i = 0; i < 6; i++)
+		{
+			if (fabs(eprev1[i]) < J_ERR_BOUND)
+				speed[i + 1] = 0;
+			else
+				allGood = false;
+		}
+
+		if (allGood)
 		{
 			//for(int i = 0;i<6;i++){
 			//	oldDiff[i] = 0;
@@ -3670,12 +3726,12 @@ int pd_controlJoint(void)
 	}
 	/* SHOW SPEED/TARGET/ERROR */
 	gotoxy(1, 21);
-	printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", pos[0], pos[1], pos[2], pos[3], pos[4], pos[5]);
+	printf("[q] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", Apos[0], Apos[1], Apos[2], Apos[3], Apos[4], Apos[5]);
 	gotoxy(1, 22);
 	printf("[S] %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
 	gotoxy(1, 23);
 	printf("[T] %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", pd[0], pd[1], pd[2], pd[3], pd[4], pd[5]);
-	gotoxy(1, 25);
+	gotoxy(1, 26);
 	printf("\r                                                                  \r");
 	printf("[E] %.2f %.2f %.2f %.2f %.2f %.2f \t\t\n", eprev1[0], eprev1[1], eprev1[2], eprev1[3], eprev1[4], eprev1[5]);
 

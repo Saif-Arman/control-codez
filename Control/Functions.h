@@ -51,7 +51,7 @@ inline float sign(float n)
 { 
 	return ( ( n >= 0 ) ? 1.0f : -1.0f ); 
 }
-Matrix<4,4> GWj_Transformation( float *joint );
+Matrix<4, 4> GWj_Transformation(std::array<float, 7>& joint);
 Matrix<3,3> C2W_transform( float *position );
 Matrix<3,3> C2W_transform2( float *position );
 Matrix<3, 3> EE2w_transform3(float *position);//zc test
