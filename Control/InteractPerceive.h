@@ -15,6 +15,7 @@ public:
 	// Destructor
 	~InteractPerceive();
 
+	// Enum for the interact perceive state machine states
 	enum IntPercState
 	{
 		STOPPED = 0,
@@ -24,8 +25,6 @@ public:
 		IP_DONE,
 	};
 
-	// Main interact perceive loop
-	void do_interact_perceive();
 
 	// Bound check forces to +/- 4. Shouldn't ever exceed this and it's a pretty big number
 	void check_force();
@@ -39,17 +38,27 @@ public:
 	// Invert the interact_perceive routine between running/stopped
 	IntPercState toggle_interact_perceive_state();
 
-	//inline void end_interact_perceive_grasp() { if (GRASPING_OBJECT == _interact_perceive_state) _interact_perceive_state = GRASP_DONE; };
+	// Gets the current value of _interact_perceive_state
 	inline IntPercState get_interact_perceive_state() { return _interact_perceive_state; };
 
 private:
 
 	// If STOPPED, will stop interact perceive
 	// Anything else will cause the state to go to that point.
-	IntPercState set_interact_perceive_state(IntPercState state);
+	IntPercState set_interact_perceive_state(IntPercState newstate);
 
 	// Print given direction: 0 = X, 1 = Y, 2 = Z.
 	std::string get_dir_string(int dir);
+
+	// Main interact perceive loop
+	void do_interact_perceive();
+
+	// Function to perform the startup sequence required to do 
+	// the interact perceive routine.
+	int do_ip_start();
+
+	// Function that performs the main interact perceive routine
+	int do_ip_grasp();
 
 	std::array<double, FT_SIZE> _starting_FT; // FT observed at start of interact perceive routine
 	IntPercState _interact_perceive_state; // Is interact perceive running or not

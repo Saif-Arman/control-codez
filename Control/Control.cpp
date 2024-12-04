@@ -68,8 +68,7 @@ int main(int argc, char* argv[])
 	// Set console properties.
 	CSetConsole CSetConsole_obj;
 	//if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_07_22_2011"), 1366, 240, 640, 650, 80, 101 ) )
-	//if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_06_FEB_2024"), -1280, 240, 640, 650, 80, 101 ) )
-	if (!CSetConsole_obj.SetConsole(_T("2.CONTROL_WZ_06_FEB_2024"), -1280, 240, 780, 700, 80, 101))
+	if (!CSetConsole_obj.SetConsole(_T("2.CONTROL_WZ_06_FEB_2024"), -1280, 100, 780, 800, 80, 101))
 	{
 		tcout << "Fail to set console!" << endl;
 		tcin.get();
@@ -157,7 +156,7 @@ int main(int argc, char* argv[])
 	//end space mouse initialize
 	// Main Loop.
 	handled = SPW_FALSE;     /* init handled */
-	
+
 	cout << "[Info]: Load successful! Entering the main loop!" << endl;
 	while( 1 )
 	{
@@ -773,8 +772,8 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
-
 	
+
 	// Unload dll of CAN card, disconnect to shared memory and TCP.
 	if ( !UnloadAll() )
 		cout << "[Error!]: Fail the unload! Press any key to exit the program!" << endl;

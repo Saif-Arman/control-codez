@@ -13,7 +13,7 @@ void ControlLogger::print_ip_status(std::string status)
 {
 	clear_ip_status();
 	gotoxy(1, 46);
-	std::cout << "IP Status: " << status;
+	std::cout << "IP Status: " << status << std::endl;
 	return;
 }
 
