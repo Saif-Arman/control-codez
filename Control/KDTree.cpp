@@ -277,12 +277,12 @@ void KDTree::readYawPitchRollFromCSV(const std::string& filename, std::vector<KD
             }
             catch (const std::invalid_argument& e)
             {
-                std::cerr << "Invalid number in line: " << line << std::endl;
+                std::cerr << "Invalid number in line: " << line << ", error: " << e.what() << std::endl;
                 break;
             }
             catch (const std::out_of_range& e)
             {
-                std::cerr << "Number out of range in line: " << line << std::endl;
+                std::cerr << "Number out of range in line: " << line << ", error: " << e.what() << std::endl;
                 break;
             }
         }

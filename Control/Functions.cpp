@@ -1547,14 +1547,6 @@ void go_forward(float move_speed)
 	apply_speed(ca, move_speed);
 }
 
-// Apply speed in X direction, end effector frame
-void go_sideways(float move_speed)
-{
-	Matrix<3, 1> ca;
-	ca = 1, 0, 0;
-	apply_speed(ca, move_speed);
-}
-
 void go_yaw(float move_speed)
 {
 	// pitch is 1, 0, 0
@@ -1564,12 +1556,89 @@ void go_yaw(float move_speed)
 	apply_speed(ca, move_speed, false);
 }
 
-// Apply speed in Y direction, end effector frame
-void go_vertical(float move_speed)
+// Adding speed to current speed in given direction
+int apply_arm_speed(DIRECTIONS::directions direction, float move_speed/* = 5 */)
 {
 	Matrix<3, 1> ca;
-	ca = 0, 1, 0;
-	apply_speed(ca, move_speed);
+	bool go_linear = true;
+	// Get the correct heading, then apply speed
+	switch (direction)
+	{
+		// X direction, end effector frame: side to side
+		case(DIRECTIONS::X):
+		{
+			ca = 1, 0, 0;
+			break;
+		}
+		// Y direction, end effector frame: + up, - down
+		case(DIRECTIONS::Y):
+		{
+			ca = 0, 1, 0;
+			break;
+		}
+		// Z direction, end effector frame: + forward, - backward
+		case(DIRECTIONS::Z): 
+		{
+			ca = 0, 0, 1;
+			break;
+		}
+		case(DIRECTIONS::ROLL):
+		{
+			ca = 0, 1, 0;
+			go_linear = false;
+			break;
+		}
+		case(DIRECTIONS::PITCH):
+		{
+			ca = 1, 0, 0;
+			go_linear = false;
+			break;
+		}
+		case(DIRECTIONS::YAW):
+		{
+			ca = 0, 0, 1;
+			go_linear = false;
+			break;
+		}
+		default:
+		{
+			return CONTROL_ERROR;
+			break;
+		}
+
+	}
+
+	Matrix<3, 1> wa;
+	wa = C2W_transform(pos) * ca;
+
+	// These are here for reference
+	// int linear_speed_limit[12] = { 10,20,25,30,35,40,45,50,55,60,70,127 };
+	// int angular_speed_limit[5] = { 1,3,5,7,10 };
+
+	float speed_limit = 0;
+	if (go_linear)
+	{
+		speed_mode = speed_mode > 11 ? 11 : speed_mode;
+		speed_limit = static_cast<float>(linear_speed_limit[speed_mode]);
+	}
+	else
+	{
+		speed_mode = speed_mode > 4 ? 4 : speed_mode;
+		speed_limit = static_cast<float>(angular_speed_limit[speed_mode]);
+	}
+
+	if (fabs(move_speed) > speed_limit)
+		move_speed = speed_limit * sign(move_speed);
+
+	// Get the matrix offset if we're doing roll, pitch, and yaw
+	int angle_offset = go_linear ? 0 : 3;
+
+	// Set X, Y, Z or ROLL, PITCH, YAW
+	for (int i = angle_offset; i < 3 + angle_offset; i++)
+		speed[i + 1] = static_cast<float>(wa(i - angle_offset + 1, 1)) * move_speed;
+
+	new_status = true;
+	return CONTROL_OKAY;
 }
 
 // Passes given x, y, z speeds to robot
@@ -1611,18 +1680,18 @@ void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear)
 void go_speed(std::vector<float>& move_speed)
 {
 
-	int speed_size = move_speed.size();
+	size_t speed_size = move_speed.size();
 
 	if (speed_size <= 0)
 		return;
 	else if (speed_size > 6)
 		speed_size = 6;
 
-	float lin_speed_lim = linear_speed_limit[speed_mode];
-	float ang_speed_lim = angular_speed_limit[speed_mode];
+	float lin_speed_lim = static_cast<float>(linear_speed_limit[speed_mode]);
+	float ang_speed_lim = static_cast<float>(angular_speed_limit[speed_mode]);
 	std::stringstream logstr;
 
-	for (int i = 0; i < speed_size; i++)
+	for (size_t i = 0; i < speed_size; i++)
 	{
 		if (i < 3)
 			speed[i + 1] = (fabs(move_speed[i]) > lin_speed_lim) ? sign(move_speed[i]) * lin_speed_lim : move_speed[i]; 
@@ -1720,16 +1789,6 @@ void do_open_grippers()
 	init_force = 0;
 }
 
-void go_interact_perceive_home()
-{
-	mode = AUTO_MODE;
-	home_pos_flag = true;
-	job_complete = false;
-	job_complete2 = true;
-	pos_index = 99;
-	ShowCommand("COM: Interact Perceive Home \n");
-}
-
 // In manual control the movement data is set according to the key presssed. This function 
 // takes that input and sets the Speed variable to the corresponding movement associated with 
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
@@ -1802,17 +1861,16 @@ void ManualControl(char ch)
 		std::cout << "Z=Zero Offsets, Y=Tension Const, A=Tension Angle, ";
 		gotoxy(1, 48);
 		gLogger->clear_line();
-		std::cout << "C=Make Calibration Cloud, G=Give speed x, y, z EE frame";
+		std::cout << "C=Make Calibration Cloud: ";
 
 		char type;
 		std::cin >> type;
 		// Clear what we just sent to the screen
-		gotoxy(1, 48);
-		gLogger->clear_line();
-		gotoxy(1, 47);
-		gLogger->clear_line();
-		gotoxy(1, 46);
-		gLogger->clear_line();
+		for (int i = 46; i <= 49; i++)
+		{
+			gotoxy(1, i);
+			gLogger->clear_line();
+		}
 		gotoxy(1, 46);
 
 		switch (type)
@@ -1990,26 +2048,6 @@ void ManualControl(char ch)
 				std::cout << "New angle offset: " << FTMgr.get_angle_offset();
 				break;
 			} // end (A) angle offset
-			case 'G':
-			{
-				std::cout << "How many speeds?: ";
-				int speedcnt = 0;
-				std::cin >> speedcnt;
-
-				gotoxy(1, 46);
-				gLogger->clear_line();
-
-				std::vector<float> newval;
-				for (int i = 0; i < speedcnt; i++)
-				{
-					float tmp = 0;
-					std::cout << "Giving speed #" << i + 1 << ": ";
-					std::cin >> tmp;
-					newval.push_back(tmp);
-				}
-				go_speed(newval);
-				break;
-			}
 			default:
 			{
 				std::cout << "Invalid selection.";
@@ -2172,7 +2210,7 @@ void ManualControl(char ch)
 		if (cbox == CARTESIAN)
 		{
 			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+				speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2184,7 +2222,7 @@ void ManualControl(char ch)
 		if (cbox == CARTESIAN)
 		{
 			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+				speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2200,7 +2238,7 @@ void ManualControl(char ch)
 		if (cbox == CARTESIAN)
 		{
 			for (int i = 0; i < 6; i++)
-				speed[i + 1] = suggspeed[i];
+				speed[i + 1] = static_cast<float>(suggspeed[i]);
 			//for (int i = 3; i < 6; i++)
 			//	speed[i + 1] = 1 * angular_speed_limit[speed_mode];
 			new_status = true;
@@ -2212,7 +2250,7 @@ void ManualControl(char ch)
 		ShowCommand("COM: Relative Forward\n");
 		if (cbox == CARTESIAN)
 		{
-			go_forward(linear_speed_limit[speed_mode]);
+			go_forward(static_cast<float>(linear_speed_limit[speed_mode]));
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2224,7 +2262,7 @@ void ManualControl(char ch)
 		if (cbox == CARTESIAN)
 		{
 			for (int i = 0; i < 3; i++)
-				speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+				speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 			new_status = true;
 		}
 		else cout << "[Warning!]: speed assignment without selecting a CBOX." << endl;
@@ -2272,9 +2310,9 @@ void ManualControl(char ch)
 		speed[1] = 0;
 		speed[2] = 0;
 		speed[3] = 0;
-		speed[4] = wypr(1);
-		speed[5] = wypr(2);
-		speed[6] = wypr(3);
+		speed[4] = static_cast<float>(wypr(1));
+		speed[5] = static_cast<float>(wypr(2));
+		speed[6] = static_cast<float>(wypr(3));
 
 		new_status = true;
 		break;
@@ -2376,9 +2414,12 @@ void ManualControl(char ch)
 					//1,2,3 xyz
 					for (int i = 1; i < 4; i++)
 					{
-						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+						if (abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity)
+							speed[i] = static_cast<float>(linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]));
+						else
+							speed[i] = 0;
 
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 
 					for (int i = 4; i < 7; i++)
@@ -2391,7 +2432,7 @@ void ManualControl(char ch)
 					//4,5,6 ypr
 					for (int i = 4; i < 7; i++)
 					{
-						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = static_cast<float>(angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1])) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 					for (int i = 1; i < 4; i++)
@@ -2403,12 +2444,12 @@ void ManualControl(char ch)
 				{
 					for (int i = 1; i < 4; i++)
 					{
-						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = static_cast<float>(linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1])) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 					for (int i = 4; i < 7; i++)
 					{
-						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = static_cast<float>(angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1])) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 				}
@@ -2443,7 +2484,7 @@ void ManualControl(char ch)
 							wa = C2W_transform(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 							}
 						}
 						break;
@@ -2454,7 +2495,7 @@ void ManualControl(char ch)
 							wa = C2W_transform2(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 							}
 						}
 						else if (command_max < 0) // right
@@ -2463,13 +2504,13 @@ void ManualControl(char ch)
 							wa = C2W_transform2(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 
 							}
 						}
 						break;
 					case(2)://2: up/down 
-						speed[3] = linear_speed_limit[speed_mode] * sign(spaceMouse[2]);
+						speed[3] = static_cast<float>(linear_speed_limit[speed_mode] * sign(spaceMouse[2]));
 						break;
 					case(-1):
 						for (int i = 0; i < 7; i++)
@@ -2488,7 +2529,7 @@ void ManualControl(char ch)
 					spacemouse_operation[command_axis] = 1 * sign(command_max);
 					for (int i = 4; i < 7; i++)
 					{
-						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = static_cast<float>(angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1])) : speed[i] = 0;
 						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 					}
 				}
@@ -2500,7 +2541,7 @@ void ManualControl(char ch)
 						speed[7] = -MAX_CART_GRIP;
 						new_status = true;
 						grasp_test = 1;
-						grasp_inipos = pos[6];
+						grasp_inipos = static_cast<int>(pos[6] + 0.5);
 						spm_gripper = 1;
 						//spacemouse_operation[2] = -1;
 					}
@@ -2544,7 +2585,7 @@ void ManualControl(char ch)
 						if (command_max > 0)//one click mode 
 						{
 							for (int i = 0; i < 6; i++)
-								speed[i + 1] = suggspeed[i];
+								speed[i + 1] = static_cast<float>(suggspeed[i]);
 							//for (int i = 3; i < 6; i++)
 							//	speed[i + 1] = 1 * angular_speed_limit[speed_mode];
 							new_status = true;
@@ -2555,7 +2596,7 @@ void ManualControl(char ch)
 							wa = C2W_transform(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 							}
 						}
 						break;
@@ -2566,7 +2607,7 @@ void ManualControl(char ch)
 							wa = C2W_transform2(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 							}
 						}
 						else if (command_max < 0) // right
@@ -2575,13 +2616,13 @@ void ManualControl(char ch)
 							wa = C2W_transform2(pos) * ca;
 							for (int i = 0; i < 3; i++)
 							{
-								speed[i + 1] = wa(i + 1, 1) * linear_speed_limit[speed_mode];
+								speed[i + 1] = static_cast<float>(wa(i + 1, 1) * linear_speed_limit[speed_mode]);
 
 							}
 						}
 						break;
 					case(2)://2: up/down 
-						speed[3] = linear_speed_limit[speed_mode] * sign(spaceMouse[2]);
+						speed[3] = static_cast<float>(linear_speed_limit[speed_mode] * sign(spaceMouse[2]));
 						break;
 					case(-1):
 						for (int i = 0; i < 7; i++)
@@ -2606,7 +2647,7 @@ void ManualControl(char ch)
 					{
 						for (int i = 4; i < 7; i++)
 						{
-							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = static_cast<float>(angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1])) : speed[i] = 0;
 							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
 						}
 					}
@@ -2624,7 +2665,7 @@ void ManualControl(char ch)
 						speed[7] = -MAX_CART_GRIP;//close
 						new_status = true;
 						grasp_test = 1;
-						grasp_inipos = pos[6];
+						grasp_inipos = static_cast<int>(pos[6] + 0.5);
 						spm_gripper = 1;
 						//spacemouse_operation[2] = -1;
 					}
@@ -2691,9 +2732,9 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 
 		// Decode and store the position information.
 
-		raw_pos[0] = ((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3];	/* X/axis1 */
-		raw_pos[1] = ((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5];	/* Y/axis2 */
-		raw_pos[2] = ((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7];	/* Z/axis3 */
+		raw_pos[0] = static_cast<float>(((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3]);	/* X/axis1 */
+		raw_pos[1] = static_cast<float>(((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5]);	/* Y/axis2 */
+		raw_pos[2] = static_cast<float>(((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7]);	/* Z/axis3 */
 
 		//
 		//gotoxy(1, 53);
@@ -2714,7 +2755,7 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		//cartesian mode, x,y,z positions are decoded into milimeters in decimal form
 		if (cbox == CARTESIAN)
 			for (int i = 0; i < 3; i++)
-				pos[i] = 0.022 * raw_pos[i];
+				pos[i] = 0.022f * raw_pos[i];
 
 		//
 		PrintStatus();
@@ -2731,10 +2772,10 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 		}
 
 		//
-		raw_pos[3] = ((char)rcvMsg.RDATA[0] << 8) + (unsigned char)rcvMsg.RDATA[1];/* Yaw/axis4 */
-		raw_pos[4] = ((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3];/* Pitch/axis5 */
-		raw_pos[5] = ((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5];/* Roll/axis6 */
-		raw_pos[6] = ((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7];//gripper
+		raw_pos[3] = static_cast<float>(((char)rcvMsg.RDATA[0] << 8) + (unsigned char)rcvMsg.RDATA[1]);/* Yaw/axis4 */
+		raw_pos[4] = static_cast<float>(((char)rcvMsg.RDATA[2] << 8) + (unsigned char)rcvMsg.RDATA[3]);/* Pitch/axis5 */
+		raw_pos[5] = static_cast<float>(((char)rcvMsg.RDATA[4] << 8) + (unsigned char)rcvMsg.RDATA[5]);/* Roll/axis6 */
+		raw_pos[6] = static_cast<float>(((char)rcvMsg.RDATA[6] << 8) + (unsigned char)rcvMsg.RDATA[7]);//gripper
 
 
 		//
@@ -3096,7 +3137,7 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 			xmitMsg.LEN = 8;
 			for (int i = 0; i < xmitMsg.LEN; i++)
 				// Joint movement data.
-				xmitMsg.RDATA[i] = speed[i];
+				xmitMsg.RDATA[i] = static_cast<unsigned char>(speed[i]);
 			break;
 		}
 		case FOLD_OUT:
@@ -3124,7 +3165,7 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 int pd_control2(void)
 {
 	// INITIALIZATION
-	float Kp[6] = { 2, 2, 2, 0.8, 0.7, 0.6 };
+	float Kp[6] = { 2.0f, 2.0f, 2.0f, 0.8f, 0.7f, 0.6f };
 	//float Kp[6] = { 2, 2, 2, 0.2, 0.2, 0.2 };
 
 	float pprev1[6] = {};
@@ -3209,7 +3250,7 @@ int pd_control2(void)
 		float control_input, c_err;
 		float w_lim = 8.0f, v_lim = 100.0f;
 		float Kv[6] = { 5.0f, 5.0f, 5.0f, 20.0f, 20.0f, 20.0f };
-		float convert = (M_PI / 36.0f) / (50.0f * 0.022f);
+		float convert = (static_cast<float>(M_PI) / 36.0f) / (50.0f * 0.022f);
 
 		Matrix<3, 1> dee2c, Vc, Vw, Ww, Wc, Wypr, We, Rde, WeRde, YPR_star;
 		Matrix<3, 3> Rc2w, Rxyz2ypr, nRxyz2ypr, Rc2ee, Rc2eep, nRc2eep;
@@ -3222,7 +3263,7 @@ int pd_control2(void)
 
 		for (int i = 0; i < 3; ++i)
 		{
-			eprev1[i] = pd[i] - (pprev1[i] + Red(i + 1, 1));
+			eprev1[i] = pd[i] - (pprev1[i] + static_cast<float>(Red(i + 1, 1)));
 			Vc(i + 1, 1) = Kv[i] * eprev1[i];
 			YPR_star(i + 1, 1) = pd[i + 3];
 		}
@@ -3232,7 +3273,7 @@ int pd_control2(void)
 		{
 			if (i == 2)
 			{
-				c_err = (YPR_star(i + 1, 1) - pos[i + 3]);
+				c_err = static_cast<float>(YPR_star(i + 1, 1) - pos[i + 3]);
 				c_err = (fabs(c_err) < 180.0f) ? -c_err : -(c_err - sign(c_err) * 360.0f);
 				error_YPR(i + 1, 1) = c_err * M_PI / 180.0f;
 			}
@@ -3255,7 +3296,7 @@ int pd_control2(void)
 			/* Limit Angular Velocity */
 			for (int i = 0; i < 3; ++i)
 			{
-				control_input = Wypr(i + 1, 1);
+				control_input = static_cast<float>(Wypr(i + 1, 1) + 0.5);
 				Wypr(i + 1, 1) = (fabs(control_input) > w_lim) ? (float)(sign(control_input) * w_lim) : (float)control_input;
 			}
 
@@ -3280,16 +3321,16 @@ int pd_control2(void)
 			/* Limit Linear Velocity */
 			for (int i = 0; i < 3; ++i)
 			{
-				control_input = Vw(i + 1, 1);
+				control_input = static_cast<float>(Vw(i + 1, 1) + 0.5);
 				Vw(i + 1, 1) = (fabs(control_input) > v_lim) ? (float)(sign(control_input) * v_lim) : (float)control_input;
 			}
 
 			/* Set Speed Variables of MANUS ARM */
 			for (int i = 0; i < 3; ++i)
-				speed[i + 1] = (int)Vw(i + 1, 1);
+				speed[i + 1] = static_cast<float>(Vw(i + 1, 1) + 0.5);
 
 			for (int i = 0; i < 3; ++i)
-				speed[i + 4] = (int)Wypr(i + 1, 1);
+				speed[i + 4] = static_cast<float>(Wypr(i + 1, 1) + 0.5);
 
 			if (debug_on)
 			{
@@ -3343,7 +3384,7 @@ int pd_control2(void)
 				eprev1[i] = pd[i] - (pprev1[i]);
 
 			float control_input = Kp[i] * eprev1[i];
-			speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? (int)sign(control_input) * angular_speed_limit[speed_mode] : (int)control_input;
+			speed[i + 1] = (fabs(control_input) > angular_speed_limit[speed_mode]) ? sign(control_input) * angular_speed_limit[speed_mode] : control_input;
 		}
 	}
 
@@ -3405,9 +3446,9 @@ int pd_control2(void)
 	}
 	else if (adjust_pos == true)	// set to adjust position
 	{
-		if ((fabs(eprev1[0]) < T_ERR_BOUND) & (fabs(eprev1[1]) < T_ERR_BOUND) & (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
+		if ((fabs(eprev1[0]) < T_ERR_BOUND) && (fabs(eprev1[1]) < T_ERR_BOUND) && (fabs(eprev1[2]) < T_ERR_BOUND)) //xyz position control
 		{
-			if ((fabs(eprev1[3]) < R_ERR_BOUND) & (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
+			if ((fabs(eprev1[3]) < R_ERR_BOUND) && (fabs(eprev1[4]) < R_ERR_BOUND))	// yaw & pitch rotation control
 			{
 				if (fabs(eprev1[5]) < R_ERR_BOUND)	// roll rotation control
 				{
@@ -3533,7 +3574,7 @@ int checkOneSecond(void) {
 //-----------------------------------------------------------------------------------
 int pd_controlJoint(void)
 {
-	int CurrentTime[6];
+	//int CurrentTime[6];
 	// INITIALIZATION
 	bool useRawJoints = true;
 	float pprev1[6] = {};
@@ -3555,16 +3596,16 @@ int pd_controlJoint(void)
 
 		// Correction for dependancy between joint 2 and 3
 		Apos[1] = (-1) * pos[1];
-		joint3 = pos[2];
-		joint3 = joint3 + 900 + Apos[1];
+		joint3 = static_cast<int>(pos[2] + 0.5);
+		joint3 = joint3 + 900 + static_cast<int>(Apos[1] + 0.5);
 
 		if (joint3 >= 0)
-			Apos[2] = 1800 - joint3;
+			Apos[2] = static_cast<float>(1800 - joint3);
 		else
-			Apos[2] = -1800 - joint3;
+			Apos[2] = static_cast<float>(-1800 - joint3);
 
-		joint4 = pos[3] + 900;
-		Apos[3] = joint4;
+		joint4 = static_cast<int>(pos[3] + 900 + 0.5);
+		Apos[3] = static_cast<float>(joint4);
 
 		// Bring back the angles between -180 to 180
 		for (int i = 0; i < 7; i++)
@@ -3576,10 +3617,10 @@ int pd_controlJoint(void)
 		}
 
 		for (int i = 0; i < 7; i++)
-			Apos[i] = 0.1 * Apos[i];
+			Apos[i] = 0.1f * Apos[i];
 
 		int flip;
-		float Kp[6] = { 1.1, 1, 1.1, 1, 1, 1 };
+		float Kp[6] = { 1.1f, 1.0f, 1.1f, 1.0f, 1.0f, 1.0f };
 		for (int i = 0; i < 6; i++)
 		{
 			eprev1[i] = pd[i] - Apos[i];
@@ -3629,9 +3670,9 @@ int pd_controlJoint(void)
 	}
 	else if (useRawJoints) 
 	{
-		float Kp[6] = { 1, 1, 1, 1, 1, 1 };
+		float Kp[6] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
 		//float Ki[6]={0.05,0.0,0.0,0.0,0.0,0.0};
-		float Kd[6] = { 0.3, 0.3, 0.3, 0.3, 0.3, 0.3 };
+		float Kd[6] = { 0.3f, 0.3f, 0.3f, 0.3f, 0.3f, 0.3f };
 		for (int i = 0; i < 6; i++)
 		{
 			int flip = 1;
@@ -3751,7 +3792,7 @@ int pd_controlx()
 	cout << "[Warning!]: pd_controlx mode!" << endl;
 	ColumnVector<3> Vw, Ww, Wc, We, Wypr, WeRde, Rde, Pc, Dypr;
 	Matrix<3, 3> Rc2w, Ree2w, Rypr2w;
-	float convert = (M_PI / 36.0f) / (50.0f * 0.022f);
+	float convert = (static_cast<float>(M_PI) / 36.0f) / (50.0f * 0.022f);
 	float dt, dy, dp, dr;
 
 	Rc2w = C2W_transform(pos);
@@ -3796,12 +3837,12 @@ int pd_controlx()
 	WeRde = Ree2w * Rde;
 	Vw = WeRde;
 
-	speed[1] = (int)Vw(1);
-	speed[2] = (int)Vw(2);
-	speed[3] = (int)Vw(3);
-	speed[4] = (int)Wypr(1);
-	speed[5] = (int)Wypr(2);
-	speed[6] = (int)Wypr(3);
+	speed[1] = static_cast<float>(Vw(1) + 0.5);
+	speed[2] = static_cast<float>(Vw(2) + 0.5);
+	speed[3] = static_cast<float>(Vw(3) + 0.5);
+	speed[4] = static_cast<float>(Wypr(1) + 0.5);
+	speed[5] = static_cast<float>(Wypr(2) + 0.5);
+	speed[6] = static_cast<float>(Wypr(3) + 0.5);
 
 	Pc = pos[0], pos[1], pos[2];
 	Pc = Pc + Ree2w * d_c_ee;

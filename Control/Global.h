@@ -401,13 +401,15 @@ extern TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
 
 // Forward declarations of functions included in this code module:
 extern ATOM				MyRegisterClass(HINSTANCE hInstance);
-extern BOOL				InitInstance(HINSTANCE, int);
+//extern BOOL				InitInstance(HINSTANCE, int);
 extern LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
 // Interactive Perception // mushtaq Feb 2022
 extern ForceTorqueManager FTMgr;
 extern InteractPerceive IntPerc;
 extern ControlLogger* gLogger;
+#define CONTROL_ERROR 1
+#define CONTROL_OKAY 0
 //extern int switch_contact ;
 //extern int swx ;
 //extern int swy ;

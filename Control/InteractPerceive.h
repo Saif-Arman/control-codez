@@ -41,6 +41,9 @@ public:
 	// Gets the current value of _interact_perceive_state
 	inline IntPercState get_interact_perceive_state() { return _interact_perceive_state; };
 
+	// Main interact perceive loop
+	void do_interact_perceive();
+
 private:
 
 	// If STOPPED, will stop interact perceive
@@ -49,9 +52,6 @@ private:
 
 	// Print given direction: 0 = X, 1 = Y, 2 = Z.
 	std::string get_dir_string(int dir);
-
-	// Main interact perceive loop
-	void do_interact_perceive();
 
 	// Function to perform the startup sequence required to do 
 	// the interact perceive routine.
@@ -79,5 +79,6 @@ private:
 	std::array<double, FT_SIZE> _last_touch_pos; // position that last exceeded the FT threhsold
 	std::array<double, FT_SIZE> _max_FT;
 	std::array<double, FT_SIZE> _min_FT;
+	std::array<double, FT_SIZE> _current_FT; // current FT acquired from mini FT sensor
 };
 

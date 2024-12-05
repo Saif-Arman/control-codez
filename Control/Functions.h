@@ -40,6 +40,22 @@
 #define max_force 20
 #define slip_sensor_d  0.0225 //0.035 // 22.5mm, 35mm
 #define slip_limit 5
+
+namespace DIRECTIONS
+{
+	enum directions
+	{
+		X = 0,
+		Y = 1,
+		Z = 2,
+		ROLL = 3,
+		PITCH = 4,
+		YAW = 5,
+		MAX_DIRECTIONS
+	};
+}
+
+
 //=============================================================================
 // Maths functions.
 //=============================================================================
@@ -101,14 +117,11 @@ bool Read_37F( void );								// Read first 0x37F.
 bool Open_Grabber( void );							// Open the grabber.
 void stop_arm();									// Stop all arm movement.
 void go_forward(float move_speed = 5.0f);			// Applies linear speed in end effector's Z direction
-void go_sideways(float move_speed = 5.0f);			// Applies linear speed in end effector's X direction
-void go_yaw(float move_speed = 5.0f);
-void go_vertical(float move_speed = 5.0f);			// Applies linear speed in end effector's Y direction
+int apply_arm_speed(DIRECTIONS::directions direction, float move_speed = 5.0f);			// Applies speed in one of X, Y, Z, ROLL, PITCH, or YAW directions
 void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear = true);// Helper function for 1-axis robot movement functions
 void go_speed(std::vector<float>& move_speed);
 void do_grab_object();								// Starts grabbing, stops if something is detected between fingers
 void do_open_grippers();							// Opens grippers all the way
-void go_interact_perceive_home();					// Go to interact perceive home, C:\MANUS\CommonSpace\Setting\home_pos99.txt
 void ManualControl( char ch );						// Set the variable speed that later will be used to set message data.
 void Decode( TPCANMsg& rcvMsg, TPCANMsg& xmitMsg ); // Decode the information in the packages sent by the Manus.
 void SetTransmitMessage( TPCANMsg& xmitMsg );		// Set the message to be transmitted into the buffer.
@@ -145,7 +158,7 @@ void SendCommand2(unsigned char target, unsigned char command, unsigned char snd
 void ReadSugspeed(void);
 void Readblock_dir(void);
 void oneclick(void);
-void regrasp(void);
+//void regrasp(void);
 void init_grasp(void);
 void regrasping_algorithm(void);
 void grasping_with_desired_force(float F_desired);
@@ -281,7 +294,7 @@ static char SbTestCvsId[]="(C) 1998-2015 3Dconnexion: $Id: 3DxTEST32.H 13020 201
 ///* Functions --See cpp file for additional details */
 //
 LRESULT  WINAPI HandleNTEvent (HWND hWnd, unsigned msg, WPARAM wParam, LPARAM lParam);
-int   DispatchLoopNT(); 
+//int   DispatchLoopNT(); 
 void  CreateSPWindow(int, int, int, int, TCHAR *);
 //int   SbInit();
 void  SbMotionEvent(SiSpwEvent *pEvent);
