@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 	// Set console properties.
 	CSetConsole CSetConsole_obj;
 	//if ( !CSetConsole_obj.SetConsole( _T("2.CONTROL_WZ_07_22_2011"), 1366, 240, 640, 650, 80, 101 ) )
-	if (!CSetConsole_obj.SetConsole(_T("2.CONTROL_WZ_06_FEB_2024"), -1280, 100, 780, 800, 80, 101))
+	if (!CSetConsole_obj.SetConsole(_T("2.CONTROL_WZ_06_FEB_2024"), -1280, 50, 780, 800, 80, 101))
 	{
 		tcout << "Fail to set console!" << endl;
 		tcin.get();

@@ -68,10 +68,11 @@ private:
 	float _elapsed_grasp_time;
 	int _int_perc_start_time;
 	float _max_ft_time;
-	float _v_dy;
+	float _w_dy;
 	float _v_dx;
-	int _oscillation_timer;
+	int _oscillation_count;
 	int _ip_cntr;
+	int _ip_osc_loops;
 	bool _touched_once;
 	std::deque<std::array<double, FT_SIZE>> _prev_FT;
 	std::array<double, 3> _rpy_offsets;

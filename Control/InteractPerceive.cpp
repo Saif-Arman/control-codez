@@ -34,10 +34,11 @@ InteractPerceive::InteractPerceive()
 	, _elapsed_grasp_time(0)
 	, _int_perc_start_time(0)
 	, _max_ft_time(0)
-	, _v_dy(0)
+	, _w_dy(0)
 	, _v_dx(0)
-	, _oscillation_timer(0)
+	, _oscillation_count(0)
 	, _ip_cntr(0)
+	, _ip_osc_loops(0)
 	, _touched_once(false)
 {
 	std::fill(std::begin(_starting_FT), std::end(_starting_FT), 0);
@@ -193,38 +194,14 @@ int InteractPerceive::do_ip_start()
 	gLogger->clear_ip_error();
 	gLogger->clear_ip_info();
 	gLogger->clear_ip_status();
-	
-	gotoxy(1, 46);
-	std::cout << "Please enter the desired wiggling speed (from -10 to 10): ";
 
+
+	char defaults;
 	std::stringstream logstr;
-	float tmp = 0;
-	std::cin >> tmp;
 
-	if (std::cin.fail())
-	{
-		logstr << "Invalid input! Please enter a valid number.";
-		gLogger->print_ip_error(logstr.str());
-
-		std::cin.clear();
-		std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
-		return IP_ERROR;
-	}
-	else if (tmp < -10.0f || tmp > 10.0f)
-	{
-		logstr << "Given speed <" << tmp << "> is out of bounds!";
-		gLogger->print_ip_error(logstr.str());
-		return IP_ERROR;
-	}
-	else
-	{
-		_v_dy = tmp; // 8 is ideal with oscillation value of 4
-	}
-
-	gLogger->clear_ip_status();
 	gotoxy(1, 46);
-	std::cout << "Please enter the desired approach speed (from 0 to 15): ";
-	std::cin >> tmp;
+	std::cout << "Please enter \"D\" for defaults, or anything else for custom speeds: ";
+	std::cin >> defaults;
 
 	if (std::cin.fail())
 	{
@@ -235,68 +212,121 @@ int InteractPerceive::do_ip_start()
 		std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
 		return IP_ERROR;
 	}
-	else if (tmp < 0 || tmp > 15.0f)
+	// Setup default values
+	else if ('D' == defaults)
 	{
-		std::stringstream logstr;
-		logstr << "Given speed <" << tmp << "> is out of bounds!";
-		gLogger->print_ip_error(logstr.str());
-		return IP_ERROR;
+		_w_dy = 6; // Oscillation speed
+		_v_dx = 10; // Forward movement speed
+		_threshold[0] = _threshold[1] = _threshold[2] = -0.36; // Threshold for forward or wiggle
+		_oscillation_count = 4; // Count of controller cycles over which "wiggle" motion is created
 	}
+	// Grab values from user
 	else
 	{
-		_v_dx = tmp; // doesnt really matter, using 4
-	}
+		gLogger->clear_ip_status();
+		gotoxy(1, 46);
+		std::cout << "Please enter the desired wiggling speed (from -10 to 10): ";
 
-	gLogger->clear_ip_status();
-	gotoxy(1, 46);
-	std::cout << "Please enter the desired force threshold! (from -5 to 0): ";
-	std::cin >> tmp;
+		float tmp = 0;
+		std::cin >> tmp;
 
-	if (std::cin.fail())
-	{
-		logstr << "Invalid input! Please enter a valid number.";
-		gLogger->print_ip_error(logstr.str());
+		if (std::cin.fail())
+		{
+			logstr << "Invalid input! Please enter a valid number.";
+			gLogger->print_ip_error(logstr.str());
 
-		std::cin.clear();
-		std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
-		return IP_ERROR;
-	}
-	else if (tmp < -3.0f || tmp > 3.0f)
-	{
-		std::stringstream logstr;
-		logstr << "Given threshold <" << tmp << "> is out of bounds!";
-		gLogger->print_ip_error(logstr.str());
-		return IP_ERROR;
-	}
-	else
-	{
-		_threshold[0] = _threshold[1] = _threshold[2] = tmp; // -0.36 works with offsetting the starting FT
-	}
+			std::cin.clear();
+			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
+			return IP_ERROR;
+		}
+		else if (tmp < -10.0f || tmp > 10.0f)
+		{
+			logstr << "Given speed <" << tmp << "> is out of bounds!";
+			gLogger->print_ip_error(logstr.str());
+			return IP_ERROR;
+		}
+		else
+		{
+			_w_dy = tmp; // 8 is ideal with oscillation value of 4
+		}
 
-	gLogger->clear_ip_status();
-	gotoxy(1, 46);
-	std::cout << "Please enter the desired oscilaltions per sec! (from 0 to 10): ";
-	std::cin >> tmp;
+		gLogger->clear_ip_status();
+		gotoxy(1, 46);
+		std::cout << "Please enter the desired approach speed (from 0 to 15): ";
+		std::cin >> tmp;
 
-	if (std::cin.fail())
-	{
-		logstr << "Invalid input! Please enter a valid number.";
-		gLogger->print_ip_error(logstr.str());
+		if (std::cin.fail())
+		{
+			logstr << "Invalid input! Please enter a valid number.";
+			gLogger->print_ip_error(logstr.str());
 
-		std::cin.clear();
-		std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
-		return IP_ERROR;
-	}
-	else if (tmp < 0 || tmp > 10.0f)
-	{
-		std::stringstream logstr;
-		logstr << "Given oscillations <" << tmp << "> is out of bounds!";
-		gLogger->print_ip_error(logstr.str());
-		return IP_ERROR;
-	}
-	else
-	{
-		_oscillation_timer = static_cast<int>(tmp + 0.5); // 4 is ideal with 8 v_dy
+			std::cin.clear();
+			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
+			return IP_ERROR;
+		}
+		else if (tmp < 0 || tmp > 15.0f)
+		{
+			std::stringstream logstr;
+			logstr << "Given speed <" << tmp << "> is out of bounds!";
+			gLogger->print_ip_error(logstr.str());
+			return IP_ERROR;
+		}
+		else
+		{
+			_v_dx = tmp; // doesnt really matter, using 4
+		}
+
+		gLogger->clear_ip_status();
+		gotoxy(1, 46);
+		std::cout << "Please enter the desired force threshold! (from -5 to 0): ";
+		std::cin >> tmp;
+
+		if (std::cin.fail())
+		{
+			logstr << "Invalid input! Please enter a valid number.";
+			gLogger->print_ip_error(logstr.str());
+
+			std::cin.clear();
+			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
+			return IP_ERROR;
+		}
+		else if (tmp < -3.0f || tmp > 3.0f)
+		{
+			std::stringstream logstr;
+			logstr << "Given threshold <" << tmp << "> is out of bounds!";
+			gLogger->print_ip_error(logstr.str());
+			return IP_ERROR;
+		}
+		else
+		{
+			_threshold[0] = _threshold[1] = _threshold[2] = tmp; // -0.36 works with offsetting the starting FT
+		}
+
+		gLogger->clear_ip_status();
+		gotoxy(1, 46);
+		std::cout << "Please enter the desired oscilaltions per sec! (from 0 to 10): ";
+		std::cin >> tmp;
+
+		if (std::cin.fail())
+		{
+			logstr << "Invalid input! Please enter a valid number.";
+			gLogger->print_ip_error(logstr.str());
+
+			std::cin.clear();
+			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
+			return IP_ERROR;
+		}
+		else if (tmp < 0 || tmp > 10.0f)
+		{
+			std::stringstream logstr;
+			logstr << "Given oscillations <" << tmp << "> is out of bounds!";
+			gLogger->print_ip_error(logstr.str());
+			return IP_ERROR;
+		}
+		else
+		{
+			_oscillation_count = static_cast<int>(tmp + 0.5); // 4 is ideal with 8 v_dy
+		}
 	}
 
 	_int_perc_start_time = TimeCheck();
@@ -317,6 +347,7 @@ int InteractPerceive::do_ip_start()
 	std::fill(std::begin(_last_touch_pos), std::end(_last_touch_pos), 0);
 	_touched_once = false;
 	_ip_cntr = 0;
+	_ip_osc_loops = 0;
 	
 	return IP_NEXT;
 }
@@ -331,38 +362,33 @@ int InteractPerceive::do_ip_grasp()
 	
 	// How many samples to consider at a time for interact/perceive
 	// this is the "sliding window" over which interact perceive behaves
-	int num_ft_samples = 10; 
+	int oscillation_periods = 5;
+	int num_ft_samples = oscillation_periods * _oscillation_count;
 	
 	speed_mode = 4; // set robot to allow max angular speed moves
 	new_status = true; // we need the program to send new commands to the robot
 
 	_prev_FT.emplace_back(_current_FT);
-	size_t sz = _prev_FT.size();
-	if (sz > num_ft_samples)
+	size_t prev_ft_sz = _prev_FT.size();
+	if (prev_ft_sz > num_ft_samples)
 	{
 		_prev_FT.pop_front();
-		sz--;
+		prev_ft_sz--;
 	}
 
-	// Calculate average FT over N samples, track min & max
+	// Calculate average FT over N oscillation periods
 	for (auto it = _prev_FT.begin(); it != _prev_FT.end(); ++it)
 	{
 		for (int i = 0; i < FT_SIZE; i++)
-		{
 			avg_ft[i] += (*it)[i];
-
-			//// Track max & min FTs
-			//if ((*it)[i] > _max_FT[i])
-			//	_max_FT[i] = (*it)[i];
-			//if ((*it)[i] < _min_FT[i])
-			//	_min_FT[i] = (*it)[i];
-		}
 	}
 	for (int i = 0; i < FT_SIZE; i++)
 	{
-		avg_ft[i] /= sz;
+		avg_ft[i] /= prev_ft_sz;
 
-		// Subtract initial offset from FT
+		// Also offset the current FT with the initial FT obtained at the start of interact perceive
+		// Need to do this because the sensor is not consistent - going to same place can range from 
+		// +/- 0.7N (or more) even after re-running the calibration cloud
 		_current_FT[i] -= _starting_FT[i];
 	}
 
@@ -381,10 +407,13 @@ int InteractPerceive::do_ip_grasp()
 			forward_speed = 1;
 
 		// Go forward in end effector frame
-		//go_forward(forward_speed);
 		if (CONTROL_OKAY != apply_arm_speed(Z, forward_speed))
+		{
+			gLogger->print_ip_error("ERROR: Could not apply forward Z speed");
 			return IP_ERROR;
+		}
 
+		// Print to log so we can track movement
 		std::stringstream logstr;
 		logstr.setf(std::ios::fixed);
 		logstr.precision(4);
@@ -405,6 +434,7 @@ int InteractPerceive::do_ip_grasp()
 			}
 		}
 	}
+	// If we have enough contact force, wiggle in place
 	else
 	{
 		_touched_once = true; // Set this flag so we know we've touched something at least once
@@ -413,34 +443,53 @@ int InteractPerceive::do_ip_grasp()
 		logstr.precision(4);
 
 		// Oscillate back and forth (yaw)
-		if (_ip_cntr < _oscillation_timer / 2)
-		{
-			// Go one way
-			if (CONTROL_OKAY != apply_arm_speed(YAW, _v_dy))
-				return IP_ERROR;
+		// Positive v_dy for first half, negative v_dy for second half
+		int wdy_sign = (_ip_cntr < _oscillation_count / 2) ? 1 : -1;
 
-			logstr << "+ Y + Wy: " << std::setfill(' ') << std::setw(7) << speed[YAW] 
-				   << ", Wp: "     << std::setfill(' ') << std::setw(7) << speed[PITCH] 
-				   << ", Wr: "     << std::setfill(' ') << std::setw(7) << speed[ROLL]
-				   << ", cnt: "    << _ip_cntr;
-		}
-		else
+		// N robot ticks in each direction
+		if (++_ip_cntr >= _oscillation_count)
 		{
-			// Go the opposite way
-			if (CONTROL_OKAY != apply_arm_speed(YAW, -_v_dy))
-				return IP_ERROR;
-
-			logstr << "- Y - Wy: " << std::setfill(' ') << std::setw(7) << speed[YAW]
-				   << ", Wp: "     << std::setfill(' ') << std::setw(7) << speed[PITCH] 
-				   << ", Wr: "     << std::setfill(' ') << std::setw(7) << speed[ROLL]
-				   << ", cnt: "    << _ip_cntr;
-		}
-		// x robot ticks in each direction
-		if (++_ip_cntr >= _oscillation_timer)
 			_ip_cntr = 0;
+			_ip_osc_loops++;
+		}
 
-		logstr << ", ft_x: " << std::setfill(' ') << std::setw(7) << _current_FT[X] 
-			   << ", t_x: "  << std::setfill(' ') << std::setw(7) << _threshold[X];
+		float new_speed = _w_dy;
+		float speed_offset = 4.0f;
+		// Get an evenly spaced number of samples so that we correctly average out sine waves
+		//if (0 == _ip_cntr && _ip_osc_loops > 0)
+		if (prev_ft_sz >= num_ft_samples)
+		{
+			if (0 == avg_ft[TX]) // change this to be some tolerance around 0
+			{
+				return IP_NEXT;
+			}
+			// if torque is NEGATIVE, rotate +YAW by adding more speed to -vdy ONLY
+			else if (avg_ft[TX] > 0 && -1 == wdy_sign)
+			{
+					new_speed += speed_offset;
+			}
+			// if torque is NEGATIVE, rotate -YAW by adding more speed to vdy ONLY
+			else if (avg_ft[TX] < 0 && 1 == wdy_sign) 
+			{
+					new_speed += speed_offset;
+			}
+		}
+
+		// Set oscillation direction
+		if (CONTROL_OKAY != apply_arm_speed(YAW, new_speed * wdy_sign))
+		{
+			gLogger->print_ip_error("ERROR: Could not apply sideways YAW speed");
+			return IP_ERROR;
+		}
+
+		// Print to log so we can track movement
+		logstr << wdy_sign << " Y: Wy: " << std::setfill(' ') << std::setw(7) << speed[YAW]
+			<< ", Wp: " << std::setfill(' ') << std::setw(7) << speed[PITCH]
+			<< ", Wr: " << std::setfill(' ') << std::setw(7) << speed[ROLL]
+			<< ", cnt: " << _ip_cntr
+			<< ", ft_x: " << std::setfill(' ') << std::setw(7) << _current_FT[X]
+			<< ", t_x: " << std::setfill(' ') << std::setw(7) << _threshold[X];
+
 		gLogger->print_ip_status(logstr.str());
 
 		_last_touch_pos[X] = pos[X];
