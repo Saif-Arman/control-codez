@@ -47,6 +47,7 @@ MappedMemory takktile;
 MappedMemory spaceMouseValues;
 MappedMemory sug_speed;
 MappedMemory block_direction;
+MappedMemory block_direction2;
 MappedMemory Obj_in;
 
 // Home position of the arm.
@@ -125,6 +126,7 @@ bool btm_cls = false;
 float cls_pos[6];//collision position for auto grasp
 int btn_pressed;
 int user_oprt[2] = {0};
+bool oprt_start = false;
 bool moveto = false;
 float set_pos[6] = { 0 };
 float orig_pos[6] = { 0 };
@@ -134,12 +136,12 @@ bool requestframe = false;
 int t_reqframe = 0;
 int t_adj = 0;
 int move_arm = -1;
-
+int block_movement[14] = { 0 };
 //btn suggestion
 int suggestedMotion;
 int previousSuggestedMotion;
 unsigned char suggestedButtonSwitch = 'Z';
-unsigned char suggested_btn_order[6] = { 'x' ,'Y','Z','y' ,'p' ,'r' };
+unsigned char suggested_btn_order[6] = { 'Z' ,'p','Y','y' ,'x' ,'r' };// suggested motion order, 1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
 bool init_sug;
 char btn_cmd;
 int sg_stage;
@@ -147,6 +149,7 @@ bool update_sug;
 float moveL[6];
 float currentPosition[6];
 Matrix<3, 1> p_frame_w;
+bool move_as_suggested = false;
 
 //optical gate 
 int obj_in[2];

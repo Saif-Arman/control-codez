@@ -1001,6 +1001,27 @@ void UpdateSpaceMouse(const int *spacemouse)
 	spaceMouseValues.Lock();
 	spaceMouseValues->Write((unsigned char*)pos_str, 40 * sizeof(BYTE), 0);
 	spaceMouseValues.Unlock();
+
+
+	register char pos_str3[256];
+
+
+	sprintf_s(pos_str3, "%d%d%d%d%d%d%d%d%d%d%d%d",
+		block_movement[1], block_movement[2], block_movement[3], block_movement[4],
+		block_movement[5], block_movement[6], block_movement[7], block_movement[8], 
+		block_movement[9], block_movement[10], block_movement[11], block_movement[12] );
+
+	block_direction2->SetWritePos(0);
+	block_direction2.Lock();
+	block_direction2->Write((unsigned char*)pos_str3, 20 * sizeof(BYTE), 0);
+	block_direction2.Unlock();
+
+
+
+
+
+
+
 };
 // Display speed information.
 void DisplaySpeed(void)
@@ -1546,6 +1567,12 @@ void ManualControl(char ch)
 	case ' ': {
 		grasp_test = 0;
 		grasp_inipos = 0;
+
+		//update_sug = 1;// zc for testing button suggestion
+		//suggestedButtonSwitch = 'Z';
+		//block_camcls_move();// for test 
+
+
 		ResetAll();
 	}
 			  break;
@@ -2345,16 +2372,25 @@ void SetTransmitMessage(TPCANMsg& xmitMsg)
 
 
 
-	if (block_flag)
+	if (cam_cls)
 	{
 		for (int j = 0; j < 6; j++)
 		{
+			/*//for old block_dir
 			if (block_dir[j] == 2)
 				speed[j + 1] = 0;
 			else if (block_dir[j] == -1 && speed[j + 1] < 0)
 				speed[j + 1] = 0;
 			else if (block_dir[j] == 1 && speed[j + 1] > 0)
 				speed[j + 1] = 0;
+			// for old block_dir end*/
+
+			if (block_movement[2*j+1] == 1 && speed[j + 1] > 0)
+				speed[j + 1] = 0;
+			if (block_movement[2 * j + 2] == 1 && speed[j + 1] < 0)
+				speed[j + 1] = 0;
+	
+
 		}
 	}
 
@@ -3128,6 +3164,12 @@ bool LoadAll(void)
 	if (!block_direction.OpenMappedMemory("block"))
 	{
 		cout << "[Error!]: Shared memory takktile is not available!" << endl;
+		return false;
+	}
+
+	if (!block_direction2.OpenMappedMemory("block2"))
+	{
+		cout << "[Error!]: Shared memory block2 is not available!" << endl;
 		return false;
 	}
 
@@ -4316,8 +4358,8 @@ void oneclick(void)
 	else if (oneclick_mode > 3)  // once Found the object, start culculate the assist speed 
 	{
 
-		float deltaPosition[11] = { 0 };
-		float ee_deltaPosition[11] = { 0 };
+		float deltaPosition[13] = { 0 };
+		float ee_deltaPosition[13] = { 0 };
 		//Find delta robot positions
 		for (int i = 0; i < 6; i++) {
 			deltaPosition[i] = requestedPosition[i] - currentPosition[i];// in base frame
@@ -4325,6 +4367,7 @@ void oneclick(void)
 		}
 		deltaPosition[6] = requestedPosition[6] - currentPosition[3];
 		deltaPosition[7] = requestedPosition[7] - currentPosition[4];
+
 		//ee_deltaPosition[6] = requestedPosition[6] - currentPosition[3];
 		//ee_deltaPosition[7] = requestedPosition[7] - currentPosition[4];
 
@@ -4339,6 +4382,10 @@ void oneclick(void)
 
 		ee_deltaPosition[6] = atan(ee_deltaPosition[9] / ee_deltaPosition[8]) / 3.1415 * 180 - currentPosition[3];
 		ee_deltaPosition[7] = atan(ee_deltaPosition[10] / sqrt(pow(ee_deltaPosition[8], 2) + pow(ee_deltaPosition[9], 2))) / 3.1415 * 180 - currentPosition[4];
+		deltaPosition[11] = ee_deltaPosition[6];
+		deltaPosition[12] = ee_deltaPosition[7];
+		ee_deltaPosition[11] = ee_deltaPosition[6];
+		ee_deltaPosition[12] = ee_deltaPosition[7];
 
 		D2obj = sqrt(pow(deltaPosition[8], 2) + pow(deltaPosition[9], 2) + pow(deltaPosition[10], 2));
 		Matrix<2, 1> e_xy, e_handxy;
@@ -4355,10 +4402,16 @@ void oneclick(void)
 
 		old_fine_adjust = fine_adjust;
 
+		//if (!move_as_suggested&&  user_oprt[1] == 1 && update_sug != 1)
+		//{
+		//	update_sug = 1;
+		//	suggestedButtonSwitch = 'Z';
+		//}
 		//suggest_btn2(ee_deltaPosition);
-		if (spaceMouseEnabled&&(spaceMouseMode != 3))
+		if (spaceMouseEnabled && (spaceMouseMode != 3))
 		{
 			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+				//after mode switching , start over the suggestion 
 			{
 				update_sug = 1;
 				suggestedButtonSwitch = 'Z';
@@ -4369,7 +4422,8 @@ void oneclick(void)
 		{
 			suggest_btn2(ee_deltaPosition, 1);
 		}
-		
+
+
 
 		//gotoxy(1, 27);
 		//cout << "[";
@@ -4743,10 +4797,16 @@ void oneclick(void)
 }
 
 
-int viewcheck(float Position[6], int axis, float offset, int ee)
+int viewcheck(float Position[6], int axis, float offset, int ee, bool small_bound, float offset0[6])
 {
+
+	int left_bound = small_bound ? 40 : 60;
+	int right_bound = 640 - left_bound;
+	int up_bound = small_bound ? 40 : 60;
+	int bottom_bound = 480 - up_bound;
+
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
-	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt,wa,ca;
+	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
 	float temp_pos[6];
 	float dist_cam;
@@ -4755,7 +4815,7 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 	{
 		temp_pos[i] = Position[i];
 	}
-	if (ee&&axis<2)
+	if (ee&&axis < 2)
 	{
 		switch (axis)
 		{
@@ -4792,20 +4852,113 @@ int viewcheck(float Position[6], int axis, float offset, int ee)
 	track_x = int(p_frame(1, 1) * 535 / p_frame(3, 1)) + 323;
 	track_y = int(p_frame(2, 1) * 535 / p_frame(3, 1)) + 237;
 
-	if (track_x >= 40 && track_x <= 600 && track_y >= 40 && track_y <= 440)
+	if (offset0[0] > 10 && offset0[1] < 10 && offset0[2] < 10 && offset0[3] < 3 && offset0[4] < 3)
 		return 0;
-	else if (track_x <= 40)//out of view from left side
+	else if (track_x >= left_bound && track_x <= right_bound && track_y >= up_bound && track_y <= bottom_bound)
+		return 0;
+	else if (track_x <= left_bound)//out of view from left side
 		return 1;
-	else if (track_x >= 600)//out of view from right side
+	else if (track_x >= right_bound)//out of view from right side
 		return 2;
-	else if (track_y <= 40)//out of view from top side
+	else if (track_y <= up_bound)//out of view from top side
 		return 3;
-	else if (track_y >= 440)//out of view from buttom side
+	else if (track_y >= bottom_bound)//out of view from buttom side
 		return 4;
+
 
 }
 
-int cam_cls_check(float Position[6], int axis, float offset, int ee)
+void Operation_check(void)
+{
+	int user_cmd = 10;
+
+	if (!spaceMouseEnabled)
+	{
+		switch (btn_cmd)
+		{
+		case '<':
+			user_cmd = 8;
+			break;
+		case '>':
+			user_cmd = -8;
+			break;
+		case '3':
+			user_cmd = 2;
+			break;
+		case '2':
+			user_cmd = -2;
+			break;
+		case 'e':
+			user_cmd = 3;
+			break;
+		case 'd':
+			user_cmd = -3;
+			break;
+		case 'y':
+			user_cmd = 6;
+			break;
+		case 'h':
+			user_cmd = -6;
+			break;
+		case 'f':
+			user_cmd = 4;
+			break;
+		case 'r':
+			user_cmd = -4;
+			break;
+		case 't':
+			user_cmd = 5;
+			break;
+		case 'g':
+			user_cmd = -5;
+			break;
+		default:
+			user_cmd = 10;// no operation in list
+			break;
+		}
+	}
+	else
+	{
+		if (abs(spaceMouse[0]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[0] > 0 ? user_cmd = 8 : user_cmd = -8;
+		}
+		else if (abs(spaceMouse[1]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[1] > 0 ? user_cmd = 2 : user_cmd = -2;
+		}
+		else if (abs(spaceMouse[2]) > spacemouse_translation_sensitivity)
+		{
+			spaceMouse[2] > 0 ? user_cmd = 3 : user_cmd = -3;
+		}
+		else if (abs(spaceMouse[3]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[3] > 0 ? user_cmd = -4 : user_cmd = 4;
+		}
+		else if (abs(spaceMouse[4]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[4] > 0 ? user_cmd = 5 : user_cmd = -5;
+		}
+		else if (abs(spaceMouse[5]) > spacemouse_rotation_sensitivity)
+		{
+			spaceMouse[5] > 0 ? user_cmd = 6 : user_cmd = -6;
+		}
+		else {
+			user_cmd = 10;
+		}
+	}
+
+	if (user_cmd != 10 && user_cmd != suggestedMotion)
+	{
+		move_as_suggested = false;
+	}
+	else {
+		move_as_suggested = true;// if no operation in list, then turn the flag to true.
+	}
+
+}
+
+bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_correction)
 {
 	Matrix<3, 1> wa, ca;
 	float temp_pos[6];
@@ -4816,7 +4969,8 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 	{
 		temp_pos[i] = Position[i];
 	}
-	if (ee&&axis<2)
+
+	if (ee&&axis < 2)
 	{
 		switch (axis)
 		{
@@ -4840,9 +4994,15 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 		temp_pos[axis] += offset;
 	}
 
+	if (roll_correction)
+		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+
 	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
 
-	if (dist_cam < 38)
+
+	int thre;
+	roll_correction ? thre = 42 : thre = 38;
+	if (dist_cam < thre)
 	{
 		//ResetAll();
 		cam_c = true;
@@ -4852,7 +5012,112 @@ int cam_cls_check(float Position[6], int axis, float offset, int ee)
 
 }
 
-void suggest_btn2(float deltaPosition[11], int ee)
+float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool roll_correction)
+{
+	Matrix<3, 1> wa, ca;
+	float temp_pos[6];
+	float dist_cam;
+	bool cam_c = false;
+
+	for (int i = 0; i < 6; i++)
+	{
+		temp_pos[i] = Position[i];
+	}
+
+	if (ee&&axis < 2)
+	{
+		switch (axis)
+		{
+		case(0):
+			ca = 0, 0, offset;
+			break;
+		case(1):
+			ca = -offset, 0, 0;
+			break;
+		default:
+			break;
+		}
+		wa = C2W_transform2(pos) * ca;
+		for (int j = 0; j < 3; j++)
+		{
+			temp_pos[j] += wa(j + 1, 1);
+		}
+	}
+	else
+	{
+		temp_pos[axis] += offset;
+	}
+
+	if (roll_correction)
+		temp_pos[5] = sign(temp_pos[5])*(180 - fabs(temp_pos[5]));
+
+	dist_cam = DistanceBetween_Camera_Link3(temp_pos);
+
+
+	//int thre;
+	//roll_correction ? thre = 42 : thre = 38;
+	//if (dist_cam < thre)
+	//{
+	//	//ResetAll();
+	//	cam_c = true;
+	//}
+
+	return dist_cam;
+
+}
+
+
+void block_camcls_move(void)
+{
+	//bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee);
+	int ee;
+
+	(spaceMouseEnabled && (spaceMouseMode != 3&& spaceMouseMode != 5)) ? ee = 0 : ee = 1;
+	//when space mouse is enabled and not in mode3(hybrid in gripper frame) and mode 5(one click mode), the control command is in world frame.
+
+	float dist_cam0,dist_cam1;
+
+	dist_cam0 = cam_cls_check2(pos, 0, float(0), ee, false);
+
+	bool cam_flag = 0;
+	for (int i = 0; i < 6; i++)// check for each axis  1-6
+	{
+		for (int j = 1; j > -2; j -= 2)// check for each direction  1,-1
+		{
+			for (int off = 1; off < 7; off++)  //check for each step size to make sure there is no collision in this direction,
+											//since the distance is not linear, 1 2 3 
+			{
+				if (i < 3)// 0 1 2 : x y z axis
+				{
+					dist_cam1 = cam_cls_check2(pos, i,  float(j * 6 * off), ee, false);//5cm for translation motion
+				}
+				else // 3 4 5: yaw pitch roll axis
+				{
+					dist_cam1 = cam_cls_check2(pos, i, float( j * 3 * off), ee, false);// 3degree for rotation motion
+				}
+
+				cam_flag = (dist_cam1 < dist_cam0);
+
+				if (cam_flag)
+				{
+					j == 1 ? block_movement[2 * i + 1] = 1 : block_movement[2 * i + 2] = 1;
+				}
+				else
+				{
+					j == 1 ? block_movement[2 * i + 1] = 0 : block_movement[2 * i + 2] = 0;
+				}
+
+				/*gotoxy(1, 64);
+				printf("axis:  %d ,   direction:  %d , offset:    %.3f ,  collision:   %d ",i, j, float(j * 3 * off), cam_flag);*/
+			}
+		}
+	}
+}
+
+
+
+
+void suggest_btn2(float deltaPosition[13], int ee)
 {
 
 	//int suggestedButtonSwitch;
@@ -4861,8 +5126,9 @@ void suggest_btn2(float deltaPosition[11], int ee)
 	float rotationThreshold = 3;
 	float positionThreshold = 10;
 	int coe_e = 2;//global?
-	int axis;
+	int axis = 6;
 	float cam_dist;
+	bool cam_cls_flag = false;
 	//int thres;
 	//float deltaPosition_o[6] ;// should be global
 	//for (int i = 0; i < 6; i++)
@@ -4874,84 +5140,175 @@ void suggest_btn2(float deltaPosition[11], int ee)
 	//{
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
-	if (user_oprt[0] == 1 && user_oprt[1] == 0 && update_sug != 1)
+
+
+
+	if (user_oprt[0] == 0 && user_oprt[1] == 1 )// monitor the user operation has started for the suggestion update
 	{
-		update_sug = 1;
-		suggestedButtonSwitch = 'Z';
+		oprt_start = true;
+	}
+	else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+	{
+		oprt_start = false;
 	}
 
 
+	if (!move_as_suggested&&oprt_start&& update_sug != 1)
+	{
+		update_sug = 1;
+		suggestedButtonSwitch = 'Z';
+		oprt_start = false;
+		gotoxy(1, 56);
+		printf("sugg: updated   %d",TimeCheck());
+	}
+	else
+	{
+		gotoxy(1, 57);
+		printf("sugg:          %d",TimeCheck());
+	}
+
+
+	gotoxy(1, 55);
+	printf("oprt_start: %d     move_as_suggested:   ", oprt_start, move_as_suggested);
+
 	if (update_sug)//global
 	{
-		
-		if (suggestedButtonSwitch == 'x')
-			axis = 0; 
-		else if (suggestedButtonSwitch == 'Y')
+
+		if (suggestedButtonSwitch == 'x')//forward direction
+			axis = 0;
+		else if (suggestedButtonSwitch == 'Y')// left\right direction
 			axis = 1;
-		else if (suggestedButtonSwitch == 'Z')
+		else if (suggestedButtonSwitch == 'Z')// up/down direction
 			axis = 2;
-		else if (suggestedButtonSwitch == 'y')
+		else if (suggestedButtonSwitch == 'y' || suggestedButtonSwitch == 'a')// yaw,  'a' is for the the yaw motion for move obejct in view.
 			axis = 3;
-		else if (suggestedButtonSwitch == 'p')
+		else if (suggestedButtonSwitch == 'p' || suggestedButtonSwitch == 'b')// pitch, 'b' is for the pitch motion for move object in view.
 			axis = 4;
-		else if (suggestedButtonSwitch == 'r')
+		else if (suggestedButtonSwitch == 'r')// roll
 			axis = 5;
-		else if (suggestedButtonSwitch == 'X')
+		else if (suggestedButtonSwitch == 'X')// arrived the final desire position
 		{
 			update_sug = 0;
+			axis = 6;
 		}
 
-		if (update_sug != 0)
+		if (axis != 6)
+			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
+
+
+		if (D2obj > 275)
 		{
-			if (viewcheck(currentPosition, axis, deltaPosition[axis],ee) != 0)//get first motion length,only once at the beginning
+			if (update_sug != 0)// if doesn't arrive the final desiren positon
 			{
 				
-				while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e,ee) != 0)
+				int view_check = viewcheck(currentPosition, 0 * axis, 0 * deltaPosition[axis], 0 * ee,false, deltaPosition);// first check object in view or not.
+
+				if (view_check != 0)//if the object is not in the view, first move the objec in view
 				{
-					coe_e += 1;
-					if (coe_e > 4)
-						break;
-				}
-				if (cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee) != 0)
-				{
-					if (axis != 5)
+					if (view_check == 1)
 					{
-						suggestedButtonSwitch = suggested_btn_order[axis + 1];
+						suggestedButtonSwitch = 'a';
+						thres = rotationThreshold;
+					}
+					else if (view_check == 2)
+					{
+						suggestedButtonSwitch = 'a';
+						thres = rotationThreshold;
+					}
+					else if (view_check == 3)
+					{
+						suggestedButtonSwitch = 'b';
+						thres = rotationThreshold;
+					}
+					else if (view_check == 4)
+					{
+						suggestedButtonSwitch = 'b';
+						thres = rotationThreshold;
+					}
+
+				}
+				else
+				{
+					if (viewcheck(currentPosition, axis, deltaPosition[axis], ee,false, deltaPosition) != 0 ||
+						(cam_cls_flag != 0))
+						//when the object in view get first motion length,only once at the beginning, if the motion will colide or lost the object in view, 
+						// then break the movement in half or more,
+					{
+
+						while (viewcheck(currentPosition, axis, deltaPosition[axis] / coe_e, ee, false, deltaPosition) != 0)
+							// break the motion down to 1/2,1/3,1/4 to prevent the lost in view or collision
+						{
+							coe_e += 1;
+							if (coe_e > 4)// prevent the endless break down, 
+								break;
+						}
+						bool cam_cls_flag2 = cam_cls_check(currentPosition, axis, deltaPosition[axis] / coe_e, ee, true);// check the propose motion will collision or not
+						if (cam_cls_flag2 != 0)
+							// if the planed movement will collide , change to next direction, order :1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
+						{
+							if (axis != 5)
+							{
+								suggestedButtonSwitch = suggested_btn_order[axis + 1];
+							}
+							else
+								suggestedButtonSwitch = suggested_btn_order[0];
+
+							return;// jump out of the function start the suggestion again
+						}
+						moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);// if there is no collision in planned movement, set the threshould of the suggest movement.
+						thres = moveL[axis];
+
+						if (axis < 3)// when the planned threshold is less than the general threshold, set it back to threshold
+						{
+							if (abs(thres) < positionThreshold)
+								thres = positionThreshold;
+						}
+						else if (axis > 2)
+						{
+							if (abs(thres) < rotationThreshold)
+								thres = rotationThreshold;
+						}
+						gotoxy(1, 52);
+						printf("collision: %d    break to: %d    ", cam_cls_flag, coe_e);
 					}
 					else
-						suggestedButtonSwitch = suggested_btn_order[0];
-					return;
-				}
-				moveL[axis] = deltaPosition[axis] * (1.0 - 1.0 / coe_e);
-				thres = moveL[axis];
-				if (axis < 3)
-				{
-					if (abs(thres) < positionThreshold)
-						thres = positionThreshold;
-				}
-				else if (axis > 2)
-				{
-					if (abs(thres) < rotationThreshold)
-						thres = rotationThreshold;
+						// if the full length of deltaposition doesn't cause collision or lost the obejct, set the thres to the full length
+					{
+						//moveL[axis] = deltaPosition[axis];
+						if (axis < 3)
+						{
+							thres = positionThreshold;
+						}
+						else if (axis > 2)
+						{
+							thres = rotationThreshold;
+						}
+					}
 				}
 			}
-			else
+		}
+		else if (axis<6)// when gripper is close to the object, the track point may lost in the view since the camera has an offset respect to the gripper
+			// so, when the gripper is very close to the object, just suggested the motion directly to the desire posiion. 
+		{
+			if (axis < 3)
 			{
-				//moveL[axis] = deltaPosition[axis];
-				if (axis < 3)
-				{
-					thres = positionThreshold;
-				}
-				else if (axis > 2)
-				{
-					thres = rotationThreshold;
-				}
+				thres = positionThreshold;
+			}
+			else if (axis > 2)
+			{
+				thres = rotationThreshold;
 			}
 		}
 		update_sug = 0;
 	}
 
-	switch (suggestedButtonSwitch)
+	gotoxy(1, 50);
+	printf("suggeested: %u    axis: %d      thres  %f      ", suggestedButtonSwitch,axis,thres );
+
+	gotoxy(1, 53);
+	printf("delta position  x: %.3f  y:%.3f   z:  %.3f  yaw: %.3f  pitch: %.3f   roll:   %.3f ", deltaPosition[0], deltaPosition[1], deltaPosition[2], deltaPosition[3], deltaPosition[4], deltaPosition[5]);
+
+	switch (suggestedButtonSwitch)// output the 'suggestedMotion' to GUI 
 	{
 	case 'Z':
 
@@ -5123,7 +5480,7 @@ void suggest_btn2(float deltaPosition[11], int ee)
 		break;
 	case 'X'://
 		suggestedMotion = 9; //2,3
-		if (!((abs(deltaPosition[0]) < 4 * positionThreshold) &&
+		if (!(((deltaPosition[0]) < 4 * positionThreshold) &&
 			(fabs(deltaPosition[1]) < 4 * positionThreshold) &&
 			(fabs(deltaPosition[2]) < 4 * positionThreshold) &&
 			(abs(deltaPosition[3]) < 4 * rotationThreshold) &&
@@ -5131,10 +5488,35 @@ void suggest_btn2(float deltaPosition[11], int ee)
 			(abs(deltaPosition[5]) < 4 * rotationThreshold)))
 		{
 			suggestedButtonSwitch = 'Z';
+			// if current position is out of the preset region of the desire position, start the suggested again
 		}
-
-	default:;
+		break;
+	case 'a':
+		if (fabs(deltaPosition[11]) > rotationThreshold)
+		{
+			suggestedMotion = deltaPosition[11] < 0 ? 4 : -4;
+		}
+		else
+		{
+			suggestedButtonSwitch = 'b';
+			update_sug = 1;
+		}
+		break;
+	case 'b':
+		if (fabs(deltaPosition[12]) > rotationThreshold)
+		{
+			suggestedMotion = deltaPosition[12] < 0 ? -5 : 5;
+		}
+		else
+		{
+			suggestedButtonSwitch = 'Z';
+			update_sug = 1;
+		}
+		break;
+	default:
+		break;
 	}
+
 	//}
 }
 
@@ -5595,6 +5977,8 @@ void movetopos(void)// move to certain position
 		moveto = true;
 	}
 }
+
+
 
 
 

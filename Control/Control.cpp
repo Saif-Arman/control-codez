@@ -243,8 +243,8 @@ int main(int argc, char* argv[])
 			}
 			gotoxy( 1, 20);
 			spaceMouseEnabled?
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  spm_btn[0]  %d  spm_btn[1] %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, spaceButtonsToggle[0], spaceButtonsToggle[1])
-				:printf("Space Mouse Disabled                          spm_btn[0]  %d  spm_btn[1] %d  ", spaceButtonsToggle[0], spaceButtonsToggle[1]);
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested)
+				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested);
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)
@@ -691,6 +691,7 @@ int main(int argc, char* argv[])
 		//cout <<"status"<< new_status<< auto_mode_start <<"pressed"<<suggspeed[6]<< endl;
 
 		Readblock_dir();
+		Operation_check();
 		////  Mushtaq
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);
@@ -700,10 +701,26 @@ int main(int argc, char* argv[])
 		{
 			ResetAll();
 			cam_cls = true;
+			block_camcls_move();
+			//gotoxy(1,59);
+			//printf("block direction 1. %d   2. %d  3.  %d  4. %d  5. %d   6. %d  7. %d   8. %d  9.  %d  10. %d  11. %d   12. %d ", 
+			//	block_movement[1], block_movement[2], block_movement[3], block_movement[4], block_movement[5], block_movement[6],
+			//	block_movement[7], block_movement[8], block_movement[9], block_movement[10], block_movement[11], block_movement[12]);
+
 		}
 		else if (cam_dist > 38 && cam_cls) 
 		{
 			cam_cls = false;
+			//block_camcls_move();
+			for (int i = 1; i < 13; i++)
+			{
+				block_movement[i] = 0; 
+			}
+
+			//gotoxy(1, 59);
+			//printf("block direction 1. %d   2. %d  3.  %d  4. %d  5. %d   6. %d  7. %d   8. %d  9.  %d  10. %d  11. %d   12. %d ",
+			//	block_movement[1], block_movement[2], block_movement[3], block_movement[4], block_movement[5], block_movement[6],
+			//	block_movement[7], block_movement[8], block_movement[9], block_movement[10], block_movement[11], block_movement[12]);
 		}
 
 
