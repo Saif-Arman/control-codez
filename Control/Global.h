@@ -65,6 +65,8 @@ extern bool ready_lift;
 extern int spm_gripper;// for active or disable the slip sensor
 extern int spacemouse_translation_sensitivity;
 extern int spacemouse_rotation_sensitivity;
+extern int spacemouse_hybrid_sensitivity;
+extern int spacemouse_operation[6];
 
 // Interlock object.
 typedef struct 
@@ -131,25 +133,36 @@ extern float raw_velocity;
 extern float init_force;
 //extern bool initial_vel;//zc
 extern double cur_velocity;
+extern double cur_velocity_y;
 extern double cur_velocity_f;
+extern double cur_velocity_f_in;
+extern double cur_velocity_f_y;
 //extern double cur_vel;// zc
 //extern double old_vel;// zc
 //extern double old_vel2;// zc
 //extern double old_vel3;// zc
 extern double cur_position;
+extern double cur_position_y;
 extern double old_position;//zc
+extern double old_position_y;//zc
 extern double old_pos;//zc
+extern double old_pos_y;//zc
 extern int old_t ;//zc
 extern int cur_t ;//zc
 extern int dtt ;
 extern float a2[2] ;
 extern float b2[3] ;
 extern float x2d[2] ;
+extern float x2d_y[2] ;
 extern float y2d[2] ;
+extern float y2d_y[2] ;
 extern float al ;
 extern double o_p ;
+extern double o_p_y ;
 extern double cur_pos_f;
+extern double cur_pos_f_y;
 extern double cur_pos_nf;
+extern double cur_pos_nf_y;
 extern int hold_init ;
 extern int stt;
 
@@ -239,12 +252,13 @@ extern bool init_sug;
 extern char btn_cmd;
 extern int sg_stage;
 extern bool update_sug;
+extern int SUG_order[6];
 extern float moveL[6];
 extern float currentPosition[6];
 extern Matrix<3, 1> p_frame_w;
 extern float thres;
-extern bool move_as_suggested;
-extern bool oprt_start;
+extern int move_as_suggested[3];
+extern bool oprt_end;
 extern 	int block_movement[14];
 // optical gate
 extern int obj_in[2];

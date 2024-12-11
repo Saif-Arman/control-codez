@@ -364,8 +364,8 @@ float DistanceBetween_Camera_Link3(float *position)
 	int collision = 0;
 	float r = 55 / 2;     //radius of link3
 	ColumnVector<3> p1, p2, p3_c, p4_c, p3, p4, Q;
-	p3_c = 82, -62, 82;  //  first end point coordinate of camera edge in end-effector frame
-	p4_c = -95, -62, 82; // second end point coordinate of camera edge in end-effector frame
+	p3_c = 70, -62, 82;  //  first end point coordinate of camera edge in end-effector frame
+	p4_c = -110, -62, 82; // second end point coordinate of camera edge in end-effector frame
 	Q = inverse_kinematics_MANUS_q1q2q3(x, y, z);
 	q1 = Q(1);
 	q2 = Q(2);
@@ -443,7 +443,10 @@ void sthread_CAN(void *arg)
 					packet_CAN.Read(val, 3);
 
 					if (val == ' ')
+					{
 						ResetAll();
+						btn_cmd = '*';
+					}
 					else
 					{
 						if (fu_flag) {
@@ -892,7 +895,7 @@ void SendCommand(const unsigned char source, const unsigned char destination, co
 	while ((TimeCheck() - stt) < 30)
 	{
 		ReadForce(cur_force);
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 		SleepMs(2);
 		test_data << TimeCheck() << ", " << cur_velocity_f << ", " << cur_force << ", " << cur_position << ", " << cur_pos_nf << ", " << cur_velocity << ", " << grasp_start << ", " << grasp_end << ", " << speed[7] << ", " << grasp_npos << "\n";//grasp_npos-grasp_inipos
@@ -987,19 +990,25 @@ void UpdateSpaceMouse(const int *spacemouse)
 	register char pos_str[256];
 	register char pos_str2[256];
 
-	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%4d",
-		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
-		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation));
+	sprintf_s(pos_str, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d%d%d%d%d%3d%5d%2d%2d%2d%2d%2d%2d",
+		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],//0:3 spaceMouseEnabled,spaceMouseMode,spaceButtonsToggle[1], regrasping? }
+		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), //speed [x y z yaw pitch roll] 
+		int(speed_mode), int(cam_cls), int(init_stop), int(spm_gripper), int(oneclick_mode), int(suggestedMotion), int(spm_operation),
+		// speed mode;  camera collision flag;regrasping status;gripper close/open flag;one click mode;move suggestion ;sum for the space mouse input
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]) );
+		//  each axis of the spacemouse is in operating or not.
+
 
 	//cout << pos_str << endl;
-	sprintf_s(pos_str2, "%d%d%d%d%3d%3d%3d%3d%3d%3d%d",
+	sprintf_s(pos_str2, "%d%d%d%d%2d%2d%2d%2d%2d%2d%d",
 		spacemouse[0], spacemouse[1], spacemouse[2], spacemouse[3],
-		int(speed[1]), int(speed[2]), int(speed[3]), int(speed[4]), int(speed[5]), int(speed[6]), int(init_stop));
+		int(spacemouse_operation[0]), int(spacemouse_operation[1]), int(spacemouse_operation[2]), int(spacemouse_operation[3]), int(spacemouse_operation[4]), int(spacemouse_operation[5]), int(init_stop));
+
 	gotoxy(50, 30);
 	cout << pos_str2 << endl;
 	spaceMouseValues->SetWritePos(0);
 	spaceMouseValues.Lock();
-	spaceMouseValues->Write((unsigned char*)pos_str, 40 * sizeof(BYTE), 0);
+	spaceMouseValues->Write((unsigned char*)pos_str, 60 * sizeof(BYTE), 0);
 	spaceMouseValues.Unlock();
 
 
@@ -1039,15 +1048,23 @@ void DisplaySpeed(void)
 void DisplayPos(float* pos)
 {
 	gotoxy(1, 24);
+	time_t secs = time(0);
+	tm *t = localtime(&secs);
+	//printf("%04d-%02d-%02d\n",t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
+	char pos_name[256];
+	sprintf_s(pos_name, "C:\\MANUS\\CommonSpace\\movement_files\\pos%04d-%02d-%02d.txt", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
 	ofstream posit;
-	posit.open("C:\\MANUS\\CommonSpace\\movement_files\\pos.txt", ios::app);
+	posit.open(pos_name, ios::app);
 	float dist;
 	dist = sqrt((double)((pos[0]) * (pos[0]) + (pos[1]) * (pos[1]) + (pos[2]) * (pos[2])));
 
 	printf("[%d]  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f  %06.2f %06.2f(%1d) \n",
 		speed_mode, pos[0], pos[1], pos[2], pos[3], pos[4], pos[5], speed[7], (block_all_motions ? 1 : 0));
 	int time_check = TimeCheck();
-	posit << time_check << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " << speed[7] << "\n";
+	posit << t->tm_hour << ":" << t->tm_min << ":" << t->tm_sec << "  " << pos[0] << " " << pos[1] << " " << pos[2] << " " << pos[3] << " " << pos[4] << " " << pos[5] << " " << 
+		    speed[7] << "  " << btn_cmd << "  " << spaceMouseEnabled << "  " << spaceMouseMode << "  " <<
+			spacemouse_operation[0] << "  " << spacemouse_operation[1] << "  " << spacemouse_operation[2] << "  " << 
+		    spacemouse_operation[3] << "  " << spacemouse_operation[4] << "  " << spacemouse_operation[5] << "  " << "\n";
 
 	if ((fabs(task_goal_pos[0] - pos[0]) < 50.0f) && (fabs(task_goal_pos[1] - pos[1]) < 50.0f) && (robot_in_out_of_range == false))
 	{
@@ -1424,6 +1441,7 @@ bool Open_Grabber(void)
 // that particular input. Also the Mode or Cbox is set from the keyboard input.
 void ManualControl(char ch)
 {
+	//btn_cmd = ch;
 	FILE* fid;
 	ifstream infile;
 
@@ -1567,7 +1585,7 @@ void ManualControl(char ch)
 	case ' ': {
 		grasp_test = 0;
 		grasp_inipos = 0;
-
+		grasp_flag = 0;
 		//update_sug = 1;// zc for testing button suggestion
 		//suggestedButtonSwitch = 'Z';
 		//block_camcls_move();// for test 
@@ -1840,23 +1858,42 @@ void ManualControl(char ch)
 				if (spaceMouseMode == 0) {// arm mode
 					//1,2,3 xyz
 					for (int i = 1; i < 4; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i-1]= 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] =  0;
+
+					}
+
 					for (int i = 4; i < 7; i++)
+					{
 						speed[i] = 0;
+						spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 1) {  // wrist mode
 					//4,5,6 ypr
 					for (int i = 4; i < 7; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1*sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 					for (int i = 1; i < 4; i++)
+					{
 						speed[i] = 0;
+					}
 				}
 				else if (spaceMouseMode == 2)  // hybird mode
 				{
 					for (int i = 1; i < 4; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_translation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 					for (int i = 4; i < 7; i++)
+					{
 						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_rotation_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 3)  // hybird mode in gripper frame
 				{
@@ -1866,14 +1903,16 @@ void ManualControl(char ch)
 
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
-						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						spacemouse_operation[i-1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
 							command_max = sp_command[i - 1];
 							command_axis = i - 1;
 						}
 					}
-
+					
+					
 					switch (command_axis)//-1 : no motion,all speed are 0; 0: along forward/ backward,  1: L\R   ,2: up/down 
 					{
 					case(0)://0 : along forward / backward
@@ -1934,9 +1973,12 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-
+					spacemouse_operation[command_axis] = 1*sign(command_max);
 					for (int i = 4; i < 7; i++)
-						abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+					{
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+					}
 				}
 				else if (spaceMouseMode == 5)  // hybird mode in gripper frame
 				{
@@ -1946,7 +1988,8 @@ void ManualControl(char ch)
 
 					for (int i = 1; i < 4; i++)//   space mouse only move along the axis has the highest command 
 					{
-						abs(spaceMouse[i - 1]) > 1700 ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? sp_command[i - 1] = spaceMouse[i - 1] : sp_command[i - 1] = 0;
+						spacemouse_operation[i - 1] = 0;//set the operation in all x y z to zero fisrt, then set the command_axis to 1 later.
 						if (abs(sp_command[i - 1]) > 0 && abs(sp_command[i - 1]) > abs(command_max))
 						{
 							command_max = sp_command[i - 1];
@@ -2013,7 +2056,7 @@ void ManualControl(char ch)
 						break;
 					}
 					//abs(spaceMouse[i - 1])>1800 ? speed[i] = linear_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
-
+					spacemouse_operation[command_axis] = 1*sign(command_max);
 					if (command_axis == 0 && command_max > 0)
 					{
 
@@ -2021,7 +2064,10 @@ void ManualControl(char ch)
 					else
 					{
 						for (int i = 4; i < 7; i++)
-							abs(spaceMouse[i - 1]) > 1800 ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+						{
+							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? speed[i] = angular_speed_limit[speed_mode] * sign(spaceMouse[i - 1]) : speed[i] = 0;
+							abs(spaceMouse[i - 1]) > spacemouse_hybrid_sensitivity ? spacemouse_operation[i - 1] = 1 * sign(spaceMouse[i - 1]) : spacemouse_operation[i - 1] = 0;
+						}
 					}
 				}
 				spm_operation = 0;
@@ -2040,7 +2086,7 @@ void ManualControl(char ch)
 		}
 		break;
 	default:
-
+		btn_cmd = '*';
 		for (int i = 0; i < 8; i++)
 			speed[i] = 0;
 		if ((cbox == FOLD_IN) || (cbox == FOLD_OUT))
@@ -2145,9 +2191,9 @@ void Decode(TPCANMsg& rcvMsg, TPCANMsg& xmitMsg)
 
 			//
 
-			pos[3] = pos[3] - 2;//-0*1.2
-			pos[4] = pos[4];//-0*2.6
-			pos[5] = pos[5];//zc -0*5.2
+			pos[3] = pos[3]+1.5 ;//-0*1.2
+			pos[4] = pos[4]-5.8;//-0*2.6
+			pos[5] = pos[5]+3.7;//zc -0*5.2
 			if (pos[5] < -180.0)
 				pos[5] = 360 - abs(pos[5]);
 			if (reverse_flag)
@@ -3497,27 +3543,35 @@ void LPScheck(void)
 //	printf("Position: %.3f",cur_position);
 //}
 
-void ReadPosit(double cur_pos)//with position filter
+void ReadPosit(void)//with position filter
 {
-	register char read_pos_str[256], read_str[256];
+	register char read_pos_str[256], read_str[256], read_str2[256];
+	double cur_pos,cur_pos_y;
 	//SleepMs(3);
 	pos_vel->SetReadPos(0);
 	pos_vel.Lock();
-	pos_vel->Read((unsigned char *)read_pos_str, 8 * sizeof(BYTE), 0);
+	pos_vel->Read((unsigned char *)read_pos_str, 20 * sizeof(BYTE), 0);
 	pos_vel.Unlock();
 
-	memcpy(read_str, read_pos_str, 8 * sizeof(BYTE));
+	memcpy(read_str, read_pos_str, 10 * sizeof(BYTE));
 	cur_pos = (double)atof((const char *)read_str);
 	cur_pos_nf = cur_pos;
+
+	memcpy(read_str2, read_pos_str+10, 10 * sizeof(BYTE));
+	cur_pos_y = (double)atof((const char *)read_str2);
+	cur_pos_nf_y = cur_pos_y;
+
 	//exp smoothing
 
 	cur_pos_f = al * cur_pos + (1 - al)*o_p;
 	o_p = cur_pos_f;
-
+	cur_pos_f_y = al * cur_pos_y + (1 - al)*o_p_y;
+	o_p_y = cur_pos_f_y;
 	//cur_position = cur_pos*1000;
 	cur_position = cur_pos_f;
+	cur_position_y = cur_pos_f_y;
 	gotoxy(1, 33);
-	printf("Position: %.3f", cur_position);
+	printf("Position: %.3f      position_y: %.3f", cur_position,cur_position_y);
 }
 
 void ReadVel(void)
@@ -3525,18 +3579,28 @@ void ReadVel(void)
 	cur_t = TimeCheck();
 	dtt = cur_t - old_t;
 	cur_velocity = (cur_position - old_position) / (cur_t - old_t);
+	cur_velocity_y = (cur_position_y - old_position_y) / (cur_t - old_t);
 	//cur_velocity = (cur_position-old_position)/(2);
 	old_t = cur_t;
 	old_position = cur_position;
+	old_position_y = cur_position_y;
 
 	cur_velocity_f = b2[0] * cur_velocity + b2[1] * x2d[0] + b2[2] * x2d[1] - a2[0] * y2d[0] - a2[1] * y2d[1];
 	x2d[1] = x2d[0];
 	x2d[0] = cur_velocity;
 	y2d[1] = y2d[0];
-	y2d[0] = cur_velocity_f;
+	y2d[0] = cur_velocity_f;	
+
+	cur_velocity_f_y = b2[0] * cur_velocity_y + b2[1] * x2d_y[0] + b2[2] * x2d_y[1] - a2[0] * y2d_y[0] - a2[1] * y2d_y[1];
+	x2d_y[1] = x2d_y[0];
+	x2d_y[0] = cur_velocity_y;
+	y2d_y[1] = y2d_y[0];
+	y2d_y[0] = cur_velocity_f_y;
+
+	
 
 	gotoxy(1, 32);
-	printf("Velocity: %.3f", cur_velocity_f);
+	printf("Velocity: %.3f  vel_y: %.6f", cur_velocity_f,cur_velocity_f_y);
 }
 
 //
@@ -3631,7 +3695,7 @@ void GraspController(void)
 		SleepMs(3);
 		ReadForce(cur_force);
 		//ReadSlip(cur_velocity);
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 
 		//force_que[Que_count] = cur_force;
@@ -3847,7 +3911,7 @@ void Readblock_dir(void)
 	btn_pressed = (int)atof((const char *)read_str);
 
 	user_oprt[0] = user_oprt[1];//check user is operation or not
-	if (btn_pressed == 1 || spm_operation > 0)
+	if (btn_pressed == 1 || spm_operation > 1500)
 		user_oprt[1] = 1;
 	else if (btn_pressed == 0 && spm_operation == 0)
 		user_oprt[1] = 0;
@@ -3911,7 +3975,7 @@ void init_grasp(void)
 			P_int = pos[6];
 		}
 
-		if (abs(cur_velocity_f) > 0.005 / 1000 && cur_force > 0.1 && grasp_flag == 0) // new algoritm
+		if (abs(cur_velocity_f) > 0.005 / 1000 && cur_force > 4 && grasp_flag == 0) // new algoritm
 		{
 			ResetAll();
 			ReadForce(cur_force);
@@ -3946,12 +4010,13 @@ void init_grasp(void)
 
 void regrasp(void)
 {
-	int adj_time_out = 5000;
+	int adj_time_out = 2000;
 	grasp_end = 0;
 	grasp_start = 0;
 	grasp_npos = pos[6];
 	e_force = cur_force - F_d;
 	e_pos = pos[6] - stoppos;
+	cur_velocity_f_in = cur_velocity_f; //sqrt(pow(cur_velocity_f, 2) + pow(cur_velocity_f_y, 2));
 
 	if (grasp_flag == 10 && (TimeCheck() - ini_adt) <= adj_time_out)
 	{
@@ -4047,15 +4112,15 @@ void regrasp(void)
 		last_w_hat = w_hat;
 		last_u_hat = u_hat;
 		w_hat += gamma1 * cur_distance;//gamma1*cur_distance + .625
-		u_hat_dot = -gamma2 / u_hat * (w_hat + k * cur_velocity_f)*cur_velocity_f;//-gamma2/u_hat*w_hat*cur_velocity_f
+		u_hat_dot = -gamma2 / u_hat * (w_hat + k * cur_velocity_f_in)*cur_velocity_f_in;//-gamma2/u_hat*w_hat*cur_velocity_f
 		u_hat += u_hat_dot * dt0 / 1000;
 		if (u_hat <= 0.2)
 			u_hat = 0.2;
 		old_pos = cur_position;
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f);
+		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);
 
 
-		if (F_d > 6) { F_d = 6; }
+		if (F_d > 16) { F_d = 16; }
 		if (F_d < 0) { F_d = 3; }
 		//P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
 		gotoxy(1, 34);
@@ -4092,8 +4157,9 @@ void regrasp(void)
 
 	if (cur_force < 0.2)
 	{
-		last_w_hat = 6;//2     
+		  
 		last_u_hat = 2;//2   
+		last_w_hat = 14;//2   
 	}
 
 
@@ -4119,7 +4185,7 @@ void regrasp(void)
 		//float cur_distance;
 		old_pos = cur_position;
 
-		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f);//original approach
+		F_d = (1 / u_hat)*(w_hat + k * cur_velocity_f_in);//original approach
 
 													 //P_d = P_int+(p1*pow(F_d,3)+p2*pow(F_d,2)+p3*F_d+p4);
 
@@ -4142,7 +4208,7 @@ void regrasp(void)
 
 
 
-	if (((cur_force > 0.2) && (abs(cur_velocity_f) > 0.25 / 1000) &&
+	if (((cur_force > 0.2) && (abs(cur_velocity_f_in) > 0.25 / 1000) &&
 		!grab_in_progress && !open_in_progress && (grasp_flag == 0)
 		&& (TimeCheck() - hold_init) > 1000))
 	{
@@ -4215,7 +4281,8 @@ void oneclick(void)
 
 
 	}
-	else if (oneclick_mode == 1)  // after assistant was turned on,until Matlab fnished processing, keep checking flag file.
+	else if (oneclick_mode == 1)  //oneclick_mode=1 indicate the stage : after assistant was turned on,until Matlab fnished processing, keep checking flag file.
+									// all the feedback cases was written in GUI.Functions.cpp arount 5178 line: switch(oneclick_mode)
 	{
 		char Mflag_str[256];
 		sprintf_s(Mflag_str, "C:\\MANUS\\CommonSpace\\Assistant\\Mflag.txt");
@@ -4408,20 +4475,26 @@ void oneclick(void)
 		//	suggestedButtonSwitch = 'Z';
 		//}
 		//suggest_btn2(ee_deltaPosition);
-		if (spaceMouseEnabled && (spaceMouseMode != 3))
-		{
-			if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
-				//after mode switching , start over the suggestion 
+		//if (oneclick_mode < 6)
+		//{
+			if (spaceMouseEnabled && (spaceMouseMode != 3))
 			{
-				update_sug = 1;
-				suggestedButtonSwitch = 'Z';
+				if (spaceMouseEnabled != spaceMouseEnabled_old || spaceMouseMode != spaceMouseMode_old)
+					//after mode switching , start over the suggestion 
+				{
+					if (suggestedButtonSwitch != 'X')
+					{
+						update_sug = 1;
+						suggestedButtonSwitch = 'Z';
+					}
+				}
+				suggest_btn2(deltaPosition, 0);
 			}
-			suggest_btn2(deltaPosition, 0);
-		}
-		else
-		{
-			suggest_btn2(ee_deltaPosition, 1);
-		}
+			else
+			{
+				suggest_btn2(ee_deltaPosition, 1);
+			}
+		//}
 
 
 
@@ -4436,16 +4509,17 @@ void oneclick(void)
 
 		// if user move the robot away far from the desire position, change assist mode to phase 1: reaching the object
 		if (
-			(fabs(deltaPosition[1]) > 20) ||
+			((fabs(deltaPosition[1]) > 20) ||
 			(fabs(deltaPosition[2]) > 20) ||
 			(abs(deltaPosition[3]) > 7) ||
 			(abs(deltaPosition[4]) > 7) ||
-			(abs(deltaPosition[5]) > 7))
+			(abs(deltaPosition[5]) > 7))&& oneclick_mode>4)
 		{
 
 			if (deltaPosition[0] > 70)
 			{
 				fine_adjust = '0';//if deltaposion larger than the threshold,  active the reaching phase
+				oneclick_mode = 5;
 			}
 		}
 
@@ -4804,7 +4878,9 @@ int viewcheck(float Position[6], int axis, float offset, int ee, bool small_boun
 	int right_bound = 640 - left_bound;
 	int up_bound = small_bound ? 40 : 60;
 	int bottom_bound = 480 - up_bound;
-
+	float overshoot=0;
+	(axis < 3) ? overshoot = 10.0 : overshoot = 5.0;
+	offset = offset + overshoot;
 	Matrix<3, 3> EE2W_m2, EE2c, EE2W_m2_t;
 	Matrix<3, 1> p_frame, ROB_pos, camera_offset, testt, wa, ca;
 	int track_x, track_y;
@@ -4948,12 +5024,50 @@ void Operation_check(void)
 		}
 	}
 
-	if (user_cmd != 10 && user_cmd != suggestedMotion)
+
+	if (user_oprt[0] == 1 && user_oprt[1] == 0)// monitor the user operation has started for the suggestion update
 	{
-		move_as_suggested = false;
+		oprt_end = true;
 	}
-	else {
-		move_as_suggested = true;// if no operation in list, then turn the flag to true.
+	else if (user_oprt[0] == 0 && user_oprt[1] == 0)
+	{
+		oprt_end = false;
+	}
+
+	//if (previousSuggestedMotion != 9)
+	//{
+		if (user_oprt[1] == 1)// specific order to make the button suggestion updated correctly.   modified with caution!!
+		{
+			if (user_cmd == suggestedMotion&& suggestedMotion!=9)
+			{
+				move_as_suggested[0] = move_as_suggested[1];
+				move_as_suggested[1] = 1;
+				move_as_suggested[2] = 1;
+			}
+			else if (user_cmd != 10)
+			{
+				move_as_suggested[0] = move_as_suggested[1];
+				move_as_suggested[1] = 2;// if no operation in list, then turn the flag to true.
+			}
+		}
+		else if (user_oprt[0] == 1 && user_oprt[1] == 0)
+		{
+			move_as_suggested[0] = move_as_suggested[1];
+			move_as_suggested[1] = 0;
+
+		}
+		else {
+			move_as_suggested[0] = move_as_suggested[1];
+			move_as_suggested[1] = 0;
+			move_as_suggested[2] = 0;
+		}
+	//}
+	if (oprt_end&&move_as_suggested[1] == 0 && move_as_suggested[0] == 2&&move_as_suggested[2]!=1&& suggestedButtonSwitch!='X')
+	{
+		gotoxy(1, 59);
+		printf("!!!!sugg  update :          %d", TimeCheck());
+			update_sug = 1;
+			suggestedButtonSwitch = 'Z';
 	}
 
 }
@@ -4963,6 +5077,9 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 	Matrix<3, 1> wa, ca;
 	float temp_pos[6];
 	float dist_cam;
+	float overshoot = 0;
+	(axis < 3) ? overshoot = 10.0 : overshoot = 5.0;
+	offset = offset + overshoot;
 	bool cam_c = false;
 
 	for (int i = 0; i < 6; i++)
@@ -5001,7 +5118,7 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 
 
 	int thre;
-	roll_correction ? thre = 42 : thre = 38;
+	roll_correction ? thre = 46 : thre = 42;
 	if (dist_cam < thre)
 	{
 		//ResetAll();
@@ -5127,6 +5244,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 	float positionThreshold = 10;
 	int coe_e = 2;//global?
 	int axis = 6;
+	int sug_order = 9;
 	float cam_dist;
 	bool cam_cls_flag = false;
 	//int thres;
@@ -5141,39 +5259,39 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		//if (init_sug&&suggestedButtonSwitch != 'X')
 		//	init_sug = false;
 
+	Operation_check();
+
+	//if (user_oprt[0] == 1 && user_oprt[1] == 0 )// monitor the user operation has started for the suggestion update
+	//{
+	//	oprt_end = true;
+	//}
+	//else if (user_oprt[0] == 0 && user_oprt[1] == 0)
+	//{
+	//	oprt_end = false;
+	//}
 
 
-	if (user_oprt[0] == 0 && user_oprt[1] == 1 )// monitor the user operation has started for the suggestion update
-	{
-		oprt_start = true;
-	}
-	else if (user_oprt[0] == 1 && user_oprt[1] == 0)
-	{
-		oprt_start = false;
-	}
-
-
-	if (!move_as_suggested&&oprt_start&& update_sug != 1)
-	{
-		update_sug = 1;
-		suggestedButtonSwitch = 'Z';
-		oprt_start = false;
-		gotoxy(1, 56);
-		printf("sugg: updated   %d",TimeCheck());
-	}
-	else
-	{
-		gotoxy(1, 57);
-		printf("sugg:          %d",TimeCheck());
-	}
+	//if (move_as_suggested[0]==0&&move_as_suggested[1]==1&& update_sug != 1)
+	//{
+	//	update_sug = 1;
+	//	suggestedButtonSwitch = 'Z';
+	//	oprt_end = false;
+	//	gotoxy(1, 56);
+	//	printf("sugg: updated   %d",TimeCheck());
+	//}
+	//else
+	//{
+	//	gotoxy(1, 57);
+	//	printf("sugg:          %d",TimeCheck());
+	//}
 
 
 	gotoxy(1, 55);
-	printf("oprt_start: %d     move_as_suggested:   ", oprt_start, move_as_suggested);
+	printf("oprt_end: %d     move_as_suggested:  %d ", oprt_end, move_as_suggested[1]);
 
 	if (update_sug)//global
 	{
-
+		//sugg_order = 
 		if (suggestedButtonSwitch == 'x')//forward direction
 			axis = 0;
 		else if (suggestedButtonSwitch == 'Y')// left\right direction
@@ -5191,9 +5309,10 @@ void suggest_btn2(float deltaPosition[13], int ee)
 			update_sug = 0;
 			axis = 6;
 		}
+		sug_order = SUG_order[axis];
 
 		if (axis != 6)
-			bool cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
+			cam_cls_flag = cam_cls_check(currentPosition, axis, deltaPosition[axis], ee, true);// check is there a collision when compensate the error in current direction
 
 
 		if (D2obj > 275)
@@ -5246,12 +5365,13 @@ void suggest_btn2(float deltaPosition[13], int ee)
 						if (cam_cls_flag2 != 0)
 							// if the planed movement will collide , change to next direction, order :1.up/down  2.pitch 3.left/right  4.yaw  5. forward/backward  6. roll
 						{
-							if (axis != 5)
+
+							if (sug_order != 5)
 							{
-								suggestedButtonSwitch = suggested_btn_order[axis + 1];
+								suggestedButtonSwitch = suggested_btn_order[sug_order + 1];
 							}
 							else
-								suggestedButtonSwitch = suggested_btn_order[0];
+								suggestedButtonSwitch = suggested_btn_order[4];
 
 							return;// jump out of the function start the suggestion again
 						}
@@ -5422,7 +5542,7 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		//	thres = positionThreshold;
 		//else
 		//	thres = (moveL[0]);
-		if (abs(deltaPosition[0]) > abs(thres))// Z 
+		if (deltaPosition[0] > thres)// Z 
 		{
 			if (deltaPosition[0] > 0)
 			{
@@ -5456,17 +5576,22 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		}
 		else
 		{
-			if (abs(deltaPosition[0]) < positionThreshold)
-			{
-				suggestedButtonSwitch = 'X';
-				update_sug = 1;
-			}
-			else if ((abs(deltaPosition[0]) < positionThreshold) &&
+			if ((abs(deltaPosition[0]) < positionThreshold) &&
 				(fabs(deltaPosition[1]) < positionThreshold) &&
 				(fabs(deltaPosition[2]) < positionThreshold) &&
 				(abs(deltaPosition[3]) < rotationThreshold) &&
 				(abs(deltaPosition[4]) < rotationThreshold) &&
 				(abs(deltaPosition[5]) < rotationThreshold))
+			{
+				suggestedButtonSwitch = 'X';
+				update_sug = 1;
+			}
+			else if (!((abs(deltaPosition[0]) < positionThreshold) &&
+				(fabs(deltaPosition[1]) < positionThreshold) &&
+				(fabs(deltaPosition[2]) < positionThreshold) &&
+				(abs(deltaPosition[3]) < rotationThreshold) &&
+				(abs(deltaPosition[4]) < rotationThreshold) &&
+				(abs(deltaPosition[5]) < rotationThreshold)))
 			{
 				suggestedButtonSwitch = 'Z';
 				init_sug = true;
@@ -5480,12 +5605,12 @@ void suggest_btn2(float deltaPosition[13], int ee)
 		break;
 	case 'X'://
 		suggestedMotion = 9; //2,3
-		if (!(((deltaPosition[0]) < 4 * positionThreshold) &&
-			(fabs(deltaPosition[1]) < 4 * positionThreshold) &&
-			(fabs(deltaPosition[2]) < 4 * positionThreshold) &&
-			(abs(deltaPosition[3]) < 4 * rotationThreshold) &&
-			(abs(deltaPosition[4]) < 4 * rotationThreshold) &&
-			(abs(deltaPosition[5]) < 4 * rotationThreshold)))
+		if (!(((deltaPosition[0]) < 8 * positionThreshold) &&
+			(fabs(deltaPosition[1]) < 10 * positionThreshold) &&
+			(fabs(deltaPosition[2]) < 10 * positionThreshold) &&
+			(abs(deltaPosition[3]) < 8 * rotationThreshold) &&
+			(abs(deltaPosition[4]) < 8 * rotationThreshold) &&
+			(abs(deltaPosition[5]) < 8 * rotationThreshold)))
 		{
 			suggestedButtonSwitch = 'Z';
 			// if current position is out of the preset region of the desire position, start the suggested again

@@ -218,6 +218,8 @@ int main(int argc, char* argv[])
 		{ 
 		case MANUAL_MODE:
 
+
+			
 			//Brandon/Mat 12/15/16
 			spaceMouseEnabled_old = spaceMouseEnabled;
 			spaceMouseEnabled = spaceButtons[2];//Sets the enable state to the toggle state of pressing both buttons
@@ -243,8 +245,8 @@ int main(int argc, char* argv[])
 			}
 			gotoxy( 1, 20);
 			spaceMouseEnabled?
-				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested)
-				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested);
+				printf("Space Mouse Enabled [Mode]: %d [GRIP]: %d  [stop flag]: %d  move as suggest %d ", spaceMouseMode,spaceButtonsToggle[1], spaceMouse_stop, move_as_suggested[1])
+				:printf("Space Mouse Disabled                         move as suggest %d  ", move_as_suggested[1]);
 			if ( ( init_system ) && ( rcvMsg.ID == 0x37f ) )
 			{
 				switch (init_action)
@@ -287,16 +289,19 @@ int main(int argc, char* argv[])
 				{
 					ManualControl('j');//close
 					spm_gripper = 1;
+					spacemouse_operation[2] = -1;
 				}
 				else if (spaceMouse[2] > 500)
 				{
 					ManualControl('u');//open
 					spm_gripper = 2;
+					spacemouse_operation[2] = 1;
 				}
 				else if (spaceMouse[2] < 300 && spaceMouse[2]>-300)
 				{
 					ManualControl(' ');
 					spm_gripper = 0;
+					spacemouse_operation[2] = 0;
 				}
 			}
 			//else if (spaceMouseEnabled&& spaceMouseMode == 5)// one click mode
@@ -334,23 +339,40 @@ int main(int argc, char* argv[])
 			}    
 			else
 			{
-				if ( myRcv.command != NULL )
+				//if ( myRcv.command != NULL )
+				//{
+				//	ch = myRcv.command;
+				//	btn_cmd = ch;
+
+				//	ManualControl( ch );  //GUI button command
+				//	myRcv.key.unlock();
+				//	myRcv.key.writeLock();
+				//	myRcv.command = NULL;
+				//	myRcv.key.unlock();
+				//}
+				//else
+				//{
+				//	myRcv.key.unlock();
+				//	//btn_cmd = '~';
+				//}
+				if (myRcv.command == NULL)
+				{
+					myRcv.key.unlock();
+					//btn_cmd = '~';
+				}
+				else
 				{
 					ch = myRcv.command;
 					btn_cmd = ch;
-					gotoxy(1,42);
-					cout << (btn_cmd=='n') << endl;
-					ManualControl( ch );  //GUI button command
+
+					ManualControl(ch);  //GUI button command
 					myRcv.key.unlock();
 					myRcv.key.writeLock();
 					myRcv.command = NULL;
 					myRcv.key.unlock();
 				}
-				else
-				{
-					myRcv.key.unlock();
-					btn_cmd = ' ';
-				}
+				gotoxy(1, 42);
+				cout << btn_cmd << endl;
 			}			
 
 			// Translate to eliminate the offset.
@@ -635,6 +657,7 @@ int main(int argc, char* argv[])
 			for ( int i = 0 ; i < 8 ; ++i )        
 				speed[i] = 0;			
 			ShowStatus( "STAT: Job Complete\n" );
+			btn_cmd = '*';
 			break;
 		}
 
@@ -654,23 +677,27 @@ int main(int argc, char* argv[])
 
 		//ReadSlip(cur_velocity);
 
-		ReadPosit(cur_position);
+		ReadPosit();
 		ReadVel();
 		ReadOBJ();
 		SleepMs(2);
+		UpdateSpaceMouse(spacemousearray);
+		Readblock_dir();
+		ReadTaKK();
+
 		if (assistant_flag)
 		{
 			oneclick();
 		}
 
 
-		UpdateSpaceMouse(spacemousearray);
+		
 		//ReadSugspeed();
 
 		//cout << "x  " << suggspeed[0] << "   Y  " << suggspeed[1] << "   Z  " << suggspeed[2] 
 		//	<< "   yal  " << suggspeed[3] << "   pitch  " << suggspeed[4] << "   rool  " << suggspeed[5]  << endl;
 		//cout << TimeCheck() << endl;
-		ReadTaKK();
+		
 		//if(!grab_in_progress )
 		//	for(int i = 0;i < 12; i++)
 		//		init_takk[i] = cur_takk[i];
@@ -690,8 +717,8 @@ int main(int argc, char* argv[])
 		//gotoxy(1, 50);
 		//cout <<"status"<< new_status<< auto_mode_start <<"pressed"<<suggspeed[6]<< endl;
 
-		Readblock_dir();
-		Operation_check();
+		
+		
 		////  Mushtaq
 		float cam_dist;
 		cam_dist = DistanceBetween_Camera_Link3(pos);

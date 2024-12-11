@@ -105,7 +105,7 @@ char reliable(int num,char val);					//function meant to make the robot less rel
 void ReadForce(float cur_for);						//function to read force data from shared memory
 void ReadLPS(int *LPS_value);						//function to read LPS data from shared memory
 //void ReadSlip(double cur_vel);						//function to read slip sensor velocity data from shared memory
-void ReadPosit(double cur_vel);						//function to read slip sensor position data from shared memory
+void ReadPosit();						//function to read slip sensor position data from shared memory
 void ReadTaKK(void);					//function to read takktile sensor data
 void GraspController(void);							//Controller for slip detection 
 void LowPassFilter( void );							//Lowpass filter for velocity data
