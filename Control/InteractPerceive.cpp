@@ -199,10 +199,12 @@ int InteractPerceive::do_ip_start()
 	char defaults;
 	std::stringstream logstr;
 
+	// Prompt user for defaults or custom
 	gotoxy(1, 46);
 	std::cout << "Please enter \"D\" for defaults, or anything else for custom speeds: ";
 	std::cin >> defaults;
 
+	// std::cin will remain broken until a failure is cleared if a failure occurs, so clear it now
 	if (std::cin.fail())
 	{
 		logstr << "Invalid input! Please enter a valid number.";
@@ -215,17 +217,22 @@ int InteractPerceive::do_ip_start()
 	// Setup default values
 	else if ('D' == defaults)
 	{
-		_w_dy = 6; // Oscillation speed
+		//_w_dy = 6; // Oscillation speed
+		_w_dy = 2; // 6 with oscillation count = 4, 2 with oscillation count = 16
+
 		_v_dx = 10; // Forward movement speed
-		_threshold[0] = _threshold[1] = _threshold[2] = -0.36; // Threshold for forward or wiggle
-		_oscillation_count = 4; // Count of controller cycles over which "wiggle" motion is created
+
+		_threshold[0] = _threshold[1] = _threshold[2] = -0.37; // Threshold for forward or wiggle
+
+		//_oscillation_count = 4; // Count of controller cycles over which "wiggle" motion is created
+		_oscillation_count = 16; // 16 ~= 1 second. Each "Count" makes the cycle 60ms longer
 	}
 	// Grab values from user
 	else
 	{
 		gLogger->clear_ip_status();
 		gotoxy(1, 46);
-		std::cout << "Please enter the desired wiggling speed (from -10 to 10): ";
+		std::cout << "Please enter the desired wiggling speed (from -15 to 15): ";
 
 		float tmp = 0;
 		std::cin >> tmp;
@@ -239,7 +246,7 @@ int InteractPerceive::do_ip_start()
 			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
 			return IP_ERROR;
 		}
-		else if (tmp < -10.0f || tmp > 10.0f)
+		else if (tmp < -15.0f || tmp > 15.0f)
 		{
 			logstr << "Given speed <" << tmp << "> is out of bounds!";
 			gLogger->print_ip_error(logstr.str());
@@ -278,7 +285,7 @@ int InteractPerceive::do_ip_start()
 
 		gLogger->clear_ip_status();
 		gotoxy(1, 46);
-		std::cout << "Please enter the desired force threshold! (from -5 to 0): ";
+		std::cout << "Please enter the desired force threshold! (from -6 to 6): ";
 		std::cin >> tmp;
 
 		if (std::cin.fail())
@@ -290,7 +297,7 @@ int InteractPerceive::do_ip_start()
 			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
 			return IP_ERROR;
 		}
-		else if (tmp < -3.0f || tmp > 3.0f)
+		else if (tmp < -6.0f || tmp > 6.0f)
 		{
 			std::stringstream logstr;
 			logstr << "Given threshold <" << tmp << "> is out of bounds!";
@@ -304,7 +311,7 @@ int InteractPerceive::do_ip_start()
 
 		gLogger->clear_ip_status();
 		gotoxy(1, 46);
-		std::cout << "Please enter the desired oscilaltions per sec! (from 0 to 10): ";
+		std::cout << "Please enter the desired oscilaltions per sec! (from 0 to 100): ";
 		std::cin >> tmp;
 
 		if (std::cin.fail())
@@ -316,7 +323,7 @@ int InteractPerceive::do_ip_start()
 			std::cin.ignore(10000, '\n');  // Ignore the rest of the input line
 			return IP_ERROR;
 		}
-		else if (tmp < 0 || tmp > 10.0f)
+		else if (tmp < 0 || tmp > 100.0f)
 		{
 			std::stringstream logstr;
 			logstr << "Given oscillations <" << tmp << "> is out of bounds!";
@@ -396,10 +403,13 @@ int InteractPerceive::do_ip_grasp()
 	for (int i = 0; i < 8; i++)
 		speed[i] = 0;
 
-	// Keep steady force as needed , more negative = more force
+	// Keep steady force as needed, more negative = more force
 	// Only do force, no wiggling until we touch the object
 	if (_current_FT[X] > _threshold[X])
 	{
+		// @TODO: Fix this speed control
+		//		  should back off if force is too high, but that is not currently happening. WHY!?!?
+		//		  well because its not handled doofus
 		float forward_speed = _v_dx * (1.0f - (static_cast<float>(_current_FT[X] / _threshold[X])));
 		if (forward_speed > _v_dx)
 			forward_speed = _v_dx;
@@ -454,7 +464,8 @@ int InteractPerceive::do_ip_grasp()
 		}
 
 		float new_speed = _w_dy;
-		float speed_offset = 4.0f;
+		//float speed_offset = 1.0f;
+		 float speed_offset = 0;
 		// Get an evenly spaced number of samples so that we correctly average out sine waves
 		//if (0 == _ip_cntr && _ip_osc_loops > 0)
 		if (prev_ft_sz >= num_ft_samples)

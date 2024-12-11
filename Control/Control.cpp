@@ -711,7 +711,7 @@ int main(int argc, char* argv[])
 			force_que[force_count] =  new_force;
 			force_count = ( force_count == 4 ) ? 0 : force_count + 1;
 			old_force = new_force;
-			cout << "Force Que: " << old_force << endl;
+			cout << ", Force Queue: " << old_force << endl;
 			force_t = TimeCheck();
 		}
 

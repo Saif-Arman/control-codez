@@ -4188,7 +4188,7 @@ void ReadLPS(int* LPS_value)
 
 
 	gotoxy(1, 31);
-	printf("LPS  Left: %4d ,Right: %4d", LPS_value[0], LPS_value[1]);
+	printf("LPS Left: %4d, Right: %4d", LPS_value[0], LPS_value[1]);
 }
 
 //-----------------------------------------------------------------------------------

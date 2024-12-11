@@ -71,11 +71,11 @@ private:
     };
 
     // Function to build the KD-tree
-    KDNode* buildKDTree(std::vector<Point>::iterator begin, std::vector<Point>::iterator end, int depth);
+    KDNode* build_KD_tree(std::vector<Point>::iterator begin, std::vector<Point>::iterator end, int depth);
 
     // Function to calculate squared Euclidean distance between two points
-    double squaredDistance(const Point& a, const Point& b);
-    double squaredDistance_ft(const KDTree::Point& a, const KDTree::Point& b);
+    double squared_distance(const Point& a, const Point& b);
+    double squared_distance_ft(const KDTree::Point& a, const KDTree::Point& b);
 
     // Custom comparator for the priority queue
     struct CompareDist
@@ -87,14 +87,14 @@ private:
     };
 
     // Function to delete the KD-tree and free memory
-    void deleteKDTree(KDNode* node);
+    void delete_KD_tree(KDNode* node);
 
-    void readPoints(std::vector<double>& points, std::vector<Point>& pointList);
+    void read_points(std::vector<double>& points, std::vector<Point>& pointList);
 
-    std::array<double, 3> anglesToUnitVector(double yaw, double pitch, double roll);
+    std::array<double, 3> angles_to_radians(double yaw, double pitch, double roll);
 
     // Function to read yaw, pitch, and roll from a CSV file, skipping the first line
-    void readYawPitchRollFromCSV(const std::string& filename, std::vector<Point>& points);
+    void read_yawpitchroll_from_csv(const std::string& filename, std::vector<Point>& points);
 
     std::string _calFile;
 
