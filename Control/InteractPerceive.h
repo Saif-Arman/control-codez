@@ -38,7 +38,7 @@ public:
 	// Invert the interact_perceive routine between running/stopped
 	IntPercState toggle_interact_perceive_state();
 
-	// Gets the current value of _interact_perceive_state
+	// returns the current value of _interact_perceive_state
 	inline IntPercState get_interact_perceive_state() { return _interact_perceive_state; };
 
 	// Main interact perceive loop
@@ -62,7 +62,6 @@ private:
 
 	std::array<double, FT_SIZE> _starting_FT; // FT observed at start of interact perceive routine
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
-
 	std::array<double, FT_SIZE> _threshold; // thresholds we want to trigger interact perceive reactions at from mini at sensor
 	int _grasp_start_time;
 	float _elapsed_grasp_time;
@@ -76,7 +75,6 @@ private:
 	bool _touched_once;
 	std::deque<std::array<double, FT_SIZE>> _prev_FT;
 	std::array<double, 3> _rpy_offsets;
-
 	std::array<double, FT_SIZE> _last_touch_pos; // position that last exceeded the FT threhsold
 	std::array<double, FT_SIZE> _max_FT;
 	std::array<double, FT_SIZE> _min_FT;

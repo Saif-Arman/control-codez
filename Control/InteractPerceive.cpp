@@ -61,7 +61,6 @@ InteractPerceive::~InteractPerceive()
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(IntPercState newstate)
 {
 	_interact_perceive_state = newstate;
@@ -80,7 +79,6 @@ InteractPerceive::IntPercState InteractPerceive::set_interact_perceive_state(Int
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 InteractPerceive::IntPercState InteractPerceive::toggle_interact_perceive_state()
 { 
 	if (STOPPED == _interact_perceive_state)
@@ -94,7 +92,6 @@ InteractPerceive::IntPercState InteractPerceive::toggle_interact_perceive_state(
 };
 
 //------------------------------------------------------------------------------------------------------------
-
 void InteractPerceive::check_force()
 {
 	IntPercState state = _interact_perceive_state;
@@ -117,7 +114,6 @@ void InteractPerceive::check_force()
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 std::string InteractPerceive::get_dir_string(int dir)
 {
 	std::string direction;
@@ -140,7 +136,6 @@ std::string InteractPerceive::get_dir_string(int dir)
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 void InteractPerceive::do_interact_perceive()
 {
 	// only run this if we want interact perceive, otherwise just skip and return
@@ -188,7 +183,6 @@ void InteractPerceive::do_interact_perceive()
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 int InteractPerceive::do_ip_start()
 {
 	gLogger->clear_ip_error();
@@ -360,7 +354,6 @@ int InteractPerceive::do_ip_start()
 }
 
 //------------------------------------------------------------------------------------------------------------
-
 int InteractPerceive::do_ip_grasp()
 {
 	_elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(_grasp_start_time)) / 1000; // in seconds, time spend in START_GRASP state
