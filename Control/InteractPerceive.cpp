@@ -30,10 +30,6 @@ using namespace DIRECTIONS;
 
 InteractPerceive::InteractPerceive()
 	: _interact_perceive_state(STOPPED)
-	, _grasp_start_time(0)
-	, _elapsed_grasp_time(0)
-	, _int_perc_start_time(0)
-	, _max_ft_time(0)
 	, _w_dy(0)
 	, _v_dx(0)
 	, _oscillation_count(0)
@@ -330,7 +326,7 @@ int InteractPerceive::do_ip_start()
 		}
 	}
 
-	_int_perc_start_time = TimeCheck();
+	//_int_perc_start_time = TimeCheck();
 	_starting_FT = FTMgr.get_FT_ee();
 	FTMgr.clear_plot_file();
 
@@ -340,8 +336,6 @@ int InteractPerceive::do_ip_start()
 	new_status = true; // Send the speed commands to the arm
 
 	// Reset needed variables for next state
-	_grasp_start_time = TimeCheck();
-	_max_ft_time = 0;
 	_prev_FT.clear();
 	std::fill(std::begin(_max_FT), std::end(_max_FT), -999);
 	std::fill(std::begin(_min_FT), std::end(_min_FT), 999);
@@ -356,7 +350,7 @@ int InteractPerceive::do_ip_start()
 //------------------------------------------------------------------------------------------------------------
 int InteractPerceive::do_ip_grasp()
 {
-	_elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(_grasp_start_time)) / 1000; // in seconds, time spend in START_GRASP state
+	//_elapsed_grasp_time = (static_cast<float>(TimeCheck()) - static_cast<float>(_grasp_start_time)) / 1000; // in seconds, time spend in START_GRASP state
 	std::array<double, FT_SIZE> avg_ft = { 0, 0, 0, 0, 0, 0 };
 	_current_FT = FTMgr.get_FT_ee();
 	
@@ -460,7 +454,6 @@ int InteractPerceive::do_ip_grasp()
 		//float speed_offset = 1.0f;
 		 float speed_offset = 0;
 		// Get an evenly spaced number of samples so that we correctly average out sine waves
-		//if (0 == _ip_cntr && _ip_osc_loops > 0)
 		if (prev_ft_sz >= num_ft_samples)
 		{
 			if (0 == avg_ft[TX]) // change this to be some tolerance around 0

@@ -63,10 +63,6 @@ private:
 	std::array<double, FT_SIZE> _starting_FT; // FT observed at start of interact perceive routine
 	IntPercState _interact_perceive_state; // Is interact perceive running or not
 	std::array<double, FT_SIZE> _threshold; // thresholds we want to trigger interact perceive reactions at from mini at sensor
-	int _grasp_start_time;
-	float _elapsed_grasp_time;
-	int _int_perc_start_time;
-	float _max_ft_time;
 	float _w_dy;
 	float _v_dx;
 	int _oscillation_count;
