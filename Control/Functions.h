@@ -10,7 +10,7 @@
 #include <windows.h>
 #include <iostream>
 #include <fstream>
-
+#include <math.h> 
 //=============================================================================
 // Project Includes
 //=============================================================================
@@ -27,6 +27,34 @@
 //=============================================================================
 #include "Macro.h"
 #include "Global.h"
+//=============================================================================
+// Grasping Algo 
+//=============================================================================
+#define OPEN_LOOP_GRASPING 3
+#define ADAPTIVE_REGRASPING 1
+#define CHECK_STEADYSTATE_ERROR 2
+#define INITIAL 0
+
+// init_grasp parameters
+//#define contact_force_min 1.5
+#define max_force 20
+#define slip_sensor_d  0.0225 //0.035 // 22.5mm, 35mm
+#define slip_limit 5
+
+namespace DIRECTIONS
+{
+	enum directions
+	{
+		X = 0,
+		Y = 1,
+		Z = 2,
+		ROLL = 3,
+		PITCH = 4,
+		YAW = 5,
+		MAX_DIRECTIONS
+	};
+}
+
 
 //=============================================================================
 // Maths functions.
@@ -39,7 +67,7 @@ inline float sign(float n)
 { 
 	return ( ( n >= 0 ) ? 1.0f : -1.0f ); 
 }
-Matrix<4,4> GWj_Transformation( float *joint );
+Matrix<4, 4> GWj_Transformation(std::array<float, 7>& joint);
 Matrix<3,3> C2W_transform( float *position );
 Matrix<3,3> C2W_transform2( float *position );
 Matrix<3, 3> EE2w_transform3(float *position);//zc test
@@ -82,10 +110,18 @@ void PrintStatus( void );							// Show box mode and check is error on the robot
 // Manus arm control.
 //=============================================================================
 void ResetAll();									// Reset all variables.
+void ResetAll2();									// Reset all variables except speed[3] , Z-axis /mushtaq
 bool Read_D4( void );								// Read first 0x0D4 and 0x4D4
 bool Read_350_360( void );							// Read first 0x350 and 0x360.
 bool Read_37F( void );								// Read first 0x37F.
 bool Open_Grabber( void );							// Open the grabber.
+void stop_arm();									// Stop all arm movement.
+void go_forward(float move_speed = 5.0f);			// Applies linear speed in end effector's Z direction
+int apply_arm_speed(DIRECTIONS::directions direction, float move_speed = 5.0f);			// Applies speed in one of X, Y, Z, ROLL, PITCH, or YAW directions
+void apply_speed(Matrix<3, 1> ca, float move_speed, bool go_linear = true);// Helper function for 1-axis robot movement functions
+void go_speed(std::vector<float>& move_speed);
+void do_grab_object();								// Starts grabbing, stops if something is detected between fingers
+void do_open_grippers();							// Opens grippers all the way
 void ManualControl( char ch );						// Set the variable speed that later will be used to set message data.
 void Decode( TPCANMsg& rcvMsg, TPCANMsg& xmitMsg ); // Decode the information in the packages sent by the Manus.
 void SetTransmitMessage( TPCANMsg& xmitMsg );		// Set the message to be transmitted into the buffer.
@@ -93,6 +129,7 @@ int pd_control2( void );
 int pd_controlJoint( void );// A simple p control given the desired rotation of end effector.
 int checkOneSecond(void);
 int pd_controlx( void );							//
+void go_to_position(float new_pos[6]);
 
 //=============================================================================
 // Miscellaneous.
@@ -103,21 +140,28 @@ bool LoadAll( void );								// Load dll, connect to shared memory and TCP.
 bool UnloadAll( void );								// Unload dll of CAN card, disconnect to shared memory and TCP.
 char reliable(int num,char val);					//function meant to make the robot less reliable
 void ReadForce(float cur_for);						//function to read force data from shared memory
+//void ReadForceTorque(double cur_ft[6]);				//function to read from FT sensor and remove the bias // Mushtaq
+//void ReadForceTorque(double (&cur_ft)[6]);				//function to read from FT sensor and remove the bias // Nick 2024
+//void interact_perceive(void);						    // function for interactive perception// Feb 2022 // Mushtaq
 void ReadLPS(int *LPS_value);						//function to read LPS data from shared memory
 //void ReadSlip(double cur_vel);						//function to read slip sensor velocity data from shared memory
 void ReadPosit();						//function to read slip sensor position data from shared memory
+void ReadPosit2();
 void ReadTaKK(void);					//function to read takktile sensor data
 void GraspController(void);							//Controller for slip detection 
 void LowPassFilter( void );							//Lowpass filter for velocity data
 void LowPassFilter2( void );						//Lowpass filter for position data
 void ReadVel( void );                               //calculate the velocity from position data
+void ReadVel2(void); //  
 void LPScheck(void);
 void SendCommand2(unsigned char target, unsigned char command, unsigned char snd_data);
 void ReadSugspeed(void);
 void Readblock_dir(void);
 void oneclick(void);
-void regrasp(void);
+//void regrasp(void);
 void init_grasp(void);
+void regrasping_algorithm(void);
+void grasping_with_desired_force(float F_desired);
 void ReadOBJ(void);
 void suggest_btn(float *ee_deltaPosition);
 void suggest_btn2(float ee_deltaPosition[13], int ee);
@@ -127,6 +171,11 @@ bool cam_cls_check(float Position[6], int axis, float offset, int ee, bool roll_
 float cam_cls_check2(float Position[6], int axis, float offset, int ee, bool roll_correction);
 void Operation_check(void);
 void block_camcls_move(void);
+void init_grasp2(void);// mushtaq 6/27/2021 for testing FSR
+void regrasping_algorithm2(void);
+
+
+
 #endif
 
 
@@ -245,9 +294,9 @@ static char SbTestCvsId[]="(C) 1998-2015 3Dconnexion: $Id: 3DxTEST32.H 13020 201
 ///* Functions --See cpp file for additional details */
 //
 LRESULT  WINAPI HandleNTEvent (HWND hWnd, unsigned msg, WPARAM wParam, LPARAM lParam);
-int   DispatchLoopNT(); 
+//int   DispatchLoopNT(); 
 void  CreateSPWindow(int, int, int, int, TCHAR *);
-int   SbInit();
+//int   SbInit();
 void  SbMotionEvent(SiSpwEvent *pEvent);
 void  SbZeroEvent();
 void  SbButtonPressEvent(int buttonnumber);
@@ -256,9 +305,3 @@ void  HandleDeviceChangeEvent(SiSpwEvent *pEvent);
 void  HandleV3DCMDEvent(SiSpwEvent *pEvent);
 void  HandleAppEvent(SiSpwEvent *pEvent);
 //#endif
-
-
-//=============================================================================
-// Space Mouse
-//=============================================================================
-

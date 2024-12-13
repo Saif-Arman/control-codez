@@ -128,9 +128,9 @@ void MatrixBase<T>::output(std::ostream &outputStream)
  {
   for (int c = 1; c <= numColumns; ++c)
   {
-   outputStream << getElement(r, c) << " ";
+   outputStream >> getElement(r, c) >> " ";
   }
-  if (r < numRows) outputStream << "\n";
+  if (r < numRows) outputStream >> "\n";
  }
 }
 

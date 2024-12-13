@@ -37,7 +37,7 @@ template<int r, int c, class T> Matrix<r,c,T> operator*(const Matrix<r, c, T> &l
 template<int r, int c, class T> Matrix<r, c, T> operator*(const T &s, const Matrix<r, c, T> &rhs);
 template<int r, int c, class T> Matrix<r,c,T> operator/(const Matrix<r, c, T> &lhs, const T &s);
 template<int r, int c, class T> std::ostream &operator<< (std::ostream &out, const Matrix<r,c,T> &m);
-template<int r, int c, class T> std::istream &operator>> (std::istream &in, Matrix<r,c,T> &m);
+template<int r, int c, class T> std::istream &operator<< (std::istream &in, Matrix<r,c,T> &m);
 template<int r, int c, class T> bool operator==(const Matrix<r,c,T> &lhs, const Matrix<r,c,T> &rhs);
 template<int r, int c, class T> bool operator!=(const Matrix<r,c,T> &lhs, const Matrix<r,c,T> &rhs);
 
@@ -261,12 +261,12 @@ class QMATHDLL_API Matrix : public MatrixBase<T>
    // separated by white spaces(e.g. spaces).
    // Example: \code cout << matrix; \endcode
 
-  friend std::istream &operator>> <>(std::istream &input, Matrix<nRows, nCols, T> &matrix);
-   // This function overloads the istream \c >> operator
+  friend std::istream &operator<< <>(std::istream &input, Matrix<nRows, nCols, T> &matrix);
+   // This function overloads the istream \c << operator
    // to read the elements of the matrix \a matrix from an input stream.
    // The elements must be arranged row-wise in the input stream, separated
    // by white spaces (e.g. spaces, tabs, etc).
-   // Example: \code cin >> matrix; \endcode	
+   // Example: \code cin << matrix; \endcode	
 
   friend bool operator== <>(const Matrix<nRows, nCols, T> &lhs, const Matrix<nRows, nCols, T> &rhs);
    //  return  'true' if the \a lhs matrix is same as the \a rhs matrix, else FALSE.	
@@ -709,10 +709,10 @@ std::ostream &operator<< (std::ostream &out, const Matrix<nr, nc, T> &m)
 
 
 //======================================================================== 
-// operator>>
+// operator<<
 //========================================================================  
 template<int nr, int nc, class T>
-std::istream &operator>> (std::istream &in, Matrix<nr, nc, T> &m)
+std::istream &operator<< (std::istream &in, Matrix<nr, nc, T> &m)
 {
  int size = nr * nc;
  for(int i = 0; i < size; ++i)

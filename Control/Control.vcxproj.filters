@@ -16,6 +16,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\slp_data2.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\sensor_data.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\sensor_data_fsr.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\vel_data.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\t_data.txt" />
+    <None Include="..\..\..\CommonSpace\Sensor_Data\slp_data1.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -78,6 +84,18 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ForceTorqueManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InteractPerceive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ControlLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KDTree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -99,6 +117,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ForceTorqueManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InteractPerceive.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ControlLogger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="KDTree.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
